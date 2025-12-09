@@ -4,6 +4,7 @@ project(HexViewer VERSION 1.0.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -79,11 +80,41 @@ set(HEADERS
     HexViewer/include/searchdialog.h
     HexViewer/include/about.h
     HexViewer/include/contextmenu.h
-	HexViewer/include/language.h
-	
 )
 
 add_executable(HexViewer ${SOURCES} ${HEADERS})
+
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/HexViewerShell")
+    message(STATUS "Found HexViewerShell directory - building DLL")
+    set(HEXVIEWERSHELL_SOURCE HexViewerShell/src/dllmain.cpp)
+
+    add_library(HexViewerShell SHARED ${HEXVIEWERSHELL_SOURCE})
+
+    target_compile_definitions(HexViewerShell PRIVATE UNICODE _UNICODE)
+
+    if(MSVC)
+        set_target_properties(HexViewerShell PROPERTIES
+            LINK_FLAGS "/MACHINE:X64"
+        )
+    endif()
+
+    target_link_libraries(HexViewerShell
+        user32
+        shell32
+        shlwapi
+        runtimeobject
+    )
+
+    set_target_properties(HexViewerShell PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+        ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+    )
+    
+    install(TARGETS HexViewerShell RUNTIME DESTINATION bin)
+else()
+    message(STATUS "HexViewerShell directory not found - skipping DLL build")
+endif()
 
 if(WIN32)
     set_target_properties(HexViewer PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -115,16 +146,8 @@ target_include_directories(HexViewer PRIVATE
 if(MSVC)
     target_compile_options(HexViewer PRIVATE /W3)
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_options(HexViewer PRIVATE
-            /O1
-            /GL
-            /Gy
-        )
-        target_link_options(HexViewer PRIVATE
-            /LTCG
-            /OPT:REF
-            /OPT:ICF
-        )
+        target_compile_options(HexViewer PRIVATE /O1 /GL /Gy)
+        target_link_options(HexViewer PRIVATE /LTCG /OPT:REF /OPT:ICF)
         set_property(TARGET HexViewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
     else()
         set_property(TARGET HexViewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
@@ -158,12 +181,8 @@ if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/HexViewerExten")
             add_executable(HexViewerExten ${HEXVIEWER_EXTERN_SOURCES} ${HEXVIEWER_EXTERN_HEADERS})
            
             target_compile_definitions(HexViewerExten PRIVATE
-                UNICODE
-                _UNICODE
-                WIN32_LEAN_AND_MEAN
-                DIESHELLEXTENSION_EXPORTS
-                _WINDOWS
-                _USRDLL
+                UNICODE _UNICODE WIN32_LEAN_AND_MEAN
+                DIESHELLEXTENSION_EXPORTS _WINDOWS _USRDLL
             )
            
             target_link_libraries(HexViewerExten PRIVATE ${CAPSTONE_LIBRARIES} gdi32 user32 shell32 comdlg32)
@@ -175,12 +194,8 @@ if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/HexViewerExten")
             if(MSVC)
                 target_compile_options(HexViewerExten PRIVATE /W3)
                 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-                    target_compile_options(HexViewerExten PRIVATE
-                        /O1
-                        /GL
-                        /Gy
-                    )
-                    target_link_options(HexViewerExten PRIVATE
+                    target_compile_options(HexViewerExten PRIVATE /O1 /GL /Gy)
+                                        target_link_options(HexViewerExten PRIVATE
                         /LTCG
                         /OPT:REF
                         /OPT:ICF
@@ -198,6 +213,8 @@ if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/HexViewerExten")
             install(TARGETS HexViewerExten RUNTIME DESTINATION bin)
         endif()
     endif()
+else()
+    message(STATUS "HexViewerExten directory not found - skipping build")
 endif()
 
 install(TARGETS HexViewer RUNTIME DESTINATION bin)
@@ -207,6 +224,7 @@ set(CPACK_PACKAGE_VENDOR "HexViewer")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Cross-platform hex editor with disassembly")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "HexViewer")
+
 if(WIN32)
     set(CPACK_GENERATOR "NSIS;ZIP")
 elseif(APPLE)
@@ -216,4 +234,5 @@ else()
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "DevX-Cipher")
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "libx11-6")
 endif()
+
 include(CPack)
