@@ -30,6 +30,7 @@
 #endif
 #include <about.h>
 #include <darkmode.h>
+#include <codecvt>
 
 RenderManager* renderManager = nullptr;
 HexData* hexData = nullptr;
@@ -51,7 +52,7 @@ int editingRow = -1;
 int editingCol = -1;
 
 #ifdef _WIN32
-AppOptions g_options = { true, 16, false, false, "English" }; 
+AppOptions g_options = { true, 16, false, false, "English" };
 HWND g_hWnd = NULL;
 std::wstring currentFilePathW;
 
@@ -79,22 +80,6 @@ void ShowOptionsDialog();
 #endif
 
 #ifdef _WIN32
-std::string wstring_to_string(const std::wstring& wstr) {
-  if (wstr.empty()) return std::string();
-  int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), NULL, 0, NULL, NULL);
-  std::string result(size, 0);
-  WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &result[0], size, NULL, NULL);
-  return result;
-}
-
-std::wstring string_to_wstring(const std::string& str) {
-  if (str.empty()) return std::wstring();
-  int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), NULL, 0);
-  std::wstring result(size, 0);
-  MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), &result[0], size);
-  return result;
-}
-
 void RebuildMenuBar() {
   if (menuBar) {
     delete menuBar;
@@ -211,8 +196,12 @@ void LoadFile() {
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
   if (GetOpenFileNameW(&ofn) == TRUE) {
-    LoadFileFromPath(wstring_to_string(szFile).c_str());
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
+    std::string path = conv.to_bytes(szFile);
+
+    LoadFileFromPath(path.c_str());
   }
+
 }
 
 void SaveFileAs() {
@@ -233,10 +222,14 @@ void SaveFileAs() {
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
 
   if (GetSaveFileNameW(&ofn) == TRUE) {
-    std::string path = wstring_to_string(szFile);
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, szFile, -1, nullptr, 0, nullptr, nullptr);
+    std::string path(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, szFile, -1, &path[0], size_needed, nullptr, nullptr);
+
     if (hexData->saveFile(path.c_str())) {
       currentFilePath = path;
       currentFilePathW = szFile;
+
       MessageBoxW(g_hWnd, L"File saved successfully!", L"Save File", MB_OK | MB_ICONINFORMATION);
 
       std::wstring title = L"HexViewer - " + currentFilePathW;
@@ -246,6 +239,7 @@ void SaveFileAs() {
       MessageBoxW(g_hWnd, L"Failed to save file.", L"Save File", MB_OK | MB_ICONERROR);
     }
   }
+
 }
 
 void SaveFile() {
@@ -284,30 +278,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
     if (fileCount > 0) {
       if (DragQueryFileW(hDrop, 0, filepath, MAX_PATH) > 0) {
-        LoadFileFromPath(wstring_to_string(filepath).c_str());
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
+        std::string path = conv.to_bytes(filepath);
+
+        LoadFileFromPath(path.c_str());
       }
       if (fileCount > 1) {
         MessageBoxW(hWnd, L"Only the first file was loaded.", L"Multiple Files", MB_OK | MB_ICONINFORMATION);
       }
     }
+
     DragFinish(hDrop);
     break;
   }
-
   case WM_COMMAND: {
     int wmId = LOWORD(wParam);
     switch (wmId) {
-    case 1: LoadFile(); break;  
-    case 2: SaveFile(); break;  
-    case 3: SaveFileAs(); break; 
+    case 1: LoadFile(); break;
+    case 2: SaveFile(); break;
+    case 3: SaveFileAs(); break;
     case 4: PostQuitMessage(0); break;
     case 5: ShowOptionsDialog(); break;
     }
     break;
   }
-
   case WM_CHAR: {
-    char ch = (char)wParam;    
+    char ch = (char)wParam;
 
     if (editingOffset != (size_t)-1) {
       if (ch == VK_BACK && !editBuffer.empty()) {
@@ -357,7 +353,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     }
     break;
   }
-
   case WM_KEYDOWN: {
     bool ctrlPressed = GetKeyState(VK_CONTROL) & 0x8000;
 
@@ -441,7 +436,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     }
     break;
   }
-
   case WM_SIZE: {
     RECT rc;
     GetClientRect(hWnd, &rc);
@@ -452,7 +446,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     InvalidateRect(hWnd, NULL, FALSE);
     break;
   }
-
   case WM_MOUSEMOVE: {
     int x = GET_X_LPARAM(lParam);
     int y = GET_Y_LPARAM(lParam);
@@ -542,7 +535,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
     break;
   }
-
   case WM_PAINT: {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hWnd, &ps);
@@ -568,14 +560,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         menuBar->render(renderManager, rc.right - rc.left);
       }
 
-
       renderManager->endFrame();
     }
 
     EndPaint(hWnd, &ps);
     break;
   }
-
   case WM_MOUSEWHEEL: {
     int delta = GET_WHEEL_DELTA_WPARAM(wParam);
     scrollPos -= (delta > 0 ? 3 : -3);
@@ -587,9 +577,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     InvalidateRect(hWnd, NULL, FALSE);
     break;
   }
-
   case WM_DESTROY:
-    SearchDialogs::CleanupDialogs();  // *** ADD THIS ***
+    SearchDialogs::CleanupDialogs();
     if (menuBar) {
       delete menuBar;
       menuBar = nullptr;
@@ -614,7 +603,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
   }
   return 0;
 }
-
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
   WNDCLASSEXW wcex = {};
@@ -661,9 +649,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   int argc = 0;
   LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
   if (argv && argc > 1) {
-    LoadFileFromPath(wstring_to_string(argv[1]).c_str());
-    LocalFree(argv);
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
+    std::string path = conv.to_bytes(argv[1]);
+
+    LoadFileFromPath(path.c_str());
   }
+  LocalFree(argv);
 
   MSG msg;
   while (GetMessage(&msg, nullptr, 0, 0)) {
@@ -886,6 +877,9 @@ int main(int argc, char** argv) {
   @autoreleasepool {
     [NSApplication sharedApplication] ;
 
+    DetectNative();
+    LoadOptionsFromFile(g_options);
+
     AppDelegate* delegate = [[AppDelegate alloc]init];
     bool running = true;
     bool needsRedraw = true;
@@ -1045,6 +1039,9 @@ void SaveFileAs() {
 }
 
 int main(int argc, char** argv) {
+  DetectNative();
+  LoadOptionsFromFile(g_options);
+
   g_display = XOpenDisplay(nullptr);
   if (!g_display) {
     fprintf(stderr, "Cannot open display\n");
@@ -1274,12 +1271,13 @@ void LoadFileFromPath(const char* filepath) {
   if (hexData->loadFile(filepath)) {
     currentFilePath = filepath;
 #ifdef _WIN32
-    currentFilePathW = string_to_wstring(filepath);
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> conv;
+    std::wstring wpath = conv.from_bytes(filepath);
+    currentFilePathW = wpath;
     std::wstring title = L"HexViewer - " + currentFilePathW;
     SetWindowTextW(g_hWnd, title.c_str());
 #endif
     scrollPos = 0;
-
 #ifdef _WIN32
     RECT rc;
     GetClientRect(g_hWnd, &rc);
@@ -1333,7 +1331,7 @@ void UpdateScrollbar(int windowWidth, int windowHeight) {
     menuBarHeight + (int)(layout.margin + layout.headerHeight), // ADD menuBarHeight
     (int)layout.scrollbarWidth,
     windowHeight - (int)layout.margin - menuBarHeight - (int)(layout.margin + layout.headerHeight)
-  );
+    );
 
   if (maxScrollPos > 0 && hexLines.size() > 0) {
     float scrollbarHeight = scrollbarRect.height;
