@@ -61,7 +61,7 @@ AppOptions g_options = { true, 16, false };
 NSWindow* g_nsWindow = nullptr;
 
 #else  // Linux
-AppOptions g_options = { true, 16, false, false, "English"};
+AppOptions g_options = { true, 16, false,false,"English"};
 Display* g_display = nullptr;
 Window g_window = 0;
 Atom wmDeleteMessage;
@@ -79,7 +79,6 @@ int CalculateBytesPerLine(int windowWidth);
 void ShowOptionsDialog();
 #endif
 
-#ifdef _WIN32
 void RebuildMenuBar() {
   if (menuBar) {
     delete menuBar;
@@ -100,43 +99,175 @@ void RebuildMenuBar() {
   fileMenu.items.push_back(saveItem);
 
   MenuItem exitItem(Translations::T("Exit"), MenuItemType::Normal);
+#ifdef _WIN32
   exitItem.callback = []() { PostQuitMessage(0); };
+#elif __APPLE__
+  exitItem.callback = []() { [NSApp terminate : nil] ; };
+#else // Linux
+  exitItem.callback = []() { /* handled by window close */ };
+#endif
   fileMenu.items.push_back(exitItem);
 
   Menu searchMenu(Translations::T("Search"));
   MenuItem findReplaceItem(Translations::T("Find and Replace..."), MenuItemType::Normal);
   findReplaceItem.shortcut = "Ctrl+F";
   findReplaceItem.callback = []() {
+#ifdef _WIN32
     SearchDialogs::ShowFindReplaceDialog(g_hWnd, g_options.darkMode,
       [](const std::string& find, const std::string& replace) {
         MessageBoxA(g_hWnd,
           ("Find: " + find + "\nReplace: " + replace).c_str(),
           "Find & Replace", MB_OK);
       });
+#elif __APPLE__
+    SearchDialogs::ShowFindReplaceDialog((void*)g_display, darkMode,
+      [](const std::string& find, const std::string& replace) {
+        fprintf(stderr, "Find: %s, Replace: %s\n", find.c_str(), replace.c_str());
+      });
+#else // Linux
+    SearchDialogs::ShowFindReplaceDialog((void*)g_display, darkMode,
+      [](const std::string& find, const std::string& replace) {
+        fprintf(stderr, "Find: %s, Replace: %s\n", find.c_str(), replace.c_str());
+      });
+#endif
     };
   searchMenu.items.push_back(findReplaceItem);
 
   MenuItem goToItem(Translations::T("Go To..."), MenuItemType::Normal);
   goToItem.shortcut = "Ctrl+G";
   goToItem.callback = []() {
+#ifdef _WIN32
     SearchDialogs::ShowGoToDialog(g_hWnd, g_options.darkMode,
       [](int line) {
         MessageBoxA(g_hWnd,
           ("Go to line: " + std::to_string(line)).c_str(),
           "Go To", MB_OK);
       });
+#elif __APPLE__
+    SearchDialogs::ShowGoToDialog((void*)g_display, darkMode,
+      [](int offset) {
+        fprintf(stderr, "Go to offset: 0x%x\n", offset);
+      });
+#else // Linux
+    SearchDialogs::ShowGoToDialog((void*)g_display, darkMode,
+      [](int offset) {
+        fprintf(stderr, "Go to offset: 0x%x\n", offset);
+      });
+#endif
     };
   searchMenu.items.push_back(goToItem);
 
   Menu toolsMenu(Translations::T("Tools"));
   MenuItem optionsItem(Translations::T("Options..."), MenuItemType::Normal);
-  optionsItem.callback = []() { ShowOptionsDialog(); };
+  optionsItem.callback = []() {
+    AppOptions oldOptions = g_options;
+
+#ifdef _WIN32
+    if (OptionsDialog::Show(g_hWnd, g_options)) {
+      bool needsRedraw = false;
+
+      if (oldOptions.darkMode != g_options.darkMode) {
+        darkMode = g_options.darkMode;
+        needsRedraw = true;
+      }
+
+      if (oldOptions.language != g_options.language) {
+        Translations::SetLanguage(g_options.language);
+        RebuildMenuBar();
+        needsRedraw = true;
+      }
+
+      if (oldOptions.defaultBytesPerLine != g_options.defaultBytesPerLine && !hexData->isEmpty()) {
+        hexData->regenerateHexLines(g_options.defaultBytesPerLine);
+        scrollPos = 0;
+        RECT rc;
+        GetClientRect(g_hWnd, &rc);
+        UpdateScrollbar(rc.right - rc.left, rc.bottom - rc.top);
+        needsRedraw = true;
+      }
+
+      SaveOptionsToFile(g_options);
+
+      if (needsRedraw) {
+        InvalidateRect(g_hWnd, NULL, FALSE);
+      }
+    }
+#elif __APPLE__
+    if (OptionsDialog::Show(g_nsWindow, g_options)) {
+      bool needsRedraw = false;
+
+      if (oldOptions.darkMode != g_options.darkMode) {
+        darkMode = g_options.darkMode;
+        needsRedraw = true;
+      }
+
+      if (oldOptions.language != g_options.language) {
+        Translations::SetLanguage(g_options.language);
+        RebuildMenuBar();
+        needsRedraw = true;
+      }
+
+      if (oldOptions.defaultBytesPerLine != g_options.defaultBytesPerLine && !hexData->isEmpty()) {
+        hexData->regenerateHexLines(g_options.defaultBytesPerLine);
+        scrollPos = 0;
+        needsRedraw = true;
+      }
+
+      SaveOptionsToFile(g_options);
+
+      if (needsRedraw) {
+      }
+    }
+#else // Linux
+    if (OptionsDialog::Show((NativeWindow)g_window, g_options)) {
+      bool needsRedraw = false;
+
+      if (oldOptions.darkMode != g_options.darkMode) {
+        darkMode = g_options.darkMode;
+        needsRedraw = true;
+      }
+
+      if (oldOptions.language != g_options.language) {
+        Translations::SetLanguage(g_options.language);
+        RebuildMenuBar();
+        needsRedraw = true;
+      }
+
+      if (oldOptions.defaultBytesPerLine != g_options.defaultBytesPerLine && !hexData->isEmpty()) {
+        hexData->regenerateHexLines(g_options.defaultBytesPerLine);
+        scrollPos = 0;
+        XWindowAttributes attrs;
+        XGetWindowAttributes(g_display, g_window, &attrs);
+        UpdateScrollbar(attrs.width, attrs.height);
+        needsRedraw = true;
+      }
+
+      SaveOptionsToFile(g_options);
+
+      if (needsRedraw) {
+        XClearWindow(g_display, g_window);
+        XEvent exposeEvent;
+        memset(&exposeEvent, 0, sizeof(exposeEvent));
+        exposeEvent.type = Expose;
+        exposeEvent.xexpose.window = g_window;
+        XSendEvent(g_display, g_window, False, ExposureMask, &exposeEvent);
+        XFlush(g_display);
+      }
+    }
+#endif
+    };
   toolsMenu.items.push_back(optionsItem);
 
   Menu helpMenu(Translations::T("Help"));
   MenuItem aboutItem(Translations::T("About HexViewer"), MenuItemType::Normal);
   aboutItem.callback = []() {
+#ifdef _WIN32
     AboutDialog::Show(g_hWnd, g_options.darkMode);
+#elif __APPLE__
+    AboutDialog::Show(g_nsWindow, darkMode);
+#else // Linux
+    AboutDialog::Show(g_window, g_options.darkMode);
+#endif
     };
   helpMenu.items.push_back(aboutItem);
 
@@ -148,7 +279,7 @@ void RebuildMenuBar() {
   menuBar->setPosition(0, 0);
   menuBar->setHeight(24);
 }
-
+#ifdef _WIN32
 void ShowOptionsDialog() {
   AppOptions oldOptions = g_options;
 
@@ -1039,8 +1170,12 @@ void SaveFileAs() {
 }
 
 int main(int argc, char** argv) {
+  Translations::Initialize();
+
   DetectNative();
   LoadOptionsFromFile(g_options);
+
+  Translations::SetLanguage(g_options.language);
 
   g_display = XOpenDisplay(nullptr);
   if (!g_display) {
@@ -1072,57 +1207,7 @@ int main(int argc, char** argv) {
   renderManager->resize(1024, 768);
   hexData = new HexData();
 
-  menuBar = new MenuBar();
-
-  Menu fileMenu = MenuHelper::createFileMenu(
-    []() { LoadFile(); },
-    []() { LoadFile(); },
-    []() { SaveFile(); },
-    []() {}
-    );
-
-  Menu searchMenu("Search");
-  MenuItem findReplaceItem("Find and Replace...", MenuItemType::Normal);
-  findReplaceItem.shortcut = "Ctrl+F";
-  findReplaceItem.callback = []() {
-    SearchDialogs::ShowFindReplaceDialog((void*)g_display, darkMode,  // Pass display, not window
-      [](const std::string& find, const std::string& replace) {
-        fprintf(stderr, "Find: %s, Replace: %s\n", find.c_str(), replace.c_str());
-      });
-    };
-  searchMenu.items.push_back(findReplaceItem);
-
-  MenuItem goToItem("Go To...", MenuItemType::Normal);
-  goToItem.shortcut = "Ctrl+G";
-  goToItem.callback = []() {
-    SearchDialogs::ShowGoToDialog((void*)g_display, darkMode,  // Pass display, not window
-      [](int offset) {
-        fprintf(stderr, "Go to offset: 0x%x\n", offset);
-      });
-    };
-  searchMenu.items.push_back(goToItem);
-
-  Menu toolsMenu("Tools");
-  MenuItem optionsItem("Options...", MenuItemType::Normal);
-  optionsItem.callback = []() {
-    OptionsDialog::Show((NativeWindow)g_window, g_options);
-    };
-  toolsMenu.items.push_back(optionsItem);
-
-  Menu helpMenu("Help");
-  MenuItem aboutItem("About HexViewer", MenuItemType::Normal);
-  aboutItem.callback = []() {
-    AboutDialog::Show(g_window, g_options.darkMode);
-    };
-  helpMenu.items.push_back(aboutItem);
-
-  menuBar->addMenu(fileMenu);
-  menuBar->addMenu(searchMenu);
-  menuBar->addMenu(toolsMenu);
-  menuBar->addMenu(helpMenu);
-
-  menuBar->setPosition(0, 0);
-  menuBar->setHeight(24);
+  RebuildMenuBar();
 
   bool running = true;
   bool needsRedraw = true;

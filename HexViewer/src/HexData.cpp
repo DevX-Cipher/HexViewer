@@ -46,7 +46,7 @@ bool HexData::initializeCapstone() {
   }
 
   cs_option(csHandle, CS_OPT_DETAIL, CS_OPT_ON);
-  cs_option(csHandle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_INTEL); // Intel syntax
+  cs_option(csHandle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_INTEL);
 
   capstoneInitialized = true;
   debugLog("Capstone initialized successfully\n");
@@ -193,7 +193,7 @@ std::string HexData::disassembleInstruction(size_t offset, int& instructionLengt
     &fileData[offset],
     bytesToDisasm,
     offset,
-    1,  // Disassemble only 1 instruction
+    1,
     &insn);
 
   if (count > 0) {
@@ -234,7 +234,6 @@ void HexData::generateDisassembly(int bytesPerLine) {
       }
 
       lineOffset += instrLen;
-
       break;
     }
 
@@ -263,30 +262,25 @@ void HexData::convertDataToHex(int bytesPerLine) {
 
   char buffer[512];
 
-  for (size_t i = 0; i < fileData.size(); i += bytesPerLine)
-  {
+  for (size_t i = 0; i < fileData.size(); i += bytesPerLine) {
     std::string line;
 
     snprintf(buffer, sizeof(buffer), "%08X  ", (unsigned int)i);
     line += buffer;
 
-    for (int j = 0; j < bytesPerLine; ++j)
-    {
-      if (i + j < fileData.size())
-      {
+    for (int j = 0; j < bytesPerLine; ++j) {
+      if (i + j < fileData.size()) {
         snprintf(buffer, sizeof(buffer), "%02X ", fileData[i + j]);
         line += buffer;
       }
-      else
-      {
+      else {
         line += "   ";
       }
     }
 
     line += " ";
 
-    for (int j = 0; j < bytesPerLine && i + j < fileData.size(); ++j)
-    {
+    for (int j = 0; j < bytesPerLine && i + j < fileData.size(); ++j) {
       uint8_t b = fileData[i + j];
       if (b >= 32 && b <= 126)
         line += (char)b;

@@ -421,6 +421,8 @@ void UpdateHoverState(OptionsDialogData* data, int x, int y, int windowWidth, in
 void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, int windowHeight) {
   if (data->dropdownOpen && data->hoveredDropdownItem >= 0) {
     data->selectedLanguage = data->hoveredDropdownItem;
+    data->tempOptions.language = data->languages[data->selectedLanguage];
+    Translations::SetLanguage(data->tempOptions.language);
     data->dropdownOpen = false;
     return;
   }
@@ -481,9 +483,8 @@ void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, in
       }
     }
 #endif
-
     data->tempOptions.language = data->languages[data->selectedLanguage];
-    * data->originalOptions = data->tempOptions;
+    *data->originalOptions = data->tempOptions;
     data->dialogResult = true;
     data->running = false;
     break;
@@ -497,10 +498,9 @@ void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, in
   case 7: // Dropdown
     data->dropdownOpen = !data->dropdownOpen;
     if (!data->dropdownOpen) {
-      data->dropdownScrollOffset = 0;  // Reset scroll when closing
+      data->dropdownScrollOffset = 0;
     }
     break;
-
   }
 }
 
@@ -766,6 +766,24 @@ void ProcessOptionsEvent(OptionsDialogData* data, XEvent* event, int width, int 
       data->pressedWidget = data->hoveredWidget;
       RenderOptionsDialog(data, width, height);
     }
+    else if (event->xbutton.button == Button4) { // Scroll up
+      if (data->dropdownOpen) {
+        int maxVisibleItems = 3;
+        int maxScroll = std::max(0, (int)data->languages.size() - maxVisibleItems);
+        data->dropdownScrollOffset = std::max(0, data->dropdownScrollOffset - 1);
+        UpdateHoverState(data, data->mouseX, data->mouseY, width, height);
+        RenderOptionsDialog(data, width, height);
+      }
+    }
+    else if (event->xbutton.button == Button5) { // Scroll down
+      if (data->dropdownOpen) {
+        int maxVisibleItems = 3;
+        int maxScroll = std::max(0, (int)data->languages.size() - maxVisibleItems);
+        data->dropdownScrollOffset = std::min(maxScroll, data->dropdownScrollOffset + 1);
+        UpdateHoverState(data, data->mouseX, data->mouseY, width, height);
+        RenderOptionsDialog(data, width, height);
+      }
+    }
     break;
 
   case ButtonRelease:
@@ -823,6 +841,13 @@ bool OptionsDialog::Show(NativeWindow parent, AppOptions& options) {
   data.running = true;
   data.display = display;
   g_dialogData = &data;
+
+  for (size_t i = 0; i < data.languages.size(); i++) {
+    if (data.languages[i] == options.language) {
+      data.selectedLanguage = i;
+      break;
+    }
+  }
 
   int width = 400;
   int height = 480;

@@ -9,6 +9,7 @@
 #include <X11/Xutil.h>
 #include <unistd.h>
 #endif
+#include <language.h>
 
 RenderManager* AboutDialog::renderer = nullptr;
 bool AboutDialog::darkMode = true;
@@ -416,7 +417,9 @@ void AboutDialog::OnPaint() {
   if (!renderer) return;
 
   RenderContent(500, 400);
-  XFlush(display);
+
+  XClearWindow(display, window);
+  XSync(display, False);  // Changed from XFlush to XSync for better synchronization
 }
 
 void AboutDialog::OnMouseMove(int x, int y) {
@@ -429,13 +432,28 @@ void AboutDialog::OnMouseMove(int x, int y) {
   }
 
   if (oldHovered != hoveredButton) {
-    OnPaint();
+    XClearWindow(display, window);
+    XEvent exposeEvent;
+    memset(&exposeEvent, 0, sizeof(exposeEvent));
+    exposeEvent.type = Expose;
+    exposeEvent.xexpose.window = window;
+    exposeEvent.xexpose.count = 0;
+    XSendEvent(display, window, False, ExposureMask, &exposeEvent);
+    XFlush(display);
   }
 }
 
 void AboutDialog::OnMouseDown(int x, int y) {
   pressedButton = hoveredButton;
-  OnPaint();
+
+  XClearWindow(display, window);
+  XEvent exposeEvent;
+  memset(&exposeEvent, 0, sizeof(exposeEvent));
+  exposeEvent.type = Expose;
+  exposeEvent.xexpose.window = window;
+  exposeEvent.xexpose.count = 0;
+  XSendEvent(display, window, False, ExposureMask, &exposeEvent);
+  XFlush(display);
 }
 
 bool AboutDialog::OnMouseUp(int x, int y) {
@@ -461,7 +479,16 @@ bool AboutDialog::OnMouseUp(int x, int y) {
   }
 
   pressedButton = 0;
-  OnPaint();
+
+  XClearWindow(display, window);
+  XEvent exposeEvent;
+  memset(&exposeEvent, 0, sizeof(exposeEvent));
+  exposeEvent.type = Expose;
+  exposeEvent.xexpose.window = window;
+  exposeEvent.xexpose.count = 0;
+  XSendEvent(display, window, False, ExposureMask, &exposeEvent);
+  XFlush(display);
+
   return false;
 }
 
@@ -533,19 +560,19 @@ void AboutDialog::RenderContent(int width, int height) {
   renderer->beginFrame();
   renderer->clear(theme.windowBackground);
 
-  std::string version = "Version 1.2.0";
+  std::string version = std::string(Translations::T("Version")) + " 1.2.0";
   int versionX = (width - (version.length() * 8)) / 2;
   renderer->drawText(version, versionX, 30, theme.textColor);
 
-  std::string desc = "A modern cross-platform hex editor";
+  std::string desc = Translations::T("A modern cross-platform hex editor");
   int descX = (desc.length() * 8) / 2;
   renderer->drawText(desc, width / 2 - descX, 60, theme.disabledText);
 
   int featuresY = 100;
-  renderer->drawText("Features:", 40, featuresY, theme.textColor);
-  renderer->drawText("- Cross-platform support", 50, featuresY + 30, theme.disabledText);
-  renderer->drawText("- Real-time hex editing", 50, featuresY + 55, theme.disabledText);
-  renderer->drawText("- Dark mode support", 50, featuresY + 80, theme.disabledText);
+  renderer->drawText(Translations::T("Features:"), 40, featuresY, theme.textColor);
+  renderer->drawText(std::string("- ") + Translations::T("Cross-platform support"), 50, featuresY + 30, theme.disabledText);
+  renderer->drawText(std::string("- ") + Translations::T("Real-time hex editing"), 50, featuresY + 55, theme.disabledText);
+  renderer->drawText(std::string("- ") + Translations::T("Dark mode support"), 50, featuresY + 80, theme.disabledText);
 
   renderer->drawLine(0, height - 90, width, height - 90, theme.separator);
 
@@ -560,9 +587,9 @@ void AboutDialog::RenderContent(int width, int height) {
   updateState.enabled = true;
   updateState.hovered = (hoveredButton == 1);
   updateState.pressed = (pressedButton == 1);
-  renderer->drawModernButton(updateState, theme, "Check for Updates");
+  renderer->drawModernButton(updateState, theme, Translations::T("Check for Updates"));
 
-  std::string copyright = "2025 Hors";
+  std::string copyright = "2025 Hors";  // This can stay hardcoded
   int copyrightX = (width - (copyright.length() * 8)) / 2;
   renderer->drawText(copyright, copyrightX, height - 15, theme.disabledText);
 
