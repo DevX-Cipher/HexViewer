@@ -142,7 +142,7 @@ public:
     translations["French"]["Update Available!"] = "Mise � jour disponible!";
     translations["French"]["You're up to date!"] = "Vous �tes � jour!";
     translations["French"]["Current:"] = "Actuelle:";
-    translations["French"]["Latest:"] = "Derni�re:";
+    translations["French"]["Latest:"] = "Derniere:";
     translations["French"]["What's New:"] = "Nouveaut�s:";
     translations["French"]["You have the latest version installed."] = "Vous avez la derni�re version install�e.";
     translations["French"]["Check back later for updates."] = "Revenez plus tard pour les mises � jour.";
@@ -154,9 +154,9 @@ public:
     translations["French"]["A modern cross-platform hex editor"] = "Un �diteur hexad�cimal multiplateforme moderne";
     translations["French"]["Features:"] = "Fonctionnalit�s:";
     translations["French"]["Cross-platform support"] = "Support multiplateforme";
-    translations["French"]["Real-time hex editing"] = "�dition hexad�cimale en temps r�el";
+    translations["French"]["Real-time hex editing"] = "Adition hexadicimale en temps rael";
     translations["French"]["Dark mode support"] = "Support du mode sombre";
-    translations["French"]["Check for Updates"] = "V�rifier les mises � jour";
+    translations["French"]["Check for Updates"] = "Verifier les mises � jour";
 
     translations["German"]["Options"] = "Optionen";
     translations["German"]["Dark Mode"] = "Dunkler Modus";
@@ -170,7 +170,7 @@ public:
     translations["German"]["Cancel"] = "Abbrechen";
 
     translations["German"]["File"] = "Datei";
-    translations["German"]["Open"] = "�ffnen";
+    translations["German"]["Open"] = "Öffnen";
     translations["German"]["Save"] = "Speichern";
     translations["German"]["Exit"] = "Beenden";
     translations["German"]["View"] = "Ansicht";
@@ -181,7 +181,7 @@ public:
     translations["German"]["Tools"] = "Werkzeuge";
     translations["German"]["Options..."] = "Optionen...";
     translations["German"]["Help"] = "Hilfe";
-    translations["German"]["About HexViewer"] = "�ber HexViewer";
+    translations["German"]["About HexViewer"] = "Über HexViewer";
 
     translations["German"]["Find:"] = "Suchen:";
     translations["German"]["Replace:"] = "Ersetzen:";
@@ -189,23 +189,23 @@ public:
     translations["German"]["Go"] = "Gehe";
     translations["German"]["Offset:"] = "Offset:";
 
-    translations["German"]["Update Available!"] = "Update verf�gbar!";
+    translations["German"]["Update Available!"] = "Update verfügbar!";
     translations["German"]["You're up to date!"] = "Sie sind auf dem neuesten Stand!";
     translations["German"]["Current:"] = "Aktuell:";
     translations["German"]["Latest:"] = "Neueste:";
     translations["German"]["What's New:"] = "Was ist neu:";
     translations["German"]["You have the latest version installed."] = "Sie haben die neueste Version installiert.";
-    translations["German"]["Check back later for updates."] = "Schauen Sie sp�ter nach Updates.";
+    translations["German"]["Check back later for updates."] = "Schauen Sie später nach Updates.";
     translations["German"]["Update Now"] = "Jetzt aktualisieren";
-    translations["German"]["Skip"] = "�berspringen";
-    translations["German"]["Close"] = "Schlie�en";
+    translations["German"]["Skip"] = "Überspringen";
+    translations["German"]["Close"] = "Schließen";
 
     translations["German"]["Version"] = "Version";
     translations["German"]["A modern cross-platform hex editor"] = "Ein moderner plattform�bergreifender Hex-Editor";
     translations["German"]["Features:"] = "Funktionen:";
-    translations["German"]["Cross-platform support"] = "Plattform�bergreifende Unterst�tzung";
+    translations["German"]["Cross-platform support"] = "Plattformübergreifende Unterstützung";
     translations["German"]["Real-time hex editing"] = "Echtzeit-Hex-Bearbeitung";
-    translations["German"]["Dark mode support"] = "Dunkler Modus Unterst�tzung";
+    translations["German"]["Dark mode support"] = "Dunkler Modus Unterstützung";
     translations["German"]["Check for Updates"] = "Nach Updates suchen";
 
     translations["Japanese"]["Options"] = "?????";
