@@ -1,0 +1,46 @@
+name: Ubuntu's CI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install required libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install git build-essential cmake libcapstone-dev -y
+
+      - name: Clone DiE's submodules
+        run: |
+            git clone https://github.com/horsicq/XHexViewer.git --recursive
+
+      - name: Build DiE
+        run: |
+        #  rsync -av --exclude 'XHexViewer' ./ DIE-engine/
+          cd XHexViewer
+          chmod a+x build_linux.sh
+          ./build_linux.sh
+
+      - name: Upload Linux Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: Beta
+          draft: false
+          prerelease: true
+          files: |
+            /home/runner/work/XHexViewer/XHexViewer/XHexViewer/build/bin/XHexViewer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
