@@ -12,7 +12,6 @@
 #endif
 #ifdef __linux__
 #include <X11/Xlib.h>
-#include <X11/extensions/Xrender.h>
 extern "C" {
   extern const unsigned char _binary_about_png_start[];
   extern const unsigned char _binary_about_png_end[];
