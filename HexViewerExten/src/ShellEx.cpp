@@ -255,4 +255,3 @@ IFACEMETHODIMP HexViewer::GetCommandString(UINT_PTR idCommand,
 
     return hr;
 }
-
