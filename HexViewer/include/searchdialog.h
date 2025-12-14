@@ -23,6 +23,4 @@ namespace SearchDialogs {
   void ShowGoToDialog(void* parentHandle, bool darkMode,
     std::function<void(int)> callback);
 
-
-
 } // namespace SearchDialogs

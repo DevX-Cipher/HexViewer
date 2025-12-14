@@ -14,8 +14,6 @@
 #include <X11/Xutil.h>
 #endif
 
-
-
 struct Rect {
   int x, y, width, height;
 
