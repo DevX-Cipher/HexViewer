@@ -84,9 +84,38 @@ set(HEADERS
     HexViewer/include/searchdialog.h
     HexViewer/include/about.h
     HexViewer/include/contextmenu.h
+    HexViewer/include/imageloader.h
+    HexViewer/include/resource.h
 )
 
-add_executable(HexViewer ${SOURCES} ${HEADERS})
+if(WIN32)
+    set(RESOURCE_FILES HexViewer/resources/HexViewer.rc)
+    add_executable(HexViewer ${SOURCES} ${HEADERS} ${RESOURCE_FILES})
+
+elseif(APPLE)
+    add_executable(HexViewer ${SOURCES} ${HEADERS})
+
+else()
+    find_program(CMAKE_OBJCOPY objcopy REQUIRED)
+
+    set(RESOURCE_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/HexViewer/resources/about.png)
+    set(RESOURCE_OUTPUT ${CMAKE_BINARY_DIR}/about.o)
+
+    add_custom_command(
+        OUTPUT ${RESOURCE_OUTPUT}
+        COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}/HexViewer/resources && 
+                ${CMAKE_OBJCOPY} -I binary -O elf64-x86-64 -B i386
+                --redefine-sym _binary_about_png_start=_binary_about_png_start
+                --redefine-sym _binary_about_png_end=_binary_about_png_end
+                --redefine-sym _binary_about_png_size=_binary_about_png_size
+                about.png ${RESOURCE_OUTPUT}
+        DEPENDS ${RESOURCE_INPUT}
+        COMMENT "Embedding about.png into object file"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/HexViewer/resources
+    )
+
+    add_executable(HexViewer ${SOURCES} ${HEADERS} ${RESOURCE_OUTPUT})
+endif()
 
 if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/HexViewerShell")
     message(STATUS "Found HexViewerShell directory - building DLL")
