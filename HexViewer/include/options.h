@@ -33,6 +33,7 @@ struct AppOptions {
   }
 };
 inline bool g_isNative = false;
+inline bool g_isMsix = false;
 void DetectNative();
 void LoadOptionsFromFile(AppOptions& options);
 void SaveOptionsToFile(const AppOptions& options);

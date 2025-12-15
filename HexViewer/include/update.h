@@ -14,21 +14,36 @@ typedef void* NativeWindow;
 typedef Window NativeWindow;
 #endif
 
+extern bool g_isNative;
+
 struct UpdateInfo {
   bool updateAvailable;
   std::string currentVersion;
   std::string latestVersion;
   std::string releaseNotes;
   std::string downloadUrl;
+  std::string releaseApiUrl;
 };
+
+enum class DownloadState {
+  Idle,
+  Connecting,
+  Downloading,
+  Installing,
+  Complete,
+  Error
+};
+
+std::string ExtractJsonValue(const std::string& json, const std::string& key);
+std::string HttpGet(const std::string& url);
 
 class UpdateDialog {
 public:
   static bool Show(NativeWindow parent, const UpdateInfo& info);
+  static UpdateInfo currentInfo;
 
 private:
   static RenderManager* renderer;
-  static UpdateInfo currentInfo;
   static bool darkMode;
   static int hoveredButton;
   static int pressedButton;

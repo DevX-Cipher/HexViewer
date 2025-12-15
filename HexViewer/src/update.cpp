@@ -3,19 +3,35 @@
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <fstream>
 
 #ifdef _WIN32
 #include <shellapi.h>
+#include <wininet.h>
+#include <shlobj.h>
+#include <appmodel.h>
+#pragma comment(lib, "wininet.lib")
+#pragma comment(lib, "shell32.lib")
 #elif __APPLE__
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
+#include <sys/stat.h>
 #elif __linux__
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <fcntl.h>
 #endif
+
 #include <language.h>
+#include <functional>
 
 RenderManager* UpdateDialog::renderer = nullptr;
 UpdateInfo UpdateDialog::currentInfo = {};
@@ -33,6 +49,13 @@ Rect UpdateDialog::closeButtonRect = {};
 Rect UpdateDialog::scrollbarRect = {};
 Rect UpdateDialog::scrollThumbRect = {};
 
+static DownloadState downloadState = DownloadState::Idle;
+static float downloadProgress = 0.0f;
+static std::string downloadStatus = "";
+static std::string downloadedFilePath = "";
+static Rect progressBarRect = {};
+static std::thread* downloadThread = nullptr;
+
 #ifdef __linux__
 static Display* display = nullptr;
 static Window window = 0;
@@ -41,12 +64,294 @@ static Atom wmDeleteWindow;
 static NSWindow* nsWindow = nullptr;
 static bool windowShouldClose = false;
 #endif
+#ifdef _WIN32
+extern bool g_isMsix;
+#endif
+extern bool g_isNative;
+
+static bool IsMsixPackage() {
+#ifdef _WIN32
+  return g_isMsix;
+#else
+  return false;
+#endif
+}
+std::string GetTempDownloadPath() {
+#ifdef _WIN32
+  wchar_t tempPath[MAX_PATH];
+  GetTempPathW(MAX_PATH, tempPath);
+  char temp[MAX_PATH];
+  WideCharToMultiByte(CP_UTF8, 0, tempPath, -1, temp, MAX_PATH, nullptr, nullptr);
+  return std::string(temp) + "update_download";
+#else
+  return "/tmp/update_download";
+#endif
+}
+
+std::string ExtractJsonValue(const std::string& json, const std::string& key) {
+  std::string searchKey = "\"" + key + "\"";
+  size_t pos = json.find(searchKey);
+  if (pos == std::string::npos) return "";
+
+  pos = json.find(":", pos);
+  if (pos == std::string::npos) return "";
+
+  pos = json.find("\"", pos);
+  if (pos == std::string::npos) return "";
+
+  size_t endPos = json.find("\"", pos + 1);
+  if (endPos == std::string::npos) return "";
+
+  return json.substr(pos + 1, endPos - pos - 1);
+}
+
+std::string HttpGet(const std::string& url) {
+#ifdef _WIN32
+  HINTERNET hInternet = InternetOpenA("UpdaterAgent/1.0",
+    INTERNET_OPEN_TYPE_PRECONFIG,
+    nullptr, nullptr, 0);
+  if (!hInternet) return "";
+
+  DWORD timeout = 5000; // 5 seconds
+  InternetSetOptionA(hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
+  InternetSetOptionA(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
+
+  HINTERNET hConnect = InternetOpenUrlA(hInternet, url.c_str(), nullptr, 0,
+    INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE | INTERNET_FLAG_NO_CACHE_WRITE, 0);
+  if (!hConnect) {
+    InternetCloseHandle(hInternet);
+    return "";
+  }
+
+  std::string result;
+  char buffer[4096];
+  DWORD bytesRead;
+
+  while (InternetReadFile(hConnect, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
+    result.append(buffer, bytesRead);
+  }
+
+  InternetCloseHandle(hConnect);
+  InternetCloseHandle(hInternet);
+  return result;
+#else
+  std::string command = "curl --max-time 5 -L -s \"" + url + "\"";
+  FILE* pipe = popen(command.c_str(), "r");
+  if (!pipe) return "";
+
+  std::string result;
+  char buffer[4096];
+  while (fgets(buffer, sizeof(buffer), pipe)) {
+    result += buffer;
+  }
+  pclose(pipe);
+  return result;
+#endif
+}
+
+bool DownloadFile(const std::string& url, const std::string& outputPath,
+  std::function<void(float, const std::string&)> progressCallback) {
+#ifdef _WIN32
+  HINTERNET hInternet = InternetOpenA("UpdaterAgent/1.0", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
+  if (!hInternet) return false;
+
+  HINTERNET hConnect = InternetOpenUrlA(hInternet, url.c_str(), nullptr, 0,
+    INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_SECURE, 0);
+  if (!hConnect) {
+    InternetCloseHandle(hInternet);
+    return false;
+  }
+
+  DWORD fileSize = 0;
+  DWORD bufferSize = sizeof(fileSize);
+  HttpQueryInfoA(hConnect, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER,
+    &fileSize, &bufferSize, nullptr);
+
+  std::ofstream outFile(outputPath, std::ios::binary);
+  if (!outFile) {
+    InternetCloseHandle(hConnect);
+    InternetCloseHandle(hInternet);
+    return false;
+  }
+
+  char buffer[8192];
+  DWORD bytesRead;
+  DWORD totalRead = 0;
+
+  while (InternetReadFile(hConnect, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
+    outFile.write(buffer, bytesRead);
+    totalRead += bytesRead;
+
+    if (fileSize > 0) {
+      float progress = (float)totalRead / (float)fileSize;
+      std::ostringstream status;
+      status << "Downloaded " << (totalRead / 1024) << " KB / " << (fileSize / 1024) << " KB";
+      progressCallback(progress, status.str());
+    }
+  }
+
+  outFile.close();
+  InternetCloseHandle(hConnect);
+  InternetCloseHandle(hInternet);
+  return true;
+#else
+  std::string command = "curl -L \"" + url + "\" -o \"" + outputPath + "\"";
+  int result = system(command.c_str());
+  progressCallback(1.0f, "Download complete");
+  return result == 0;
+#endif
+}
+
+std::string GetAssetDownloadUrl(const std::string& releaseApiUrl) {
+  bool isMsix = IsMsixPackage();
+
+  if (isMsix) {
+    return "";
+  }
+
+  std::string response = HttpGet(releaseApiUrl);
+  if (response.empty()) return "";
+
+  bool isNative = g_isNative;
+  std::string targetExtension;
+
+#ifdef _WIN32
+  targetExtension = isNative ? ".msi" : ".zip";
+#elif __APPLE__
+  targetExtension = isNative ? ".dmg" : ".zip";
+#elif __linux__
+  targetExtension = isNative ? ".deb" : ".tar.gz";
+#else
+  targetExtension = ".zip"; // Fallback
+#endif
+
+  size_t assetsPos = response.find("\"assets\"");
+  if (assetsPos == std::string::npos) return "";
+
+  size_t currentPos = assetsPos;
+  while (true) {
+    size_t namePos = response.find("\"name\"", currentPos);
+    if (namePos == std::string::npos) break;
+
+    std::string assetName = ExtractJsonValue(response.substr(namePos), "name");
+    if (assetName.find(targetExtension) != std::string::npos) {
+      size_t urlPos = response.find("\"browser_download_url\"", namePos);
+      if (urlPos != std::string::npos) {
+        return ExtractJsonValue(response.substr(urlPos), "browser_download_url");
+      }
+    }
+    currentPos = namePos + 1;
+  }
+
+  return "";
+}
+
+void DownloadFromGitHub() {
+  bool isMsix = IsMsixPackage();
+
+  if (isMsix) {
+    downloadState = DownloadState::Error;
+    downloadStatus = "MSIX packages update through Microsoft Store";
+    return;
+  }
+
+  downloadState = DownloadState::Connecting;
+  downloadStatus = "Connecting to GitHub...";
+  downloadProgress = 0.0f;
+
+  std::string assetUrl = GetAssetDownloadUrl(UpdateDialog::currentInfo.releaseApiUrl);
+  if (assetUrl.empty()) {
+    downloadState = DownloadState::Error;
+    downloadStatus = "Failed to find download asset";
+    return;
+  }
+
+  downloadState = DownloadState::Downloading;
+  downloadStatus = "Downloading update...";
+
+  bool isNative = g_isNative;
+  std::string extension = isNative ? ".msi" : ".zip";
+#ifdef __APPLE__
+  extension = isNative ? ".dmg" : ".zip";
+#elif __linux__
+  extension = isNative ? ".deb" : ".tar.gz";
+#endif
+
+  downloadedFilePath = GetTempDownloadPath() + extension;
+
+  bool success = DownloadFile(assetUrl, downloadedFilePath,
+    [](float progress, const std::string& status) {
+      downloadProgress = progress;
+      downloadStatus = status;
+    });
+
+  if (!success) {
+    downloadState = DownloadState::Error;
+    downloadStatus = "Download failed";
+    return;
+  }
+
+  downloadState = DownloadState::Installing;
+  downloadStatus = "Installing update...";
+
+#ifdef _WIN32
+  if (isNative) {
+    std::wstring wPath(downloadedFilePath.begin(), downloadedFilePath.end());
+    ShellExecuteW(nullptr, L"open", L"msiexec.exe",
+      (L"/i \"" + wPath + L"\" /passive").c_str(), nullptr, SW_SHOWNORMAL);
+  }
+  else {
+    std::wstring wPath(downloadedFilePath.begin(), downloadedFilePath.end());
+    ShellExecuteW(nullptr, L"open", L"explorer.exe",
+      (L"/select,\"" + wPath + L"\"").c_str(), nullptr, SW_SHOWNORMAL);
+  }
+#elif __APPLE__
+  if (isNative) {
+    std::string cmd = "open \"" + downloadedFilePath + "\"";
+    system(cmd.c_str());
+  }
+  else {
+    std::string cmd = "open -R \"" + downloadedFilePath + "\"";
+    system(cmd.c_str());
+  }
+#else
+  if (isNative) {
+    std::string cmd = "xterm -e 'sudo dpkg -i \"" + downloadedFilePath + "\"'";
+    system(cmd.c_str());
+  }
+  else {
+    std::string cmd = "xdg-open \"$(dirname '" + downloadedFilePath + "')\"";
+    system(cmd.c_str());
+  }
+#endif
+
+  downloadState = DownloadState::Complete;
+  downloadStatus = "Update installed successfully! Please restart.";
+  downloadProgress = 1.0f;
+}
+
+
+void StartDownload() {
+  if (downloadThread) {
+    if (downloadThread->joinable()) {
+      downloadThread->join();
+    }
+    delete downloadThread;
+  }
+
+  downloadThread = new std::thread([]() {
+    DownloadFromGitHub();
+    });
+}
 
 bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info) {
   currentInfo = info;
   hoveredButton = 0;
   pressedButton = 0;
   scrollOffset = 0;
+  downloadState = DownloadState::Idle;
+  downloadProgress = 0.0f;
+  downloadStatus = "";
 
   int width = 600;
   int height = 500;
@@ -108,6 +413,14 @@ bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info) {
     }
     TranslateMessage(&msg);
     DispatchMessage(&msg);
+  }
+
+  if (downloadThread) {
+    if (downloadThread->joinable()) {
+      downloadThread->join();
+    }
+    delete downloadThread;
+    downloadThread = nullptr;
   }
 
   delete renderer;
@@ -203,8 +516,16 @@ bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info) {
 
         OnPaint();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(16); // ~60 FPS
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
       }
+    }
+
+    if (downloadThread) {
+      if (downloadThread->joinable()) {
+        downloadThread->join();
+      }
+      delete downloadThread;
+      downloadThread = nullptr;
     }
 
     delete renderer;
@@ -321,6 +642,14 @@ bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info) {
     std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
   }
 
+  if (downloadThread) {
+    if (downloadThread->joinable()) {
+      downloadThread->join();
+    }
+    delete downloadThread;
+    downloadThread = nullptr;
+  }
+
   delete renderer;
   renderer = nullptr;
   XDestroyWindow(display, window);
@@ -401,14 +730,19 @@ void UpdateDialog::OnPaint(HWND hWnd) {
 
   RenderContent(width, height);
 
+  if (downloadState != DownloadState::Idle && downloadState != DownloadState::Complete && downloadState != DownloadState::Error) {
+    InvalidateRect(hWnd, nullptr, FALSE);
+  }
+
   EndPaint(hWnd, &ps);
 }
 
 void UpdateDialog::OnMouseMove(HWND hWnd, int x, int y) {
   int oldHovered = hoveredButton;
   hoveredButton = 0;
+  bool isMsix = IsMsixPackage();
 
-  if (currentInfo.updateAvailable) {
+  if (downloadState == DownloadState::Idle && currentInfo.updateAvailable && !isMsix) {
     if (x >= updateButtonRect.x && x <= updateButtonRect.x + updateButtonRect.width &&
       y >= updateButtonRect.y && y <= updateButtonRect.y + updateButtonRect.height) {
       hoveredButton = 1;
@@ -418,7 +752,10 @@ void UpdateDialog::OnMouseMove(HWND hWnd, int x, int y) {
       hoveredButton = 2;
     }
   }
-  else {
+  else if ((downloadState == DownloadState::Idle && currentInfo.updateAvailable && isMsix) ||
+    (downloadState == DownloadState::Idle && !currentInfo.updateAvailable) ||
+    downloadState == DownloadState::Complete ||
+    downloadState == DownloadState::Error) {
     if (x >= closeButtonRect.x && x <= closeButtonRect.x + closeButtonRect.width &&
       y >= closeButtonRect.y && y <= closeButtonRect.y + closeButtonRect.height) {
       hoveredButton = 3;
@@ -455,13 +792,13 @@ bool UpdateDialog::OnMouseUp(HWND hWnd, int x, int y) {
   }
 
   if (pressedButton == hoveredButton && pressedButton > 0) {
-    if (pressedButton == 1) {
-      ShellExecuteA(nullptr, "open", currentInfo.downloadUrl.c_str(),
-        nullptr, nullptr, SW_SHOWNORMAL);
-      DestroyWindow(hWnd);
-      return true;
+    if (pressedButton == 1 && downloadState == DownloadState::Idle) {
+      StartDownload();
+      InvalidateRect(hWnd, nullptr, FALSE);
+      return false;
     }
-    else if (pressedButton == 2 || pressedButton == 3) {
+    else if (pressedButton == 2 || pressedButton == 3 ||
+      (pressedButton == 1 && (downloadState == DownloadState::Complete || downloadState == DownloadState::Error))) {
       DestroyWindow(hWnd);
       return true;
     }
@@ -471,7 +808,6 @@ bool UpdateDialog::OnMouseUp(HWND hWnd, int x, int y) {
   InvalidateRect(hWnd, nullptr, FALSE);
   return false;
 }
-
 #elif __linux__
 
 void UpdateDialog::OnPaint() {
@@ -485,7 +821,7 @@ void UpdateDialog::OnMouseMove(int x, int y) {
   int oldHovered = hoveredButton;
   hoveredButton = 0;
 
-  if (currentInfo.updateAvailable) {
+  if (downloadState == DownloadState::Idle && currentInfo.updateAvailable) {
     if (x >= updateButtonRect.x && x <= updateButtonRect.x + updateButtonRect.width &&
       y >= updateButtonRect.y && y <= updateButtonRect.y + updateButtonRect.height) {
       hoveredButton = 1;
@@ -495,7 +831,10 @@ void UpdateDialog::OnMouseMove(int x, int y) {
       hoveredButton = 2;
     }
   }
-  else {
+  else if ((downloadState == DownloadState::Idle && currentInfo.updateAvailable) ||
+    (downloadState == DownloadState::Idle && !currentInfo.updateAvailable) ||
+    downloadState == DownloadState::Complete ||
+    downloadState == DownloadState::Error) {
     if (x >= closeButtonRect.x && x <= closeButtonRect.x + closeButtonRect.width &&
       y >= closeButtonRect.y && y <= closeButtonRect.y + closeButtonRect.height) {
       hoveredButton = 3;
@@ -530,12 +869,13 @@ bool UpdateDialog::OnMouseUp(int x, int y) {
   }
 
   if (pressedButton == hoveredButton && pressedButton > 0) {
-    if (pressedButton == 1) {
-      std::string cmd = "xdg-open \"" + currentInfo.downloadUrl + "\"";
-      system(cmd.c_str());
-      return true;
+    if (pressedButton == 1 && downloadState == DownloadState::Idle) {
+      StartDownload();
+      OnPaint();
+      return false;
     }
-    else if (pressedButton == 2 || pressedButton == 3) {
+    else if (pressedButton == 2 || pressedButton == 3 ||
+      (pressedButton == 1 && (downloadState == DownloadState::Complete || downloadState == DownloadState::Error))) {
       return true;
     }
   }
@@ -561,7 +901,7 @@ void UpdateDialog::OnMouseMove(int x, int y) {
   int oldHovered = hoveredButton;
   hoveredButton = 0;
 
-  if (currentInfo.updateAvailable) {
+  if (downloadState == DownloadState::Idle && currentInfo.updateAvailable) {
     if (x >= updateButtonRect.x && x <= updateButtonRect.x + updateButtonRect.width &&
       y >= updateButtonRect.y && y <= updateButtonRect.y + updateButtonRect.height) {
       hoveredButton = 1;
@@ -571,7 +911,13 @@ void UpdateDialog::OnMouseMove(int x, int y) {
       hoveredButton = 2;
     }
   }
-  else {
+  else if (downloadState == DownloadState::Idle && !currentInfo.updateAvailable) {
+    if (x >= closeButtonRect.x && x <= closeButtonRect.x + closeButtonRect.width &&
+      y >= closeButtonRect.y && y <= closeButtonRect.y + closeButtonRect.height) {
+      hoveredButton = 3;
+    }
+  }
+  else if (downloadState == DownloadState::Complete || downloadState == DownloadState::Error) {
     if (x >= closeButtonRect.x && x <= closeButtonRect.x + closeButtonRect.width &&
       y >= closeButtonRect.y && y <= closeButtonRect.y + closeButtonRect.height) {
       hoveredButton = 3;
@@ -606,15 +952,13 @@ bool UpdateDialog::OnMouseUp(int x, int y) {
   }
 
   if (pressedButton == hoveredButton && pressedButton > 0) {
-    if (pressedButton == 1) {
-      @autoreleasepool {
-        NSString* urlString = [NSString stringWithUTF8String:currentInfo.downloadUrl.c_str()];
-        NSURL* url = [NSURL URLWithString:urlString];
-        [[NSWorkspace sharedWorkspace]openURL:url];
-      }
-      return true;
+    if (pressedButton == 1 && downloadState == DownloadState::Idle) {
+      StartDownload();
+      OnPaint();
+      return false;
     }
-    else if (pressedButton == 2 || pressedButton == 3) {
+    else if (pressedButton == 2 || pressedButton == 3 ||
+      (pressedButton == 1 && (downloadState == DownloadState::Complete || downloadState == DownloadState::Error))) {
       return true;
     }
   }
@@ -623,13 +967,13 @@ bool UpdateDialog::OnMouseUp(int x, int y) {
   OnPaint();
   return false;
 }
-
 #endif
 
 void UpdateDialog::RenderContent(int width, int height) {
   if (!renderer) return;
 
   Theme theme = darkMode ? Theme::Dark() : Theme::Light();
+  bool isMsix = IsMsixPackage();
 
   renderer->beginFrame();
   renderer->clear(theme.windowBackground);
@@ -653,7 +997,32 @@ void UpdateDialog::RenderContent(int width, int height) {
 
   renderer->drawLine(0, 80, width, 80, theme.separator);
 
-  if (currentInfo.updateAvailable && !currentInfo.releaseNotes.empty()) {
+  if (downloadState != DownloadState::Idle) {
+    int progressY = 100;
+
+    Color statusColor = theme.textColor;
+    if (downloadState == DownloadState::Error) {
+      statusColor = Color(255, 100, 100);
+    }
+    else if (downloadState == DownloadState::Complete) {
+      statusColor = Color(100, 255, 100);
+    }
+    renderer->drawText(downloadStatus, 20, progressY, statusColor);
+
+    progressBarRect = Rect(20, progressY + 30, width - 40, 30);
+    renderer->drawProgressBar(progressBarRect, downloadProgress, theme);
+
+    std::ostringstream pctStream;
+    pctStream << (int)(downloadProgress * 100) << "%";
+    renderer->drawText(pctStream.str(), width / 2 - 15, progressY + 38, theme.textColor);
+  }
+  else if (currentInfo.updateAvailable && isMsix) {
+    renderer->drawText(Translations::T("Microsoft Store Package Detected").c_str(), 20, 100, theme.textColor);
+    renderer->drawText(Translations::T("This application is installed via the Microsoft Store.").c_str(), 20, 130, theme.disabledText);
+    renderer->drawText(Translations::T("Updates are managed automatically through the Store.").c_str(), 20, 155, theme.disabledText);
+    renderer->drawText(Translations::T("Please check the Microsoft Store for updates.").c_str(), 20, 180, theme.disabledText);
+  }
+  else if (currentInfo.updateAvailable && !currentInfo.releaseNotes.empty()) {
     renderer->drawText(Translations::T("What's New:").c_str(), 20, 100, theme.textColor);
 
     std::istringstream stream(currentInfo.releaseNotes);
@@ -695,6 +1064,9 @@ void UpdateDialog::RenderContent(int width, int height) {
         (int)((scrollbarRect.height - thumbHeight) * scrollNorm);
 
       scrollThumbRect = Rect(scrollbarRect.x, thumbY, scrollbarRect.width, thumbHeight);
+
+      Color thumbColor = scrollbarHovered ? Color(100, 100, 100) : Color(80, 80, 80);
+      renderer->drawRect(scrollThumbRect, thumbColor, true);
     }
   }
   else if (!currentInfo.updateAvailable) {
@@ -705,14 +1077,14 @@ void UpdateDialog::RenderContent(int width, int height) {
   int buttonY = height - 60;
   int buttonHeight = 40;
 
-  if (currentInfo.updateAvailable) {
+  if (downloadState == DownloadState::Idle && currentInfo.updateAvailable && !isMsix) {
     updateButtonRect = Rect(width - 280, buttonY, 120, buttonHeight);
     WidgetState updateState;
     updateState.rect = updateButtonRect;
     updateState.enabled = true;
     updateState.hovered = (hoveredButton == 1);
     updateState.pressed = (pressedButton == 1);
-    renderer->drawModernButton(updateState, theme, Translations::T("Update Now").c_str());
+    renderer->drawModernButton(updateState, theme, Translations::T("Download").c_str());
 
     skipButtonRect = Rect(width - 150, buttonY, 100, buttonHeight);
     WidgetState skipState;
@@ -722,7 +1094,17 @@ void UpdateDialog::RenderContent(int width, int height) {
     skipState.pressed = (pressedButton == 2);
     renderer->drawModernButton(skipState, theme, Translations::T("Skip").c_str());
   }
-  else {
+  else if (downloadState == DownloadState::Idle && currentInfo.updateAvailable && isMsix) {
+    closeButtonRect = Rect((width - 120) / 2, buttonY, 120, buttonHeight);
+    WidgetState closeState;
+    closeState.rect = closeButtonRect;
+    closeState.enabled = true;
+    closeState.hovered = (hoveredButton == 3);
+    closeState.pressed = (pressedButton == 3);
+    renderer->drawModernButton(closeState, theme, Translations::T("Close").c_str());
+  }
+  else if (downloadState == DownloadState::Complete || downloadState == DownloadState::Error ||
+    (downloadState == DownloadState::Idle && !currentInfo.updateAvailable)) {
     closeButtonRect = Rect((width - 120) / 2, buttonY, 120, buttonHeight);
     WidgetState closeState;
     closeState.rect = closeButtonRect;

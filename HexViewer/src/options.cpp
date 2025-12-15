@@ -81,6 +81,7 @@ void DetectNative() {
   LONG result = GetPackageFullName(nullptr, &length, nullptr);
   if (result == ERROR_SUCCESS || result == ERROR_INSUFFICIENT_BUFFER) {
     g_isNative = true;
+    g_isMsix = true;
     return;
   }
 

@@ -488,22 +488,57 @@ bool AboutDialog::OnMouseUp(HWND hWnd, int x, int y) {
   if (pressedButton == hoveredButton && pressedButton == 1) {
     UpdateInfo info;
     info.currentVersion = "1.0.0";
-    info.latestVersion = "1.2.0";
-    info.updateAvailable = true;
-    info.releaseNotes =
-      "New Features:\n"
-      "Added cross-platform menu bar support\n"
-      "Improved rendering performance\n"
-      "Added dark mode for all dialogs\n"
-      "\n"
-      "Bug Fixes:\n"
-      "Fixed scrollbar flickering on Linux\n"
-      "Fixed memory leak in hex editor\n"
-      "Improved file loading speed";
-    info.downloadUrl = "https://github.com/horsicq/HexViewer/releases/latest";
+    info.updateAvailable = false;
+    info.latestVersion = "Checking...";
+    info.releaseNotes = "Please wait while we check for updates...";
+    info.releaseApiUrl = "https://api.github.com/repos/horsicq/HexViewer/releases/latest";
 
     ShowWindow(hWnd, SW_HIDE);
-    UpdateDialog::Show(parentWindow, info);
+
+    HWND parentWnd = parentWindow;
+
+    std::thread([parentWnd, info]() mutable {
+      std::string response = HttpGet(info.releaseApiUrl);
+
+      if (!response.empty()) {
+        std::string releaseName = ExtractJsonValue(response, "name");
+
+        size_t vPos = releaseName.find("v");
+        if (vPos != std::string::npos) {
+          size_t spacePos = releaseName.find(" ", vPos);
+          if (spacePos != std::string::npos) {
+            info.latestVersion = releaseName.substr(vPos + 1, spacePos - vPos - 1);
+          }
+          else {
+            info.latestVersion = releaseName.substr(vPos + 1);
+          }
+        }
+        else {
+          info.latestVersion = ExtractJsonValue(response, "tag_name");
+          if (!info.latestVersion.empty() && info.latestVersion[0] == 'v') {
+            info.latestVersion = info.latestVersion.substr(1);
+          }
+        }
+
+        info.releaseNotes = ExtractJsonValue(response, "body");
+
+        size_t pos = 0;
+        while ((pos = info.releaseNotes.find("\xE2\x80\x94", pos)) != std::string::npos) {
+          info.releaseNotes.replace(pos, 3, "-");
+        }
+
+        info.updateAvailable = (info.latestVersion != info.currentVersion &&
+          !info.latestVersion.empty());
+      }
+      else {
+        info.updateAvailable = false;
+        info.latestVersion = info.currentVersion;
+        info.releaseNotes = "Unable to check for updates. Please try again later.";
+      }
+
+      UpdateDialog::Show(parentWnd, info);
+      }).detach();
+
     DestroyWindow(hWnd);
     return true;
   }
@@ -592,19 +627,21 @@ bool AboutDialog::OnMouseUp(int x, int y) {
   if (pressedButton == hoveredButton && pressedButton == 1) {
     UpdateInfo info;
     info.currentVersion = "1.0.0";
-    info.latestVersion = "1.2.0";
-    info.updateAvailable = true;
-    info.releaseNotes =
-      "New Features:\n"
-      "Added cross-platform menu bar support\n"
-      "Improved rendering performance\n"
-      "Added dark mode for all dialogs\n"
-      "\n"
-      "Bug Fixes:\n"
-      "Fixed scrollbar flickering on Linux\n"
-      "Fixed memory leak in hex editor\n"
-      "Improved file loading speed";
-    info.downloadUrl = "https://github.com/horsicq/HexViewer/releases/latest";
+
+    info.releaseApiUrl = "https://api.github.com/repos/horsicq/HexViewer/releases/latest";
+
+    std::string response = HttpGet(info.releaseApiUrl);
+
+    if (!response.empty()) {
+      info.latestVersion = ExtractJsonValue(response, "tag_name");
+      info.releaseNotes = ExtractJsonValue(response, "body");
+      info.updateAvailable = (info.latestVersion != info.currentVersion && !info.latestVersion.empty());
+    }
+    else {
+      info.updateAvailable = false;
+      info.latestVersion = info.currentVersion;
+      info.releaseNotes = "Unable to check for updates. Please try again later.";
+    }
 
     UpdateDialog::Show(parentWindow, info);
     return true;
@@ -656,19 +693,21 @@ bool AboutDialog::OnMouseUp(int x, int y) {
   if (pressedButton == hoveredButton && pressedButton == 1) {
     UpdateInfo info;
     info.currentVersion = "1.0.0";
-    info.latestVersion = "1.2.0";
-    info.updateAvailable = true;
-    info.releaseNotes =
-      "New Features:\n"
-      "Added cross-platform menu bar support\n"
-      "Improved rendering performance\n"
-      "Added dark mode for all dialogs\n"
-      "\n"
-      "Bug Fixes:\n"
-      "Fixed scrollbar flickering on Linux\n"
-      "Fixed memory leak in hex editor\n"
-      "Improved file loading speed";
-    info.downloadUrl = "https://github.com/horsicq/HexViewer/releases/latest";
+
+    info.releaseApiUrl = "https://api.github.com/repos/horsicq/HexViewer/releases/latest";
+
+    std::string response = HttpGet(info.releaseApiUrl);
+
+    if (!response.empty()) {
+      info.latestVersion = ExtractJsonValue(response, "tag_name");
+      info.releaseNotes = ExtractJsonValue(response, "body");
+      info.updateAvailable = (info.latestVersion != info.currentVersion && !info.latestVersion.empty());
+    }
+    else {
+      info.updateAvailable = false;
+      info.latestVersion = info.currentVersion;
+      info.releaseNotes = "Unable to check for updates. Please try again later.";
+    }
 
     UpdateDialog::Show(parentWindow, info);
     return true;
