@@ -14,7 +14,6 @@
 #include <language.h>
 #include <about.h>
 #include <imageloader.h>
-#include <resource.h>
 
 RenderManager* AboutDialog::renderer = nullptr;
 bool AboutDialog::darkMode = true;
