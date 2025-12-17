@@ -246,7 +246,7 @@ std::string GetAssetDownloadUrl(const std::string& releaseApiUrl, bool includeBe
   std::string targetExtension;
 
 #ifdef _WIN32
-  targetExtension = isNative ? ".msi" : ".zip";
+  targetExtension = isNative ? ".exe" : ".zip";
 #elif __APPLE__
   targetExtension = isNative ? ".dmg" : ".zip";
 #elif __linux__
@@ -314,7 +314,7 @@ void DownloadFromGitHub() {
   downloadStatus = betaEnabled ? "Downloading beta update..." : "Downloading update...";
 
   bool isNative = g_isNative;
-  std::string extension = isNative ? ".msi" : ".zip";
+  std::string extension = isNative ? ".exe" : ".zip";
 #ifdef __APPLE__
   extension = isNative ? ".dmg" : ".zip";
 #elif __linux__
@@ -341,8 +341,7 @@ void DownloadFromGitHub() {
 #ifdef _WIN32
   if (isNative) {
     std::wstring wPath(downloadedFilePath.begin(), downloadedFilePath.end());
-    ShellExecuteW(nullptr, L"open", L"msiexec.exe",
-      (L"/i \"" + wPath + L"\" /passive").c_str(), nullptr, SW_SHOWNORMAL);
+    ShellExecuteW(nullptr, L"open", wPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
   }
   else {
     std::wstring wPath(downloadedFilePath.begin(), downloadedFilePath.end());
