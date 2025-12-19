@@ -1,5 +1,6 @@
 #ifdef _WIN32
 #include <windows.h>
+#include <resource.h>
 #elif __APPLE__
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
@@ -14,6 +15,7 @@
 #include <language.h>
 #include <about.h>
 #include <imageloader.h>
+
 
 RenderManager* AboutDialog::renderer = nullptr;
 bool AboutDialog::darkMode = true;
@@ -524,11 +526,11 @@ bool AboutDialog::OnMouseUp(HWND hWnd, int x, int y) {
     info.updateAvailable = false;
     info.latestVersion = "Checking...";
     info.releaseNotes = "Please wait while we check for updates...";
+    info.betaPreference = betaEnabled;  // CRITICAL: Pass beta preference
 
     if (betaEnabled) {
       info.releaseApiUrl = "https://api.github.com/repos/horsicq/HexViewer/releases";
-    }
-    else {
+    } else {
       info.releaseApiUrl = "https://api.github.com/repos/horsicq/HexViewer/releases/latest";
     }
 
@@ -541,42 +543,48 @@ bool AboutDialog::OnMouseUp(HWND hWnd, int x, int y) {
       std::string response = HttpGet(info.releaseApiUrl);
 
       if (!response.empty()) {
-        std::string releaseName;
-
-        if (checkBeta) {
-          size_t releaseStart = response.find("{\"url\"");
-          if (releaseStart != std::string::npos) {
-            std::string firstRelease = response.substr(releaseStart);
-            size_t releaseEnd = firstRelease.find("},");
-            if (releaseEnd == std::string::npos) {
-              releaseEnd = firstRelease.find("}]");
+        std::string releaseToCheck = response;
+        
+        if (checkBeta && response.length() > 0 && response[0] == '[') {
+          size_t firstBrace = response.find("{\"");
+          if (firstBrace != std::string::npos) {
+            int braceCount = 0;
+            size_t endPos = firstBrace;
+            
+            for (size_t i = firstBrace; i < response.length(); i++) {
+              if (response[i] == '{') braceCount++;
+              if (response[i] == '}') {
+                braceCount--;
+                if (braceCount == 0) {
+                  endPos = i;
+                  break;
+                }
+              }
             }
-            if (releaseEnd != std::string::npos) {
-              response = firstRelease.substr(0, releaseEnd + 1);
-            }
+            
+            releaseToCheck = response.substr(firstBrace, endPos - firstBrace + 1);
           }
         }
 
-        releaseName = ExtractJsonValue(response, "name");
-
-        size_t vPos = releaseName.find("v");
-        if (vPos != std::string::npos) {
-          size_t spacePos = releaseName.find(" ", vPos);
-          if (spacePos != std::string::npos) {
-            info.latestVersion = releaseName.substr(vPos + 1, spacePos - vPos - 1);
-          }
-          else {
+        info.latestVersion = ExtractJsonValue(releaseToCheck, "tag_name");
+        
+        if (!info.latestVersion.empty() && info.latestVersion[0] == 'v') {
+          info.latestVersion = info.latestVersion.substr(1);
+        }
+        
+        if (info.latestVersion.empty()) {
+          std::string releaseName = ExtractJsonValue(releaseToCheck, "name");
+          size_t vPos = releaseName.find("v");
+          if (vPos != std::string::npos) {
             info.latestVersion = releaseName.substr(vPos + 1);
-          }
-        }
-        else {
-          info.latestVersion = ExtractJsonValue(response, "tag_name");
-          if (!info.latestVersion.empty() && info.latestVersion[0] == 'v') {
-            info.latestVersion = info.latestVersion.substr(1);
+            size_t spacePos = info.latestVersion.find(" ");
+            if (spacePos != std::string::npos) {
+              info.latestVersion = info.latestVersion.substr(0, spacePos);
+            }
           }
         }
 
-        info.releaseNotes = ExtractJsonValue(response, "body");
+        info.releaseNotes = ExtractJsonValue(releaseToCheck, "body");
 
         size_t pos = 0;
         while ((pos = info.releaseNotes.find("\xE2\x80\x94", pos)) != std::string::npos) {
@@ -589,15 +597,14 @@ bool AboutDialog::OnMouseUp(HWND hWnd, int x, int y) {
         if (checkBeta) {
           info.releaseApiUrl = "https://api.github.com/repos/horsicq/HexViewer/releases";
         }
-      }
-      else {
+      } else {
         info.updateAvailable = false;
         info.latestVersion = info.currentVersion;
         info.releaseNotes = "Unable to check for updates. Please try again later.";
       }
 
       UpdateDialog::Show(parentWnd, info);
-      }).detach();
+    }).detach();
 
     DestroyWindow(hWnd);
     return true;
@@ -607,6 +614,7 @@ bool AboutDialog::OnMouseUp(HWND hWnd, int x, int y) {
   InvalidateRect(hWnd, nullptr, FALSE);
   return false;
 }
+
 
 LRESULT CALLBACK AboutDialog::DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   switch (message) {
@@ -717,27 +725,46 @@ bool AboutDialog::OnMouseUp(int x, int y) {
 
     std::string response = HttpGet(info.releaseApiUrl);
 
-    if (!response.empty()) {
-      if (betaEnabled) {
-        size_t releaseStart = response.find("{\"url\"");
-        if (releaseStart != std::string::npos) {
-          std::string firstRelease = response.substr(releaseStart);
-          size_t releaseEnd = firstRelease.find("},");
-          if (releaseEnd == std::string::npos) {
-            releaseEnd = firstRelease.find("}]");
-          }
-          if (releaseEnd != std::string::npos) {
-            response = firstRelease.substr(0, releaseEnd + 1);
-          }
+if (!response.empty()) {
+  std::string releaseName;
+  std::string releaseJson = response;
+
+  if (checkBeta) {
+    size_t releaseStart = response.find("[");
+    if (releaseStart != std::string::npos) {
+      size_t firstObjStart = response.find("{", releaseStart);
+      if (firstObjStart != std::string::npos) {
+        size_t firstObjEnd = response.find("},{", firstObjStart);
+        if (firstObjEnd == std::string::npos) {
+          firstObjEnd = response.find("}]", firstObjStart);
+        }
+        if (firstObjEnd != std::string::npos) {
+          releaseJson = response.substr(firstObjStart, firstObjEnd - firstObjStart + 1);
         }
       }
+    }
+  }
 
-      info.latestVersion = ExtractJsonValue(response, "tag_name");
-      if (!info.latestVersion.empty() && info.latestVersion[0] == 'v') {
-        info.latestVersion = info.latestVersion.substr(1);
+  info.latestVersion = ExtractJsonValue(releaseJson, "tag_name");
+  if (!info.latestVersion.empty() && info.latestVersion[0] == 'v') {
+    info.latestVersion = info.latestVersion.substr(1);
+  }
+  
+  if (info.latestVersion.empty()) {
+    releaseName = ExtractJsonValue(releaseJson, "name");
+    size_t vPos = releaseName.find("v");
+    if (vPos != std::string::npos) {
+      size_t spacePos = releaseName.find(" ", vPos);
+      if (spacePos != std::string::npos) {
+        info.latestVersion = releaseName.substr(vPos + 1, spacePos - vPos - 1);
       }
+      else {
+        info.latestVersion = releaseName.substr(vPos + 1);
+      }
+    }
+  }
 
-      info.releaseNotes = ExtractJsonValue(response, "body");
+  info.releaseNotes = ExtractJsonValue(releaseJson, "body");
       info.updateAvailable = (info.latestVersion != info.currentVersion && !info.latestVersion.empty());
     }
     else {

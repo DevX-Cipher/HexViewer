@@ -34,6 +34,7 @@
 RenderManager* UpdateDialog::renderer = nullptr;
 UpdateInfo UpdateDialog::currentInfo = {};
 bool UpdateDialog::darkMode = true;
+NativeWindow UpdateDialog::parentWindow = 0;
 int UpdateDialog::hoveredButton = 0;
 int UpdateDialog::pressedButton = 0;
 int UpdateDialog::scrollOffset = 0;
@@ -240,51 +241,188 @@ std::string GetAssetDownloadUrl(const std::string& releaseApiUrl, bool includeBe
   }
 
   std::string response = HttpGet(modifiedUrl);
-  if (response.empty()) return "";
+  if (response.empty()) {
+    return "";
+  }
 
   bool isNative = g_isNative;
-  std::string targetExtension;
-
+  
+  std::vector<std::string> targetExtensions;
+  
 #ifdef _WIN32
-  targetExtension = isNative ? ".exe" : ".zip";
+  if (isNative) {
+    targetExtensions = {".exe", ".msi", "-windows.exe", "-win.exe", "-win64.exe"};
+  } else {
+    targetExtensions = {".zip", "-windows.zip", "-win.zip", "-win64.zip"};
+  }
 #elif __APPLE__
-  targetExtension = isNative ? ".dmg" : ".zip";
+  if (isNative) {
+    targetExtensions = {".dmg", "-macos.dmg", "-mac.dmg", "-osx.dmg"};
+  } else {
+    targetExtensions = {".zip", "-macos.zip", "-mac.zip", "-osx.zip"};
+  }
 #elif __linux__
-  targetExtension = isNative ? ".deb" : ".tar.gz";
+  if (isNative) {
+    targetExtensions = {".deb", ".AppImage", "-linux.deb", "-linux.AppImage", 
+                        ".rpm", "-x86_64.deb", "-amd64.deb"};
+  } else {
+    targetExtensions = {".tar.gz", ".tar.bz2", "-linux.tar.gz", "-linux.tar.bz2"};
+  }
 #else
-  targetExtension = ".zip"; // Fallback
+  targetExtensions = {".zip"};
 #endif
 
-  if (includeBeta) {
-    size_t releaseStart = response.find("{\"url\"");
-    if (releaseStart != std::string::npos) {
-      std::string firstRelease = response.substr(releaseStart);
-      size_t releaseEnd = firstRelease.find("},");
-      if (releaseEnd == std::string::npos) {
-        releaseEnd = firstRelease.find("}]");
+  std::string releaseToSearch = response;
+
+  if (includeBeta && response.length() > 2 && response[0] == '[') {
+    size_t searchPos = 0;
+    std::string firstRelease;
+    std::string firstPrerelease;
+    
+    while (searchPos < response.length()) {
+      size_t releaseStart = response.find("{\"url\"", searchPos);
+      if (releaseStart == std::string::npos) {
+        releaseStart = response.find("{\"id\"", searchPos);
       }
-      if (releaseEnd != std::string::npos) {
-        response = firstRelease.substr(0, releaseEnd + 1);
+      if (releaseStart == std::string::npos) break;
+      
+      int braceCount = 0;
+      size_t releaseEnd = releaseStart;
+      bool inString = false;
+      bool escaped = false;
+      
+      for (size_t i = releaseStart; i < response.length(); i++) {
+        char c = response[i];
+        
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        
+        if (c == '\\') {
+          escaped = true;
+          continue;
+        }
+        
+        if (c == '"') {
+          inString = !inString;
+        }
+        
+        if (!inString) {
+          if (c == '{') braceCount++;
+          if (c == '}') {
+            braceCount--;
+            if (braceCount == 0) {
+              releaseEnd = i;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (releaseEnd <= releaseStart) break;
+      
+      std::string currentRelease = response.substr(releaseStart, releaseEnd - releaseStart + 1);
+      
+      if (firstRelease.empty()) {
+        firstRelease = currentRelease;
+      }
+      
+      bool isPrerelease = ExtractJsonBool(currentRelease, "prerelease");
+      
+      if (isPrerelease && firstPrerelease.empty()) {
+        firstPrerelease = currentRelease;
+      }
+      
+      searchPos = releaseEnd + 1;
+    }
+    
+    releaseToSearch = !firstPrerelease.empty() ? firstPrerelease : firstRelease;
+    
+    if (releaseToSearch.empty()) {
+      releaseToSearch = response; // Fallback to full response
+    }
+  }
+
+  size_t assetsPos = releaseToSearch.find("\"assets\"");
+  if (assetsPos == std::string::npos) {
+    return "";
+  }
+
+  size_t assetsArrayStart = releaseToSearch.find("[", assetsPos);
+  if (assetsArrayStart == std::string::npos) {
+    return "";
+  }
+
+  size_t assetsArrayEnd = releaseToSearch.find("]", assetsArrayStart);
+  if (assetsArrayEnd == std::string::npos) {
+    assetsArrayEnd = releaseToSearch.length();
+  }
+
+  std::string assetsSection = releaseToSearch.substr(assetsArrayStart, 
+                                                      assetsArrayEnd - assetsArrayStart);
+
+  std::vector<std::pair<std::string, std::string>> availableAssets;
+  
+  size_t currentPos = 0;
+  while (currentPos < assetsSection.length()) {
+    size_t namePos = assetsSection.find("\"name\"", currentPos);
+    if (namePos == std::string::npos) break;
+
+    std::string assetName = ExtractJsonValue(assetsSection.substr(namePos), "name");
+    
+    if (!assetName.empty()) {
+      size_t urlPos = assetsSection.find("\"browser_download_url\"", namePos);
+      if (urlPos != std::string::npos) {
+        std::string downloadUrl = ExtractJsonValue(assetsSection.substr(urlPos), 
+                                                    "browser_download_url");
+        if (!downloadUrl.empty()) {
+          availableAssets.push_back({assetName, downloadUrl});
+        }
+      }
+    }
+    
+    currentPos = namePos + 1;
+  }
+
+  for (const auto& extension : targetExtensions) {
+    for (const auto& asset : availableAssets) {
+      const std::string& assetName = asset.first;
+      
+      if (assetName.length() >= extension.length()) {
+        std::string assetEnd = assetName.substr(assetName.length() - extension.length());
+        
+        std::string assetEndLower = assetEnd;
+        std::string extensionLower = extension;
+        std::transform(assetEndLower.begin(), assetEndLower.end(), 
+                      assetEndLower.begin(), ::tolower);
+        std::transform(extensionLower.begin(), extensionLower.end(), 
+                      extensionLower.begin(), ::tolower);
+        
+        if (assetEndLower == extensionLower) {
+          return asset.second;
+        }
       }
     }
   }
 
-  size_t assetsPos = response.find("\"assets\"");
-  if (assetsPos == std::string::npos) return "";
-
-  size_t currentPos = assetsPos;
-  while (true) {
-    size_t namePos = response.find("\"name\"", currentPos);
-    if (namePos == std::string::npos) break;
-
-    std::string assetName = ExtractJsonValue(response.substr(namePos), "name");
-    if (assetName.find(targetExtension) != std::string::npos) {
-      size_t urlPos = response.find("\"browser_download_url\"", namePos);
-      if (urlPos != std::string::npos) {
-        return ExtractJsonValue(response.substr(urlPos), "browser_download_url");
+  for (const auto& extension : targetExtensions) {
+    for (const auto& asset : availableAssets) {
+      std::string assetNameLower = asset.first;
+      std::string extensionLower = extension;
+      std::transform(assetNameLower.begin(), assetNameLower.end(), 
+                    assetNameLower.begin(), ::tolower);
+      std::transform(extensionLower.begin(), extensionLower.end(), 
+                    extensionLower.begin(), ::tolower);
+      
+      if (assetNameLower.find(extensionLower) != std::string::npos) {
+        return asset.second;
       }
     }
-    currentPos = namePos + 1;
+  }
+
+  if (!availableAssets.empty()) {
+    return availableAssets[0].second;
   }
 
   return "";
@@ -303,25 +441,40 @@ void DownloadFromGitHub() {
   downloadStatus = "Connecting to GitHub...";
   downloadProgress = 0.0f;
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
   std::string assetUrl = GetAssetDownloadUrl(UpdateDialog::currentInfo.releaseApiUrl, betaEnabled);
+
   if (assetUrl.empty()) {
     downloadState = DownloadState::Error;
-    downloadStatus = "Failed to find download asset";
+    downloadStatus = "No matching asset found for your platform";
     return;
   }
 
   downloadState = DownloadState::Downloading;
   downloadStatus = betaEnabled ? "Downloading beta update..." : "Downloading update...";
+  downloadProgress = 0.05f;
 
-  bool isNative = g_isNative;
-  std::string extension = isNative ? ".exe" : ".zip";
-#ifdef __APPLE__
-  extension = isNative ? ".dmg" : ".zip";
-#elif __linux__
-  extension = isNative ? ".deb" : ".tar.gz";
+  std::string filename = "update_download";
+  size_t lastSlash = assetUrl.find_last_of('/');
+  if (lastSlash != std::string::npos && lastSlash + 1 < assetUrl.length()) {
+    filename = assetUrl.substr(lastSlash + 1);
+
+    size_t questionMark = filename.find('?');
+    if (questionMark != std::string::npos) {
+      filename = filename.substr(0, questionMark);
+    }
+  }
+
+#ifdef _WIN32
+  wchar_t tempPath[MAX_PATH];
+  GetTempPathW(MAX_PATH, tempPath);
+  char temp[MAX_PATH];
+  WideCharToMultiByte(CP_UTF8, 0, tempPath, -1, temp, MAX_PATH, nullptr, nullptr);
+  downloadedFilePath = std::string(temp) + filename;
+#else
+  downloadedFilePath = "/tmp/" + filename;
 #endif
-
-  downloadedFilePath = GetTempDownloadPath() + extension;
 
   bool success = DownloadFile(assetUrl, downloadedFilePath,
     [](float progress, const std::string& status) {
@@ -331,49 +484,135 @@ void DownloadFromGitHub() {
 
   if (!success) {
     downloadState = DownloadState::Error;
-    downloadStatus = "Download failed";
+    downloadStatus = "Download failed. Please check your internet connection.";
     return;
   }
 
-  downloadState = DownloadState::Installing;
-  downloadStatus = "Installing update...";
+  std::ifstream testFile(downloadedFilePath, std::ios::binary);
+  if (!testFile.good()) {
+    downloadState = DownloadState::Error;
+    downloadStatus = "Downloaded file verification failed";
+    return;
+  }
+  testFile.close();
+
+  downloadState = DownloadState::Complete;
+  downloadStatus = "Download complete! Click Install to proceed.";
+  downloadProgress = 1.0f;
+}
+
+void InstallUpdate() {
+  if (downloadedFilePath.empty()) return;
+
+  std::string extension;
+  size_t dotPos = downloadedFilePath.find_last_of('.');
+  if (dotPos != std::string::npos) {
+    extension = downloadedFilePath.substr(dotPos);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+  }
 
 #ifdef _WIN32
-  if (isNative) {
+  if (extension == ".exe" || extension == ".msi") {
     std::wstring wPath(downloadedFilePath.begin(), downloadedFilePath.end());
-    ShellExecuteW(nullptr, L"open", wPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    SHELLEXECUTEINFOW sei = { sizeof(sei) };
+    sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+    sei.lpVerb = L"open";
+    sei.lpFile = wPath.c_str();
+    sei.nShow = SW_SHOWNORMAL;
+
+    if (ShellExecuteExW(&sei)) {
+      PostQuitMessage(0);
+
+      if (UpdateDialog::parentWindow) {
+        PostMessage((HWND)UpdateDialog::parentWindow, WM_CLOSE, 0, 0);
+      }
+    }
+    else {
+      downloadState = DownloadState::Error;
+      downloadStatus = "Failed to launch installer";
+    }
   }
   else {
     std::wstring wPath(downloadedFilePath.begin(), downloadedFilePath.end());
     ShellExecuteW(nullptr, L"open", L"explorer.exe",
       (L"/select,\"" + wPath + L"\"").c_str(), nullptr, SW_SHOWNORMAL);
   }
+
 #elif __APPLE__
-  if (isNative) {
+  if (extension == ".dmg" || extension == ".pkg") {
     std::string cmd = "open \"" + downloadedFilePath + "\"";
-    system(cmd.c_str());
+    int result = system(cmd.c_str());
+
+    if (result == 0) {
+      @autoreleasepool{
+        dispatch_async(dispatch_get_main_queue(),^ {
+          [NSApp terminate : nil] ;
+        });
+      }
+    }
+    else {
+      downloadState = DownloadState::Error;
+      downloadStatus = "Failed to open installer";
+    }
   }
   else {
     std::string cmd = "open -R \"" + downloadedFilePath + "\"";
     system(cmd.c_str());
   }
-#else
-  if (isNative) {
-    std::string cmd = "xterm -e 'sudo dpkg -i \"" + downloadedFilePath + "\"'";
+
+#elif __linux__
+  if (extension == ".deb") {
+    std::string gdebiCmd = "gdebi-gtk \"" + downloadedFilePath + "\" &";
+    int result = system(gdebiCmd.c_str());
+
+    if (result != 0) {
+      std::string cmd = "x-terminal-emulator -e \"bash -c 'sudo dpkg -i \\\"" +
+        downloadedFilePath + "\\\"; sudo apt-get install -f -y; " +
+        "echo; echo Press Enter to close.; read'\" &";
+      result = system(cmd.c_str());
+
+      if (result != 0) {
+        cmd = "gnome-terminal -- bash -c 'sudo dpkg -i \"" + downloadedFilePath +
+          "\"; sudo apt-get install -f -y; echo; echo \"Press Enter to close.\"; read' &";
+        result = system(cmd.c_str());
+
+        if (result != 0) {
+          cmd = "xterm -e 'sudo dpkg -i \"" + downloadedFilePath +
+            "\"; sudo apt-get install -f -y; echo; echo Press Enter to close.; read' &";
+          system(cmd.c_str());
+        }
+      }
+    }
+
+    exit(0);
+  }
+  else if (extension == ".appimage") {
+    std::string chmodCmd = "chmod +x \"" + downloadedFilePath + "\"";
+    system(chmodCmd.c_str());
+
+    std::string cmd = "\"" + downloadedFilePath + "\" &";
     system(cmd.c_str());
+    exit(0);
+  }
+  else if (extension == ".rpm") {
+    std::string cmd = "x-terminal-emulator -e \"bash -c 'sudo rpm -i \\\"" +
+      downloadedFilePath + "\\\"; echo; echo Press Enter to close.; read'\" &";
+    int result = system(cmd.c_str());
+
+    if (result != 0) {
+      cmd = "gnome-terminal -- bash -c 'sudo rpm -i \"" + downloadedFilePath +
+        "\"; echo; echo \"Press Enter to close.\"; read' &";
+      system(cmd.c_str());
+    }
+    exit(0);
   }
   else {
-    std::string cmd = "xdg-open \"$(dirname '" + downloadedFilePath + "')\"";
+    std::string dirPath = downloadedFilePath.substr(0, downloadedFilePath.find_last_of("/"));
+    std::string cmd = "xdg-open \"" + dirPath + "\" &";
     system(cmd.c_str());
   }
 #endif
-
-  downloadState = DownloadState::Complete;
-  downloadStatus = "Update installed successfully! Please restart.";
-  downloadProgress = 1.0f;
 }
-
-
 void StartDownload() {
   if (downloadThread) {
     if (downloadThread->joinable()) {
@@ -389,6 +628,7 @@ void StartDownload() {
 
 bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info) {
   currentInfo = info;
+  parentWindow = parent;
   hoveredButton = 0;
   pressedButton = 0;
   scrollOffset = 0;
@@ -806,9 +1046,18 @@ void UpdateDialog::OnMouseMove(HWND hWnd, int x, int y) {
       hoveredButton = 2;
     }
   }
+  else if (downloadState == DownloadState::Complete && !isMsix) {
+    if (x >= updateButtonRect.x && x <= updateButtonRect.x + updateButtonRect.width &&
+      y >= updateButtonRect.y && y <= updateButtonRect.y + updateButtonRect.height) {
+      hoveredButton = 1;  // Install button
+    }
+    else if (x >= skipButtonRect.x && x <= skipButtonRect.x + skipButtonRect.width &&
+      y >= skipButtonRect.y && y <= skipButtonRect.y + skipButtonRect.height) {
+      hoveredButton = 2;  // Cancel button
+    }
+  }
   else if ((downloadState == DownloadState::Idle && currentInfo.updateAvailable && isMsix) ||
     (downloadState == DownloadState::Idle && !currentInfo.updateAvailable) ||
-    downloadState == DownloadState::Complete ||
     downloadState == DownloadState::Error) {
     if (x >= closeButtonRect.x && x <= closeButtonRect.x + closeButtonRect.width &&
       y >= closeButtonRect.y && y <= closeButtonRect.y + closeButtonRect.height) {
@@ -857,8 +1106,11 @@ bool UpdateDialog::OnMouseUp(HWND hWnd, int x, int y) {
       InvalidateRect(hWnd, nullptr, FALSE);
       return false;
     }
-    else if (pressedButton == 2 || pressedButton == 3 ||
-      (pressedButton == 1 && (downloadState == DownloadState::Complete || downloadState == DownloadState::Error))) {
+    else if (pressedButton == 1 && downloadState == DownloadState::Complete) {
+      InstallUpdate();
+      return false;
+    }
+    else if (pressedButton == 2 || pressedButton == 3) {
       DestroyWindow(hWnd);
       return true;
     }
@@ -949,8 +1201,11 @@ bool UpdateDialog::OnMouseUp(int x, int y) {
       OnPaint();
       return false;
     }
-    else if (pressedButton == 2 || pressedButton == 3 ||
-      (pressedButton == 1 && (downloadState == DownloadState::Complete || downloadState == DownloadState::Error))) {
+    else if (pressedButton == 1 && downloadState == DownloadState::Complete) {
+      InstallUpdate();
+      return false;
+    }
+    else if (pressedButton == 2 || pressedButton == 3) {
       return true;
     }
   }
@@ -1047,8 +1302,11 @@ bool UpdateDialog::OnMouseUp(int x, int y) {
       OnPaint();
       return false;
     }
-    else if (pressedButton == 2 || pressedButton == 3 ||
-      (pressedButton == 1 && (downloadState == DownloadState::Complete || downloadState == DownloadState::Error))) {
+    else if (pressedButton == 1 && downloadState == DownloadState::Complete) {
+      InstallUpdate();
+      return false;
+    }
+    else if (pressedButton == 2 || pressedButton == 3) {
       return true;
     }
   }
@@ -1104,16 +1362,11 @@ void UpdateDialog::RenderContent(int width, int height) {
       betaToggleRect.x + 25, betaToggleRect.y + 5, theme.textColor);
   }
 
-  if (downloadState != DownloadState::Idle) {
+  if (downloadState == DownloadState::Downloading || 
+      downloadState == DownloadState::Connecting) {
     int progressY = 130;
 
     Color statusColor = theme.textColor;
-    if (downloadState == DownloadState::Error) {
-      statusColor = Color(255, 100, 100);
-    }
-    else if (downloadState == DownloadState::Complete) {
-      statusColor = Color(100, 255, 100);
-    }
     renderer->drawText(downloadStatus, 20, progressY, statusColor);
 
     progressBarRect = Rect(20, progressY + 30, width - 40, 30);
@@ -1123,11 +1376,18 @@ void UpdateDialog::RenderContent(int width, int height) {
     pctStream << (int)(downloadProgress * 100) << "%";
     renderer->drawText(pctStream.str(), width / 2 - 15, progressY + 38, theme.textColor);
   }
+  else if (downloadState == DownloadState::Complete) {
+    int messageY = 130;
+    renderer->drawText(downloadStatus, 20, messageY, Color(100, 255, 100));
+    renderer->drawText(Translations::T("Ready to install. Click Install to continue."), 
+                      20, messageY + 30, theme.textColor);
+  }
+  else if (downloadState == DownloadState::Error) {
+    renderer->drawText(downloadStatus, 20, 130, Color(255, 100, 100));
+  }
   else if (currentInfo.updateAvailable && isMsix) {
     renderer->drawText(Translations::T("Microsoft Store Package Detected").c_str(), 20, 130, theme.textColor);
-    renderer->drawText(Translations::T("This application is installed via the Microsoft Store.").c_str(), 20, 160, theme.disabledText);
-    renderer->drawText(Translations::T("Updates are managed automatically through the Store.").c_str(), 20, 185, theme.disabledText);
-    renderer->drawText(Translations::T("Please check the Microsoft Store for updates.").c_str(), 20, 210, theme.disabledText);
+    renderer->drawText(Translations::T("Updates are managed through the Microsoft Store.").c_str(), 20, 160, theme.disabledText);
   }
   else if (currentInfo.updateAvailable && !currentInfo.releaseNotes.empty()) {
     renderer->drawText(Translations::T("What's New:").c_str(), 20, 130, theme.textColor);
@@ -1150,28 +1410,18 @@ void UpdateDialog::RenderContent(int width, int height) {
       renderer->drawRect(scrollbarRect, theme.scrollbarBg, true);
 
       int viewHeight = maxY - 160;
-      float visibleRatio = 0.0f;
-      if (contentHeight > 0) {
-        visibleRatio = (float)viewHeight / (float)contentHeight;
-      }
-
+      float visibleRatio = (float)viewHeight / (float)contentHeight;
       visibleRatio = std::clamp(visibleRatio, 0.0f, 1.0f);
       int thumbHeight = (int)(scrollbarRect.height * visibleRatio);
       thumbHeight = std::clamp(thumbHeight, 30, scrollbarRect.height);
 
       int maxScroll = contentHeight - viewHeight;
       maxScroll = std::clamp(maxScroll, 0, INT_MAX);
-      float scrollNorm = 0.0f;
-      if (maxScroll > 0) {
-        scrollNorm = (float)scrollOffset / (float)maxScroll;
-      }
+      float scrollNorm = (maxScroll > 0) ? ((float)scrollOffset / (float)maxScroll) : 0.0f;
       scrollNorm = std::clamp(scrollNorm, 0.0f, 1.0f);
-      int thumbY =
-        scrollbarRect.y +
-        (int)((scrollbarRect.height - thumbHeight) * scrollNorm);
+      int thumbY = scrollbarRect.y + (int)((scrollbarRect.height - thumbHeight) * scrollNorm);
 
       scrollThumbRect = Rect(scrollbarRect.x, thumbY, scrollbarRect.width, thumbHeight);
-
       Color thumbColor = scrollbarHovered ? Color(100, 100, 100) : Color(80, 80, 80);
       renderer->drawRect(scrollThumbRect, thumbColor, true);
     }
@@ -1191,7 +1441,7 @@ void UpdateDialog::RenderContent(int width, int height) {
     updateState.enabled = true;
     updateState.hovered = (hoveredButton == 1);
     updateState.pressed = (pressedButton == 1);
-    std::string downloadText = betaEnabled ?
+    std::string downloadText = betaEnabled ? 
       Translations::T("Download Beta") : Translations::T("Download");
     renderer->drawModernButton(updateState, theme, downloadText.c_str());
 
@@ -1203,17 +1453,26 @@ void UpdateDialog::RenderContent(int width, int height) {
     skipState.pressed = (pressedButton == 2);
     renderer->drawModernButton(skipState, theme, Translations::T("Skip").c_str());
   }
-  else if (downloadState == DownloadState::Idle && currentInfo.updateAvailable && isMsix) {
-    closeButtonRect = Rect((width - 120) / 2, buttonY, 120, buttonHeight);
-    WidgetState closeState;
-    closeState.rect = closeButtonRect;
-    closeState.enabled = true;
-    closeState.hovered = (hoveredButton == 3);
-    closeState.pressed = (pressedButton == 3);
-    renderer->drawModernButton(closeState, theme, Translations::T("Close").c_str());
+  else if (downloadState == DownloadState::Complete && !isMsix) {
+    updateButtonRect = Rect(width - 280, buttonY, 120, buttonHeight);
+    WidgetState installState;
+    installState.rect = updateButtonRect;
+    installState.enabled = true;
+    installState.hovered = (hoveredButton == 1);
+    installState.pressed = (pressedButton == 1);
+    renderer->drawModernButton(installState, theme, Translations::T("Install").c_str());
+
+    skipButtonRect = Rect(width - 150, buttonY, 100, buttonHeight);
+    WidgetState cancelState;
+    cancelState.rect = skipButtonRect;
+    cancelState.enabled = true;
+    cancelState.hovered = (hoveredButton == 2);
+    cancelState.pressed = (pressedButton == 2);
+    renderer->drawModernButton(cancelState, theme, Translations::T("Cancel").c_str());
   }
-  else if (downloadState == DownloadState::Complete || downloadState == DownloadState::Error ||
-    (downloadState == DownloadState::Idle && !currentInfo.updateAvailable)) {
+  else if ((downloadState == DownloadState::Idle && currentInfo.updateAvailable && isMsix) ||
+           (downloadState == DownloadState::Idle && !currentInfo.updateAvailable) ||
+           downloadState == DownloadState::Error) {
     closeButtonRect = Rect((width - 120) / 2, buttonY, 120, buttonHeight);
     WidgetState closeState;
     closeState.rect = closeButtonRect;

@@ -42,6 +42,7 @@ class UpdateDialog {
 public:
   static bool Show(NativeWindow parent, const UpdateInfo& info);
   static UpdateInfo currentInfo;
+  static NativeWindow parentWindow;
 
 private:
   static RenderManager* renderer;
