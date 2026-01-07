@@ -90,6 +90,15 @@ struct ByteStatistics {
     bool computed;
 };
 
+struct DetectItEasyState {
+    bool analyzed;
+    char fileType[64];
+    char compiler[64];
+    char architecture[32];
+};
+
+
+
 extern PatternSearchState g_PatternSearch;
 extern ChecksumState      g_Checksum;
 extern CompareState       g_Compare;
@@ -131,4 +140,3 @@ void InitializeFileInfoSection(Vector<PanelSection>& sections, HexData& hexData)
 void InitializeBookmarksSection(Vector<PanelSection>& sections);
 void InitializeByteStatsSection(Vector<PanelSection>& sections);
 
-bool HandleLeftPanelContentClick(int x, int y, int windowWidth, int windowHeight);

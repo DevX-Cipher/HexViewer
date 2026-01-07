@@ -1,4 +1,5 @@
 #include "panelcontent.h"
+#include "panellayout.h"
 
 extern MenuBar g_MenuBar;
 
@@ -13,6 +14,7 @@ const int PANEL_TITLE_HEIGHT = 28;
 extern HexData g_HexData;
 BookmarksState g_Bookmarks = {{}, -1};
 ByteStatistics g_ByteStats = {{0}, 0, 0, 0, 0, 0, 0.0, false};
+DetectItEasyState g_DIEState = {false, "", "", ""};
 
 extern long long cursorBytePos;
 extern int cursorNibblePos;
@@ -139,8 +141,6 @@ void PatternSearch_FindPrev()
 
     g_PatternSearch.lastMatch = -1;
 }
-
-
 
 void Checksum_ToggleMD5()
 {
@@ -341,6 +341,14 @@ void ByteStats_Clear() {
     g_ByteStats.computed = false;
 }
 
+void DIE_Analyze() {
+    g_DIEState.analyzed = true;
+    StrCopy(g_DIEState.fileType, "Coming Soon");
+    StrCopy(g_DIEState.compiler, "Coming Soon");
+    StrCopy(g_DIEState.architecture, "Coming Soon");
+    InvalidateWindow();
+}
+
 bool HandleBottomPanelContentClick(int x, int y, int windowWidth, int windowHeight)
 {
     if (!g_BottomPanel.visible)
@@ -517,86 +525,6 @@ bool HandleBottomPanelContentClick(int x, int y, int windowWidth, int windowHeig
 
         return false;
     }
-    }
-
-    return false;
-}
-
-bool HandleLeftPanelContentClick(int x, int y, int windowWidth, int windowHeight)
-{
-    if (!g_LeftPanel.visible)
-        return false;
-
-    Rect leftBounds = GetLeftPanelBounds(
-        g_LeftPanel, windowWidth, windowHeight, g_MenuBar.getHeight());
-
-    int contentX = leftBounds.x + 15;
-    int contentY = leftBounds.y + PANEL_TITLE_HEIGHT + 10;
-
-    contentY += 25;
-    contentY += 20;
-    contentY += 20;
-    contentY += 30;
-
-    contentY += 25;
-    
-    extern long long cursorBytePos;
-    extern HexData g_HexData;
-    long long fileSize = (long long)g_HexData.getFileSize();
-    
-    if (cursorBytePos >= 0 && cursorBytePos < fileSize) {
-        contentY += 20;
-        contentY += 18;
-        contentY += 18;
-        contentY += 18;
-        contentY += 18;
-        contentY += 25;
-    } else {
-        contentY += 40;
-    }
-
-    int bookmarksHeaderY = contentY;
-    contentY += 25;
-
-    extern BookmarksState g_Bookmarks;
-    if (!g_Bookmarks.bookmarks.empty()) {
-        for (size_t i = 0; i < g_Bookmarks.bookmarks.size() && i < 5; i++) {
-            Rect bookmarkRect(contentX, contentY, leftBounds.width - 30, 18);
-            
-            if (IsPointInRect(x, y, bookmarkRect)) {
-                Bookmarks_JumpTo((int)i);
-                InvalidateWindow();
-                return true;
-            }
-            
-            contentY += 18;
-        }
-        contentY += 10;
-    } else {
-        contentY += 18;
-        contentY += 18;
-        contentY += 25;
-    }
-
-    int statsHeaderY = contentY;
-    contentY += 25;
-    
-    if (!g_ByteStats.computed) {
-        Rect computeRect(contentX, contentY, leftBounds.width - 30, 20);
-        
-        if (IsPointInRect(x, y, computeRect)) {
-            ByteStats_Compute(g_HexData);
-            InvalidateWindow();
-            return true;
-        }
-        
-        contentY += 20;
-    } else {
-        contentY += 18;
-    }
-
-    if (IsPointInRect(x, y, leftBounds)) {
-        return true;
     }
 
     return false;

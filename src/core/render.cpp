@@ -1,4 +1,5 @@
 #include "render.h"
+#include "panellayout.h"
 #include "panelcontent.h"
 #include "hexdata.h"
 extern HexData g_HexData;
@@ -226,10 +227,10 @@ void RenderManager::UpdateHexMetrics(int leftPanelWidth, int menuBarHeight)
 
   layout.margin = 10.0f;
   layout.headerHeight = layout.lineHeight;
-  
+
   _charWidth = (int)layout.charWidth;
   _charHeight = (int)layout.lineHeight;
-  
+
   _hexAreaX = leftPanelWidth + (int)(layout.margin + (10 * layout.charWidth));
   _hexAreaY = menuBarHeight + (int)(layout.margin + layout.headerHeight + 2);
 }
@@ -1011,6 +1012,11 @@ void RenderManager::drawX11Pixmap(Pixmap pixmap, int width, int height, int x, i
 }
 #endif
 
+int MeasureTextHeight(const char* text)
+{
+    return 16;
+}
+
 void RenderManager::drawProgressBar(const Rect &rect, float progress, const Theme &theme)
 {
   progress = Clamp(progress, 0.0f, 1.0f);
@@ -1060,252 +1066,301 @@ void RenderManager::drawLeftPanel(
     int windowHeight,
     const Rect &panelBounds)
 {
-  if (!state.visible)
-    return;
+    if (!state.visible)
+        return;
 
-  Color panelBg = Color(
-      theme.windowBackground.r - 10,
-      theme.windowBackground.g - 10,
-      theme.windowBackground.b - 10);
-  if (theme.windowBackground.r < 50)
-  {
-    panelBg = Color(35, 35, 40);
-  }
-  drawRect(panelBounds, panelBg, true);
+    Color panelBg(
+        theme.windowBackground.r - 10,
+        theme.windowBackground.g - 10,
+        theme.windowBackground.b - 10);
 
-  Rect titleBar(panelBounds.x, panelBounds.y, panelBounds.width, PANEL_TITLE_HEIGHT);
-  Color titleBg = state.dragging ? theme.controlCheck : Color(panelBg.r + 15, panelBg.g + 15, panelBg.b + 15);
-  drawRect(titleBar, titleBg, true);
+    if (theme.windowBackground.r < 50)
+        panelBg = Color(35, 35, 40);
 
-  const char *dockText = "";
-  switch (state.dockPosition)
-  {
-  case PanelDockPosition::Left:
-    dockText = " [Left]";
-    break;
-  case PanelDockPosition::Right:
-    dockText = " [Right]";
-    break;
-  case PanelDockPosition::Top:
-    dockText = " [Top]";
-    break;
-  case PanelDockPosition::Bottom:
-    dockText = " [Bottom]";
-    break;
-  case PanelDockPosition::Floating:
-    dockText = " [Float]";
-    break;
-  }
+    drawRect(panelBounds, panelBg, true);
 
-  char titleText[64];
-  StrCopy(titleText, "File Explorer");
-  StrCat(titleText, dockText);
-  drawText(titleText, panelBounds.x + 10, panelBounds.y + 7, theme.textColor);
+    Rect titleBar(panelBounds.x, panelBounds.y, panelBounds.width, PANEL_TITLE_HEIGHT);
+    Color titleBg = state.dragging ? theme.controlCheck
+                                   : Color(panelBg.r + 15, panelBg.g + 15, panelBg.b + 15);
+    drawRect(titleBar, titleBg, true);
 
-  Color borderColor = theme.separator;
-  drawRect(panelBounds, borderColor, false);
-
-  int contentX = panelBounds.x + 15;
-  int contentY = panelBounds.y + PANEL_TITLE_HEIGHT + 10;
-
-  drawText("File Information", contentX, contentY, theme.headerColor);
-  contentY += 25;
-
-  extern HexData g_HexData;
-  long long fileSize = (long long)g_HexData.getFileSize();
-
-  char buf[256];
-
-  drawText("Size:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-  if (fileSize < 1024)
-  {
-    ItoaDec(fileSize, buf, 256);
-    StrCat(buf, " bytes");
-  }
-  else if (fileSize < 1024 * 1024)
-  {
-    ItoaDec(fileSize / 1024, buf, 256);
-    StrCat(buf, " KB");
-  }
-  else
-  {
-    ItoaDec(fileSize / (1024 * 1024), buf, 256);
-    StrCat(buf, " MB");
-  }
-  drawText(buf, contentX + 70, contentY, theme.textColor);
-  contentY += 20;
-
-  drawText("Type:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-  if (fileSize >= 4)
-  {
-    uint8_t b0 = g_HexData.getByte(0);
-    uint8_t b1 = g_HexData.getByte(1);
-    uint8_t b2 = g_HexData.getByte(2);
-    uint8_t b3 = g_HexData.getByte(3);
-
-    if (b0 == 0x4D && b1 == 0x5A)
+    const char *dockText = "";
+    switch (state.dockPosition)
     {
-      drawText("PE Executable", contentX + 70, contentY, Color(100, 200, 150));
+    case PanelDockPosition::Left:    dockText = " [Left]";  break;
+    case PanelDockPosition::Right:   dockText = " [Right]"; break;
+    case PanelDockPosition::Top:     dockText = " [Top]";   break;
+    case PanelDockPosition::Bottom:  dockText = " [Bottom]";break;
+    case PanelDockPosition::Floating:dockText = " [Float]"; break;
     }
-    else if (b0 == 0x7F && b1 == 'E' && b2 == 'L' && b3 == 'F')
+
+    char titleText[64];
+    StrCopy(titleText, "File Explorer");
+    StrCat(titleText, dockText);
+    drawText(titleText, panelBounds.x + 10, panelBounds.y + 7, theme.textColor);
+
+    drawRect(panelBounds, theme.separator, false);
+
+    int contentX = panelBounds.x + 15;
+    int startY   = panelBounds.y + PANEL_TITLE_HEIGHT + 10;
+    int contentWidth = panelBounds.width - 30;
+
+    int rowHeight      = 16;
+    int headerHeight   = 18;
+    int itemSpacing    = 4;
+    int sectionSpacing = 10;
+
+    PanelLayoutBuilder layout(
+        contentX,
+        startY,
+        contentWidth,
+        rowHeight,
+        headerHeight,
+        itemSpacing,
+        sectionSpacing,
+        &MeasureTextHeight);
+
+    char buf[256];
+    extern HexData g_HexData;
+    extern long long cursorBytePos;
+    extern BookmarksState g_Bookmarks;
+    extern ByteStatistics g_ByteStats;
+    extern DetectItEasyState g_DIEState;
+
+    long long fileSize = (long long)g_HexData.getFileSize();
+
+    Color faded(
+        theme.textColor.r - 40,
+        theme.textColor.g - 40,
+        theme.textColor.b - 40);
+
+    Color halfText(
+        theme.textColor.r / 2,
+        theme.textColor.g / 2,
+        theme.textColor.b / 2);
+
+    Color thirdText(
+        theme.textColor.r / 3,
+        theme.textColor.g / 3,
+        theme.textColor.b / 3);
+
+    layout.addSectionHeader("File Information", theme.headerColor);
+
+    if (fileSize < 1024)
     {
-      drawText("ELF Executable", contentX + 70, contentY, Color(100, 200, 150));
+        ItoaDec(fileSize, buf, 256);
+        StrCat(buf, " bytes");
     }
-    else if (b0 == 0x89 && b1 == 'P' && b2 == 'N' && b3 == 'G')
+    else if (fileSize < 1024 * 1024)
     {
-      drawText("PNG Image", contentX + 70, contentY, Color(100, 200, 150));
-    }
-    else if (b0 == 0xFF && b1 == 0xD8 && b2 == 0xFF)
-    {
-      drawText("JPEG Image", contentX + 70, contentY, Color(100, 200, 150));
+        ItoaDec(fileSize / 1024, buf, 256);
+        StrCat(buf, " KB");
     }
     else
     {
-      drawText("Binary Data", contentX + 70, contentY, Color(100, 200, 150));
+        ItoaDec(fileSize / (1024 * 1024), buf, 256);
+        StrCat(buf, " MB");
     }
-  }
-  else
-  {
-    drawText("Unknown", contentX + 70, contentY, theme.textColor);
-  }
-  contentY += 30;
+    layout.addLabelValue("Size:", buf, faded, theme.textColor);
 
-  drawText("Data Inspector", contentX, contentY, theme.headerColor);
-  contentY += 25;
-
-  extern long long cursorBytePos;
-
-  if (cursorBytePos >= 0 && cursorBytePos < fileSize)
-  {
-    uint8_t byteVal = g_HexData.getByte((size_t)cursorBytePos);
-
-    drawText("Offset:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-    StrCopy(buf, "0x");
-    ItoaHex(cursorBytePos, buf + 2, 254);
-    drawText(buf, contentX + 85, contentY, Color(100, 150, 255));
-    contentY += 20;
-
-    drawText("Uint8:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-    ItoaDec(byteVal, buf, 256);
-    drawText(buf, contentX + 85, contentY, theme.textColor);
-    contentY += 18;
-
-    drawText("Int8:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-    ItoaDec((int8_t)byteVal, buf, 256);
-    drawText(buf, contentX + 85, contentY, theme.textColor);
-    contentY += 18;
-
-    drawText("Hex:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-    StrCopy(buf, "0x");
-    ByteToHex(byteVal, buf + 2);
-    buf[4] = 0;
-    drawText(buf, contentX + 85, contentY, theme.textColor);
-    contentY += 18;
-
-    drawText("ASCII:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-    if (byteVal >= 32 && byteVal < 127)
+    const char *typeStr = "Unknown";
+    if (fileSize >= 4)
     {
-      buf[0] = '\'';
-      buf[1] = (char)byteVal;
-      buf[2] = '\'';
-      buf[3] = 0;
+        uint8_t b0 = g_HexData.getByte(0);
+        uint8_t b1 = g_HexData.getByte(1);
+        uint8_t b2 = g_HexData.getByte(2);
+        uint8_t b3 = g_HexData.getByte(3);
+
+        typeStr = "Binary Data";
+        if (b0 == 0x4D && b1 == 0x5A)                        typeStr = "PE Executable";
+        else if (b0 == 0x7F && b1 == 'E' && b2 == 'L' && b3 == 'F') typeStr = "ELF Executable";
+        else if (b0 == 0x89 && b1 == 'P' && b2 == 'N' && b3 == 'G') typeStr = "PNG Image";
+        else if (b0 == 0xFF && b1 == 0xD8 && b2 == 0xFF)           typeStr = "JPEG Image";
+    }
+    layout.addLabelValue("Type:", typeStr, faded, Color(100, 200, 150));
+
+    layout.addSpacer(8);
+
+    layout.addSectionHeader("Data Inspector", theme.headerColor);
+
+    if (cursorBytePos >= 0 && cursorBytePos < fileSize)
+    {
+        uint8_t byteVal = g_HexData.getByte((size_t)cursorBytePos);
+
+        StrCopy(buf, "0x");
+        ItoaHex(cursorBytePos, buf + 2, 254);
+        layout.addLabelValue("Offset:", buf, faded, Color(100, 150, 255));
+
+        ItoaDec(byteVal, buf, 256);
+        layout.addLabelValue("Uint8:", buf, faded, theme.textColor);
+
+        ItoaDec((int8_t)byteVal, buf, 256);
+        layout.addLabelValue("Int8:", buf, faded, theme.textColor);
+
+        StrCopy(buf, "0x");
+        ByteToHex(byteVal, buf + 2);
+        buf[4] = 0;
+        layout.addLabelValue("Hex:", buf, faded, theme.textColor);
+
+        if (byteVal >= 32 && byteVal < 127)
+        {
+            buf[0] = '\'';
+            buf[1] = (char)byteVal;
+            buf[2] = '\'';
+            buf[3] = 0;
+        }
+        else
+        {
+            StrCopy(buf, ".");
+        }
+        layout.addLabelValue("ASCII:", buf, faded, theme.textColor);
+
+        layout.addSpacer(8);
     }
     else
     {
-      StrCopy(buf, ".");
+        layout.addText("Move cursor to view data", halfText, false);
     }
-    drawText(buf, contentX + 85, contentY, theme.textColor);
-    contentY += 25;
-  }
-  else
-  {
-    drawText("Move cursor to view data", contentX, contentY,
-             Color(theme.textColor.r / 2, theme.textColor.g / 2, theme.textColor.b / 2));
-    contentY += 40;
-  }
 
-  drawText("Bookmarks", contentX, contentY, theme.headerColor);
-  contentY += 25;
+    layout.addSectionHeader("Bookmarks", theme.headerColor);
 
-  extern BookmarksState g_Bookmarks;
-  if (g_Bookmarks.bookmarks.empty())
-  {
-    drawText("No bookmarks", contentX, contentY,
-             Color(theme.textColor.r / 2, theme.textColor.g / 2, theme.textColor.b / 2));
-    contentY += 18;
-    drawText("Ctrl+B to add", contentX, contentY,
-             Color(theme.textColor.r / 3, theme.textColor.g / 3, theme.textColor.b / 3));
-    contentY += 25;
-  }
-  else
-  {
-    for (size_t i = 0; i < g_Bookmarks.bookmarks.size() && i < 5; i++)
+    if (g_Bookmarks.bookmarks.empty())
     {
-      const Bookmark &bm = g_Bookmarks.bookmarks[i];
-
-      Rect colorBox(contentX, contentY + 3, 10, 10);
-      drawRect(colorBox, bm.color, true);
-
-      StrCopy(buf, bm.name);
-      drawText(buf, contentX + 15, contentY, theme.textColor);
-      contentY += 18;
+        layout.addText("No bookmarks", halfText, false);
+        layout.addText("Ctrl+B to add", thirdText, false);
     }
-    contentY += 10;
-  }
+    else
+    {
+        for (size_t i = 0; i < g_Bookmarks.bookmarks.size() && i < 5; i++)
+        {
+            const Bookmark &bm = g_Bookmarks.bookmarks[i];
+            bool selected = (g_Bookmarks.selectedIndex == (int)i);
+            layout.addBookmark(bm, (int)i, selected);
+        }
+    }
 
-  drawText("Byte Statistics", contentX, contentY, theme.headerColor);
-  contentY += 25;
+    layout.addSpacer(8);
 
-  extern ByteStatistics g_ByteStats;
-  if (!g_ByteStats.computed)
-  {
-    drawText("Click to compute", contentX, contentY,
-             Color(theme.textColor.r / 2, theme.textColor.g / 2, theme.textColor.b / 2));
-    contentY += 20;
-  }
-  else
-  {
-    drawText("Most Common:", contentX, contentY, Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40));
-    StrCopy(buf, "0x");
-    ByteToHex(g_ByteStats.mostCommonByte, buf + 2);
-    buf[4] = 0;
-    drawText(buf, contentX + 110, contentY, theme.textColor);
-    contentY += 18;
-  }
+    layout.addSectionHeader("Byte Statistics", theme.headerColor);
 
-  if (state.dockPosition == PanelDockPosition::Floating)
-  {
-    Rect resizeHandle(
-        panelBounds.x + panelBounds.width - 10,
-        panelBounds.y + panelBounds.height - 10,
-        10, 10);
-    Color handleColor = theme.controlCheck;
-    handleColor.a = state.resizing ? 150 : 30;
-    drawRect(resizeHandle, handleColor, true);
-  }
-  else if (state.dockPosition == PanelDockPosition::Left)
-  {
-    Rect resizeHandle(
-        panelBounds.x + panelBounds.width - 3,
-        panelBounds.y + PANEL_TITLE_HEIGHT,
-        6,
-        panelBounds.height - PANEL_TITLE_HEIGHT);
-    Color handleColor = theme.controlCheck;
-    handleColor.a = state.resizing ? 150 : 30;
-    drawRect(resizeHandle, handleColor, true);
-  }
-  else if (state.dockPosition == PanelDockPosition::Right)
-  {
-    Rect resizeHandle(
-        panelBounds.x,
-        panelBounds.y + PANEL_TITLE_HEIGHT,
-        6,
-        panelBounds.height - PANEL_TITLE_HEIGHT);
-    Color handleColor = theme.controlCheck;
-    handleColor.a = state.resizing ? 150 : 30;
-    drawRect(resizeHandle, handleColor, true);
-  }
+    if (!g_ByteStats.computed)
+    {
+        layout.addText("Click to compute", halfText, true);
+    }
+    else
+    {
+        StrCopy(buf, "0x");
+        ByteToHex(g_ByteStats.mostCommonByte, buf + 2);
+        buf[4] = 0;
+        layout.addLabelValue("Most Common:", buf, faded, theme.textColor);
+    }
+
+    layout.addSpacer(8);
+
+    layout.addSectionHeader("Detect it Easy", theme.headerColor);
+
+    layout.addLabelValue(
+        "File Type:",
+        g_DIEState.fileType[0] ? g_DIEState.fileType : "Coming Soon",
+        faded,
+        Color(100, 200, 150));
+
+    layout.addLabelValue(
+        "Compiler:",
+        g_DIEState.compiler[0] ? g_DIEState.compiler : "Coming Soon",
+        faded,
+        Color(100, 200, 150));
+
+    layout.addLabelValue(
+        "Arch:",
+        g_DIEState.architecture[0] ? g_DIEState.architecture : "Coming Soon",
+        faded,
+        Color(100, 200, 150));
+
+    const Vector<UIItem> &items = layout.getItems();
+
+    for (size_t i = 0; i < items.size(); ++i)
+    {
+        const UIItem &it = items[i];
+
+        switch (it.type)
+        {
+        case UIItemType::SectionHeader:
+            drawText(it.label, it.bounds.x, it.bounds.y, it.labelColor);
+            break;
+
+        case UIItemType::LabelValue:
+        {
+            drawText(it.label, it.bounds.x, it.bounds.y, it.labelColor);
+            int valueX = it.bounds.x + 85;
+            drawText(it.value ? it.value : "", valueX, it.bounds.y, it.valueColor);
+        } break;
+
+        case UIItemType::Text:
+            drawText(it.label, it.bounds.x, it.bounds.y, it.labelColor);
+            break;
+
+        case UIItemType::Bookmark:
+        {
+            Rect colorBox(it.bounds.x, it.bounds.y + 3, 10, 10);
+            drawRect(colorBox, it.color, true);
+
+            if (it.selected)
+            {
+                Color selBg = theme.controlCheck;
+                selBg.a = 40;
+                drawRect(it.bounds, selBg, true);
+            }
+
+            int textX = it.bounds.x + 15;
+            drawText(it.label, textX, it.bounds.y, theme.textColor);
+        } break;
+
+        case UIItemType::Separator:
+        {
+            Rect line(it.bounds.x, it.bounds.y, it.bounds.width, 1);
+            drawRect(line, it.color, true);
+        } break;
+
+        case UIItemType::Spacer:
+            break;
+        }
+    }
+
+    if (state.dockPosition == PanelDockPosition::Floating)
+    {
+        Rect resizeHandle(
+            panelBounds.x + panelBounds.width - 10,
+            panelBounds.y + panelBounds.height - 10,
+            10, 10);
+        Color handleColor = theme.controlCheck;
+        handleColor.a = state.resizing ? 150 : 30;
+        drawRect(resizeHandle, handleColor, true);
+    }
+    else if (state.dockPosition == PanelDockPosition::Left)
+    {
+        Rect resizeHandle(
+            panelBounds.x + panelBounds.width - 3,
+            panelBounds.y + PANEL_TITLE_HEIGHT,
+            6,
+            panelBounds.height - PANEL_TITLE_HEIGHT);
+        Color handleColor = theme.controlCheck;
+        handleColor.a = state.resizing ? 150 : 30;
+        drawRect(resizeHandle, handleColor, true);
+    }
+    else if (state.dockPosition == PanelDockPosition::Right)
+    {
+        Rect resizeHandle(
+            panelBounds.x,
+            panelBounds.y + PANEL_TITLE_HEIGHT,
+            6,
+            panelBounds.height - PANEL_TITLE_HEIGHT);
+        Color handleColor = theme.controlCheck;
+        handleColor.a = state.resizing ? 150 : 30;
+        drawRect(resizeHandle, handleColor, true);
+    }
 }
+
 
 void RenderManager::drawBottomPanel(
     const BottomPanelState &state,
@@ -2439,42 +2494,44 @@ void RenderManager::renderHexViewer(
   {
     long long selMin, selMax;
     g_Selection.getRange(selMin, selMax);
-    
+
     long long firstLine = selMin / _bytesPerLine;
     long long lastLine = selMax / _bytesPerLine;
-    
+
     Color highlightColor = currentTheme.controlCheck;
     highlightColor.a = 80;
-    
+
     for (long long line = firstLine; line <= lastLine; line++)
     {
-        if (line < (long long)startLine) continue;
-        if (line >= (long long)endLine) break;
-        
-        int displayLine = (int)(line - startLine);
-        int yPos = contentY + displayLine * _charHeight;
-        
-        long long lineStart = line * _bytesPerLine;
-        long long lineEnd = lineStart + _bytesPerLine - 1;
-        
-        long long drawStart = (lineStart < selMin) ? selMin : lineStart;
-        long long drawEnd = (lineEnd > selMax) ? selMax : lineEnd;
-        
-        int startCol = (int)(drawStart % _bytesPerLine);
-        int endCol = (int)(drawEnd % _bytesPerLine);
-        
-        int xStart = _hexAreaX + (startCol * 3 * _charWidth);
-        int xEnd = _hexAreaX + ((endCol + 1) * 3 * _charWidth) - _charWidth;
-        
-        Rect highlightRect(xStart, yPos, xEnd - xStart, _charHeight);
-        drawRect(highlightRect, highlightColor, true);
-        
-        int asciiAreaX = _hexAreaX + (16 * 3 * _charWidth) + (2 * _charWidth);
-        int asciiStart = asciiAreaX + (startCol * _charWidth);
-        int asciiEnd = asciiAreaX + ((endCol + 1) * _charWidth);
-        
-        Rect asciiHighlight(asciiStart, yPos, asciiEnd - asciiStart, _charHeight);
-        drawRect(asciiHighlight, highlightColor, true);
+      if (line < (long long)startLine)
+        continue;
+      if (line >= (long long)endLine)
+        break;
+
+      int displayLine = (int)(line - startLine);
+      int yPos = contentY + displayLine * _charHeight;
+
+      long long lineStart = line * _bytesPerLine;
+      long long lineEnd = lineStart + _bytesPerLine - 1;
+
+      long long drawStart = (lineStart < selMin) ? selMin : lineStart;
+      long long drawEnd = (lineEnd > selMax) ? selMax : lineEnd;
+
+      int startCol = (int)(drawStart % _bytesPerLine);
+      int endCol = (int)(drawEnd % _bytesPerLine);
+
+      int xStart = _hexAreaX + (startCol * 3 * _charWidth);
+      int xEnd = _hexAreaX + ((endCol + 1) * 3 * _charWidth) - _charWidth;
+
+      Rect highlightRect(xStart, yPos, xEnd - xStart, _charHeight);
+      drawRect(highlightRect, highlightColor, true);
+
+      int asciiAreaX = _hexAreaX + (16 * 3 * _charWidth) + (1 * _charWidth);
+int asciiStart = asciiAreaX + (startCol * _charWidth);
+int asciiEnd = asciiAreaX + ((endCol + 1) * _charWidth);
+
+      Rect asciiHighlight(asciiStart, yPos, asciiEnd - asciiStart, _charHeight);
+      drawRect(asciiHighlight, highlightColor, true);
     }
   }
 

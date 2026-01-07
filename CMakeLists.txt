@@ -30,6 +30,7 @@ set(SOURCES
     src/hexviewer.cpp
     src/core/hexdata.cpp
     src/core/render.cpp
+    src/core/panellayout.cpp
     src/core/panelcontent.cpp
     src/ui/menu.cpp
     src/ui/options.cpp
