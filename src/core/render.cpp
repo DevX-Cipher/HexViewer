@@ -2527,8 +2527,8 @@ void RenderManager::renderHexViewer(
       drawRect(highlightRect, highlightColor, true);
 
       int asciiAreaX = _hexAreaX + (16 * 3 * _charWidth) + (1 * _charWidth);
-int asciiStart = asciiAreaX + (startCol * _charWidth);
-int asciiEnd = asciiAreaX + ((endCol + 1) * _charWidth);
+      int asciiStart = asciiAreaX + (startCol * _charWidth);
+      int asciiEnd = asciiAreaX + ((endCol + 1) * _charWidth);
 
       Rect asciiHighlight(asciiStart, yPos, asciiEnd - asciiStart, _charHeight);
       drawRect(asciiHighlight, highlightColor, true);
