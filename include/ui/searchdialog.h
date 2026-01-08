@@ -73,8 +73,8 @@ struct GoToDialogData {
 };
 
 namespace SearchDialogs {
-  void CleanupDialogs();
-  
+  void cleanupDialogs();
+
 #ifdef _WIN32
 void ShowFindReplaceDialog(
     void* parentHandle,
