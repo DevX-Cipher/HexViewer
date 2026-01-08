@@ -726,7 +726,7 @@ void HandlePluginClick(PluginManagerData *data, int x, int y, int windowWidth, i
                 g_HexData.setDisassemblyPlugin(data->plugins[data->hoveredPlugin]->path);
                 
                 #ifdef _WIN32
-                MessageBoxA(NULL, 
+                MessageBoxW(NULL, 
                     "Disassembly plugin activated!\nReload your file to see disassembly.", 
                     "Plugin Activated", 
                     MB_OK | MB_ICONINFORMATION);

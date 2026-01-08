@@ -149,7 +149,7 @@ bool InitializePythonRuntime()
     pythonDLL = LoadPythonFromRegistry();
     if (!pythonDLL)
     {
-        MessageBoxA(NULL,
+        MessageBoxW(NULL,
                     "Could not load Python DLL from registry!\n\n"
                     "Please install Python 3.8+ from python.org\n"
                     "Make sure to check 'Add Python to PATH' during installation.",

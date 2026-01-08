@@ -195,13 +195,13 @@ void HexData::generateDisassemblyFromPlugin(int bytesPerLine) {
     
     if (bb_empty(&fileData) || !usePlugin) {
         #ifdef _WIN32
-        MessageBoxA(NULL, "generateDisassemblyFromPlugin: No data or no plugin!", "Debug", MB_OK);
+        MessageBoxW(NULL, "generateDisassemblyFromPlugin: No data or no plugin!", "Debug", MB_OK);
         #endif
         return;
     }
     
     #ifdef _WIN32
-    MessageBoxA(NULL, pluginPath, "Debug - Plugin Path", MB_OK);
+    MessageBoxW(NULL, pluginPath, "Debug - Plugin Path", MB_OK);
     #endif
     
     extern bool ExecutePythonDisassembly(
@@ -243,9 +243,9 @@ void HexData::generateDisassemblyFromPlugin(int bytesPerLine) {
     
     #ifdef _WIN32
     if (linesGenerated > 0) {
-        MessageBoxA(NULL, "Disassembly lines generated successfully!", "Debug - Success", MB_OK);
+        MessageBoxW(NULL, "Disassembly lines generated successfully!", "Debug - Success", MB_OK);
     } else {
-        MessageBoxA(NULL, "No disassembly lines were generated!", "Debug - Warning", MB_OK);
+        MessageBoxW(NULL, "No disassembly lines were generated!", "Debug - Warning", MB_OK);
     }
     #endif
 }

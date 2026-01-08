@@ -280,7 +280,7 @@ void OnFileOpen()
         }
         else
         {
-            MessageBoxA(g_Hwnd, "Failed to open file.", "Error", MB_OK | MB_ICONERROR);
+            MessageBoxW(g_Hwnd, "Failed to open file.", "Error", MB_OK | MB_ICONERROR);
         }
     }
 
@@ -353,14 +353,14 @@ void OnFileSave()
     if (g_HexData.saveFile(g_CurrentFilePath))
     {
 #if defined(_WIN32)
-        MessageBoxA(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
+        MessageBoxW(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
 #else
 #endif
     }
     else
     {
 #if defined(_WIN32)
-        MessageBoxA(g_Hwnd, "Failed to save file.", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxW(g_Hwnd, "Failed to save file.", "Error", MB_OK | MB_ICONERROR);
 #else
 #endif
     }
@@ -388,11 +388,11 @@ void OnFileSaveAs()
         if (g_HexData.saveFile(ofn.lpstrFile))
         {
             CopyString(g_CurrentFilePath, ofn.lpstrFile, MAX_PATH_LEN);
-            MessageBoxA(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
+            MessageBoxW(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
         }
         else
         {
-            MessageBoxA(g_Hwnd, "Failed to write file.", "Error", MB_OK | MB_ICONERROR);
+            MessageBoxW(g_Hwnd, "Failed to write file.", "Error", MB_OK | MB_ICONERROR);
         }
     }
 #else
@@ -443,9 +443,9 @@ void OnPluginsDialog()
 void OnHelp() {}
 
 #if defined(_WIN32)
-void OnCopy() { MessageBoxA(g_Hwnd, "Copy not implemented.", "Info", MB_OK); }
-void OnPaste() { MessageBoxA(g_Hwnd, "Paste not implemented.", "Info", MB_OK); }
-void OnFind() { MessageBoxA(g_Hwnd, "Find not implemented.", "Info", MB_OK); }
+void OnCopy() { MessageBoxW(g_Hwnd, "Copy not implemented.", "Info", MB_OK); }
+void OnPaste() { MessageBoxW(g_Hwnd, "Paste not implemented.", "Info", MB_OK); }
+void OnFind() { MessageBoxW(g_Hwnd, "Find not implemented.", "Info", MB_OK); }
 #else
 void OnCopy() {}
 void OnPaste() {}
@@ -474,7 +474,7 @@ void OnFindReplace()
 
             CopyString(buf + len, replace, sizeof(buf) - len);
 
-            MessageBoxA(g_Hwnd, buf, "Find & Replace", MB_OK);
+            MessageBoxW(g_Hwnd, buf, "Find & Replace", MB_OK);
         },
         nullptr);
 #else
@@ -503,7 +503,7 @@ void OnGoTo()
             CopyString(buf, "Go to line: ", sizeof(buf));
             CopyString(buf + StrLen(buf), num, sizeof(buf) - StrLen(buf));
 
-            MessageBoxA(g_Hwnd, buf, "Go To", MB_OK);
+            MessageBoxW(g_Hwnd, buf, "Go To", MB_OK);
         },
         nullptr);
 #else
@@ -529,8 +529,8 @@ void OnToggleDarkMode()
 }
 
 #if defined(_WIN32)
-void OnZoomIn() { MessageBoxA(g_Hwnd, "Zoom In not implemented.", "Info", MB_OK); }
-void OnZoomOut() { MessageBoxA(g_Hwnd, "Zoom Out not implemented.", "Info", MB_OK); }
+void OnZoomIn() { MessageBoxW(g_Hwnd, "Zoom In not implemented.", "Info", MB_OK); }
+void OnZoomOut() { MessageBoxW(g_Hwnd, "Zoom Out not implemented.", "Info", MB_OK); }
 void OnAbout()
 {
 #ifdef _WIN32
@@ -543,7 +543,7 @@ void OnAbout()
 }
 void OnDocumentation()
 {
-    MessageBoxA(g_Hwnd, "Documentation not available.", "Info", MB_OK);
+    MessageBoxW(g_Hwnd, "Documentation not available.", "Info", MB_OK);
 }
 #else
 void OnZoomIn() {}
@@ -1671,7 +1671,7 @@ extern "C" void entry()
         }
         else
         {
-            MessageBoxA(0, "Failed to open file specified in command line.", "Error", MB_OK | MB_ICONERROR);
+            MessageBoxW(0, "Failed to open file specified in command line.", "Error", MB_OK | MB_ICONERROR);
         }
     }
 
@@ -1683,7 +1683,7 @@ extern "C" void entry()
 
     if (!RegisterClassA(&wc))
     {
-        MessageBoxA(0, "RegisterClassA failed", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxW(0, "RegisterClassA failed", "Error", MB_OK | MB_ICONERROR);
         ExitProcess(1);
     }
 
@@ -1700,7 +1700,7 @@ extern "C" void entry()
 
     if (!hwnd)
     {
-        MessageBoxA(0, "CreateWindowExA failed", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxW(0, "CreateWindowExA failed", "Error", MB_OK | MB_ICONERROR);
         ExitProcess(1);
     }
     ShowScrollBar(hwnd, SB_VERT, FALSE);

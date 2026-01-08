@@ -382,13 +382,13 @@ void DIE_OpenInApplication()
 #ifdef _WIN32
     if (!g_DIEExecutablePath[0])
     {
-        MessageBoxA(nullptr, "DIE path is empty!", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, "DIE path is empty!", "Error", MB_OK | MB_ICONERROR);
         return;
     }
 
     if (!g_CurrentFilePath[0])
     {
-        MessageBoxA(nullptr, "Current file path is empty!", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, "Current file path is empty!", "Error", MB_OK | MB_ICONERROR);
         return;
     }
 
@@ -397,7 +397,7 @@ void DIE_OpenInApplication()
     StrCat(debugMsg, g_DIEExecutablePath);
     StrCat(debugMsg, "\n\nFile Path: ");
     StrCat(debugMsg, g_CurrentFilePath);
-    MessageBoxA(nullptr, debugMsg, "Debug Info", MB_OK | MB_ICONINFORMATION);
+    MessageBoxW(nullptr, debugMsg, "Debug Info", MB_OK | MB_ICONINFORMATION);
 
     HINSTANCE result = ShellExecuteA(nullptr, "open", g_DIEExecutablePath, g_CurrentFilePath, nullptr, SW_SHOW);
 
@@ -408,11 +408,11 @@ void DIE_OpenInApplication()
         char code[32];
         IntToStr((int)result, code, 32);
         StrCat(errorMsg, code);
-        MessageBoxA(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);
     }
     else
     {
-        MessageBoxA(nullptr, "DIE launched successfully!", "Success", MB_OK | MB_ICONINFORMATION);
+        MessageBoxW(nullptr, "DIE launched successfully!", "Success", MB_OK | MB_ICONINFORMATION);
     }
 #endif
 }

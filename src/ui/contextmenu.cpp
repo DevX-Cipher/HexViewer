@@ -937,7 +937,7 @@ void AppContextMenu::executeAction(int actionId)
       hexBuf[hexIdx] = '\0';
       StrCopy(p, hexBuf);
 #ifdef _WIN32
-      MessageBoxA(g_Hwnd, msg, "Bookmark", MB_OK | MB_ICONINFORMATION);
+      MessageBoxW(g_Hwnd, msg, "Bookmark", MB_OK | MB_ICONINFORMATION);
 #elif APPLE
       @autoreleasepool
       {
