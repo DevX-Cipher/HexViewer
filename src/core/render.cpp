@@ -7,6 +7,10 @@ extern HexData g_HexData;
 char g_DIEExecutablePath[260];
 
 #ifdef _WIN32
+#include <windows.h>
+#include <objidl.h>
+#include <gdiplus.h>
+static ULONG_PTR g_gdiplusToken = 0;
 #define NATIVE_WINDOW_NULL nullptr
 #elif __APPLE__
 #define NATIVE_WINDOW_NULL nullptr
@@ -42,6 +46,8 @@ bool RenderManager::initialize(NativeWindow win)
   window = win;
 
 #ifdef _WIN32
+  Gdiplus::GdiplusStartupInput gpsi;
+  Gdiplus::GdiplusStartup(&g_gdiplusToken, &gpsi, nullptr);
   hdc = GetDC((HWND)window);
   if (!hdc)
     return false;
@@ -108,6 +114,11 @@ void RenderManager::cleanup()
   {
     ReleaseDC((HWND)window, hdc);
     hdc = nullptr;
+  }
+  if (g_gdiplusToken)
+  {
+    Gdiplus::GdiplusShutdown(g_gdiplusToken);
+    g_gdiplusToken = 0;
   }
 
 #elif __APPLE__
@@ -351,22 +362,31 @@ void RenderManager::setColor(const Color &color)
 void RenderManager::drawRect(const Rect &rect, const Color &color, bool filled)
 {
 #ifdef _WIN32
-  if (filled)
   {
-    RECT r = {rect.x, rect.y, rect.x + rect.width, rect.y + rect.height};
-    HBRUSH brush = CreateSolidBrush(RGB(color.r, color.g, color.b));
-    FillRect(memDC, &r, brush);
-    DeleteObject(brush);
-  }
-  else
-  {
-    HPEN pen = CreatePen(PS_SOLID, 1, RGB(color.r, color.g, color.b));
-    HPEN oldPen = (HPEN)SelectObject(memDC, pen);
-    HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, GetStockObject(NULL_BRUSH));
-    Rectangle(memDC, rect.x, rect.y, rect.x + rect.width, rect.y + rect.height);
-    SelectObject(memDC, oldBrush);
-    SelectObject(memDC, oldPen);
-    DeleteObject(pen);
+    Gdiplus::Graphics g(memDC);
+    g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+    Gdiplus::Color c(color.a, color.r, color.g, color.b);
+
+    if (filled)
+    {
+      Gdiplus::SolidBrush brush(c);
+      g.FillRectangle(&brush,
+                      static_cast<Gdiplus::REAL>(rect.x),
+                      static_cast<Gdiplus::REAL>(rect.y),
+                      static_cast<Gdiplus::REAL>(rect.width),
+                      static_cast<Gdiplus::REAL>(rect.height));
+    }
+    else
+    {
+      Gdiplus::Pen pen(c, 1.0f);
+      g.DrawRectangle(&pen,
+                      static_cast<Gdiplus::REAL>(rect.x),
+                      static_cast<Gdiplus::REAL>(rect.y),
+                      static_cast<Gdiplus::REAL>(rect.width),
+                      static_cast<Gdiplus::REAL>(rect.height));
+    }
+    return;
   }
 #elif __APPLE__
 #else
@@ -385,12 +405,13 @@ void RenderManager::drawRect(const Rect &rect, const Color &color, bool filled)
 void RenderManager::drawLine(int x1, int y1, int x2, int y2, const Color &color)
 {
 #ifdef _WIN32
-  HPEN pen = CreatePen(PS_SOLID, 1, RGB(color.r, color.g, color.b));
-  HPEN oldPen = (HPEN)SelectObject(memDC, pen);
-  MoveToEx(memDC, x1, y1, nullptr);
-  LineTo(memDC, x2, y2);
-  SelectObject(memDC, oldPen);
-  DeleteObject(pen);
+  Gdiplus::Graphics g(memDC);
+  g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+  Gdiplus::Pen pen(Gdiplus::Color(color.a, color.r, color.g, color.b), 1);
+  g.DrawLine(&pen, x1, y1, x2, y2);
+  return;
+
 #elif __APPLE__
 #else
   XSetForeground(display, gc, (color.r << 16) | (color.g << 8) | color.b);
@@ -416,25 +437,37 @@ void RenderManager::drawText(const char *text, int x, int y, const Color &color)
 void RenderManager::drawRoundedRect(const Rect &rect, float radius, const Color &color, bool filled)
 {
 #ifdef _WIN32
-  if (filled)
   {
-    HRGN rgn = CreateRoundRectRgn(rect.x, rect.y, rect.x + rect.width,
-                                  rect.y + rect.height, (int)radius * 2, (int)radius * 2);
-    HBRUSH brush = CreateSolidBrush(RGB(color.r, color.g, color.b));
-    FillRgn(memDC, rgn, brush);
-    DeleteObject(brush);
-    DeleteObject(rgn);
-  }
-  else
-  {
-    HPEN pen = CreatePen(PS_SOLID, 1, RGB(color.r, color.g, color.b));
-    HPEN oldPen = (HPEN)SelectObject(memDC, pen);
-    HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, GetStockObject(NULL_BRUSH));
-    RoundRect(memDC, rect.x, rect.y, rect.x + rect.width, rect.y + rect.height,
-              (int)radius * 2, (int)radius * 2);
-    SelectObject(memDC, oldBrush);
-    SelectObject(memDC, oldPen);
-    DeleteObject(pen);
+    Gdiplus::Graphics g(memDC);
+    g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+    Gdiplus::Color c(color.a, color.r, color.g, color.b);
+
+    Gdiplus::GraphicsPath path;
+    float x = (float)rect.x;
+    float y = (float)rect.y;
+    float w = (float)rect.width;
+    float h = (float)rect.height;
+    float d = radius * 2.0f;
+
+    path.AddArc(x, y, d, d, 180, 90);
+    path.AddArc(x + w - d, y, d, d, 270, 90);
+    path.AddArc(x + w - d, y + h - d, d, d, 0, 90);
+    path.AddArc(x, y + h - d, d, d, 90, 90);
+    path.CloseFigure();
+
+    if (filled)
+    {
+      Gdiplus::SolidBrush brush(c);
+      g.FillPath(&brush, &path);
+    }
+    else
+    {
+      Gdiplus::Pen pen(c, 1.0f);
+      g.DrawPath(&pen, &path);
+    }
+
+    return;
   }
 #elif __APPLE__
 #else
@@ -546,16 +579,95 @@ void RenderManager::drawModernButton(const WidgetState &state, const Theme &them
   drawText(label, textX, textY, textColor);
 }
 
+#ifdef _WIN32
+static void BuildRoundedRectPath(Gdiplus::GraphicsPath &path,
+                                 float x, float y,
+                                 float w, float h,
+                                 float r)
+{
+  float d = r * 2.0f;
+
+  path.AddArc(x, y, d, d, 180, 90);
+  path.AddArc(x + w - d, y, d, d, 270, 90);
+  path.AddArc(x + w - d, y + h - d, d, d, 0, 90);
+  path.AddArc(x, y + h - d, d, d, 90, 90);
+  path.CloseFigure();
+}
+#endif
+
 void RenderManager::drawModernCheckbox(const WidgetState &state, const Theme &theme, bool checked)
 {
+#ifdef _WIN32
+  Gdiplus::Graphics g(memDC);
+  g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+  float radius = 3.0f;
+
+  Color bgColor = theme.controlBackground;
+  Color borderColor = theme.controlBorder;
+
+  if (state.hovered)
+    borderColor = Color(borderColor.r + 30, borderColor.g + 30, borderColor.b + 30);
+
+  if (checked)
+  {
+    bgColor = theme.controlCheck;
+    borderColor = theme.controlCheck;
+  }
+
+  Gdiplus::Color bg(bgColor.a, bgColor.r, bgColor.g, bgColor.b);
+  Gdiplus::Color border(borderColor.a, borderColor.r, borderColor.g, borderColor.b);
+
+  Gdiplus::GraphicsPath path;
+  BuildRoundedRectPath(path,
+                       (float)state.rect.x,
+                       (float)state.rect.y,
+                       (float)state.rect.width,
+                       (float)state.rect.height,
+                       radius);
+
+  Gdiplus::SolidBrush bgBrush(bg);
+  g.FillPath(&bgBrush, &path);
+
+  if (!checked || state.hovered)
+  {
+    Gdiplus::Pen borderPen(border, 1.0f);
+    g.DrawPath(&borderPen, &path);
+  }
+
+  if (checked)
+  {
+    Gdiplus::Pen checkPen(Gdiplus::Color(255, 255, 255), 2.0f);
+    checkPen.SetStartCap(Gdiplus::LineCapRound);
+    checkPen.SetEndCap(Gdiplus::LineCapRound);
+
+    int x = state.rect.x;
+    int y = state.rect.y;
+    int w = state.rect.width;
+    int h = state.rect.height;
+
+    int x1 = x + (int)(w * 0.28f);
+    int y1 = y + (int)(h * 0.55f);
+
+    int x2 = x + (int)(w * 0.43f);
+    int y2 = y + (int)(h * 0.70f);
+
+    int x3 = x + (int)(w * 0.75f);
+    int y3 = y + (int)(h * 0.30f);
+
+    g.DrawLine(&checkPen, x1, y1, x2, y2);
+    g.DrawLine(&checkPen, x2, y2, x3, y3);
+  }
+
+  return;
+
+#else
   float radius = 3.0f;
   Color bgColor = theme.controlBackground;
   Color borderColor = theme.controlBorder;
 
   if (state.hovered)
-  {
     borderColor = Color(borderColor.r + 30, borderColor.g + 30, borderColor.b + 30);
-  }
 
   if (checked)
   {
@@ -566,9 +678,7 @@ void RenderManager::drawModernCheckbox(const WidgetState &state, const Theme &th
   drawRoundedRect(state.rect, radius, bgColor, true);
 
   if (!checked || state.hovered)
-  {
     drawRoundedRect(state.rect, radius, borderColor, false);
-  }
 
   if (checked)
   {
@@ -580,57 +690,56 @@ void RenderManager::drawModernCheckbox(const WidgetState &state, const Theme &th
     drawLine(cx + 3, cy + 4, cx + 10, cy - 4, checkColor);
     drawLine(cx + 4, cy + 4, cx + 11, cy - 4, checkColor);
   }
+#endif
 }
 
 void RenderManager::drawModernRadioButton(const WidgetState &state, const Theme &theme, bool selected)
 {
 #ifdef _WIN32
+  Gdiplus::Graphics g(memDC);
+  g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
   Color bgColor = theme.controlBackground;
   Color borderColor = theme.controlBorder;
 
   if (state.hovered)
-  {
     borderColor = Color(borderColor.r + 30, borderColor.g + 30, borderColor.b + 30);
-  }
 
-  int centerX = state.rect.x + state.rect.width / 2;
-  int centerY = state.rect.y + state.rect.height / 2;
-  int outerRadius = state.rect.width / 2;
+  int cx = state.rect.x + state.rect.width / 2;
+  int cy = state.rect.y + state.rect.height / 2;
+  int r = state.rect.width / 2;
 
-  HBRUSH bgBrush = CreateSolidBrush(RGB(bgColor.r, bgColor.g, bgColor.b));
-  HPEN borderPen = CreatePen(PS_SOLID, 1, RGB(borderColor.r, borderColor.g, borderColor.b));
+  Gdiplus::SolidBrush bg(Gdiplus::Color(bgColor.a, bgColor.r, bgColor.g, bgColor.b));
+  Gdiplus::Pen border(Gdiplus::Color(borderColor.a, borderColor.r, borderColor.g, borderColor.b), 1.0f);
 
-  HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, bgBrush);
-  HPEN oldPen = (HPEN)SelectObject(memDC, borderPen);
+  g.FillEllipse(&bg,
+                (float)state.rect.x,
+                (float)state.rect.y,
+                (float)state.rect.width,
+                (float)state.rect.height);
 
-  Ellipse(memDC, centerX - outerRadius, centerY - outerRadius,
-          centerX + outerRadius, centerY + outerRadius);
-
-  SelectObject(memDC, oldBrush);
-  SelectObject(memDC, oldPen);
-  DeleteObject(bgBrush);
-  DeleteObject(borderPen);
+  g.DrawEllipse(&border,
+                (float)state.rect.x,
+                (float)state.rect.y,
+                (float)state.rect.width,
+                (float)state.rect.height);
 
   if (selected)
   {
-    int innerRadius = outerRadius - 4;
-    Color dotColor = theme.controlCheck;
+    int inner = r - 4;
 
-    HBRUSH dotBrush = CreateSolidBrush(RGB(dotColor.r, dotColor.g, dotColor.b));
-    HPEN dotPen = CreatePen(PS_SOLID, 1, RGB(dotColor.r, dotColor.g, dotColor.b));
+    Gdiplus::SolidBrush dot(Gdiplus::Color(theme.controlCheck.a,
+                                           theme.controlCheck.r,
+                                           theme.controlCheck.g,
+                                           theme.controlCheck.b));
 
-    oldBrush = (HBRUSH)SelectObject(memDC, dotBrush);
-    oldPen = (HPEN)SelectObject(memDC, dotPen);
-
-    Ellipse(memDC, centerX - innerRadius, centerY - innerRadius,
-            centerX + innerRadius, centerY + innerRadius);
-
-    SelectObject(memDC, oldBrush);
-    SelectObject(memDC, oldPen);
-    DeleteObject(dotBrush);
-    DeleteObject(dotPen);
+    g.FillEllipse(&dot,
+                  (float)(cx - inner),
+                  (float)(cy - inner),
+                  (float)(inner * 2),
+                  (float)(inner * 2));
   }
-
+  return;
 #elif __APPLE__
 #else
   Color bgColor = theme.controlBackground;
@@ -1327,7 +1436,7 @@ void RenderManager::drawLeftPanel(
     StrCopy(g_DIEExecutablePath, diePath);
 
     currentY += 4;
-    
+
     Rect separatorRect(contentX, currentY, contentWidth, 1);
     drawRect(separatorRect, theme.separator, true);
     currentY += itemSpacing;

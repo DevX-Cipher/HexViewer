@@ -1281,7 +1281,7 @@ bool OptionsDialog::Show(NativeWindow parent, AppOptions &options)
 
   for (size_t i = 0; i < data.languages.size(); i++)
   {
-    if (StrEquals(data.languages[i], options.language))
+    if (strEquals(data.languages[i], options.language))
     {
       data.selectedLanguage = (int)i;
       break;
