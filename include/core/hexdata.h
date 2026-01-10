@@ -35,6 +35,7 @@ public:
     void setDisassemblyPlugin(const char *pluginPath);
     void clearDisassemblyPlugin();
     bool hasDisassemblyPlugin() const;
+    void generateDisassemblyFromPlugin(int bytesPerLine);
 
     void setArchitecture(int arch, int mode);
 
@@ -45,7 +46,6 @@ private:
     void convertDataToHex(int bytesPerLine);
     void generateHeader(int bytesPerLine);
     void generateDisassembly(int bytesPerLine);
-    void generateDisassemblyFromPlugin(int bytesPerLine);
 
     void disassembleInstruction(size_t offset, int &instructionLength, SimpleString &outInstr);
     bool initializeCapstone();

@@ -64,8 +64,7 @@ HMODULE LoadPythonFromRegistry()
     const wchar_t *roots[] = {
         L"SOFTWARE\\Python\\PythonCore",
         L"SOFTWARE\\WOW6432Node\\Python\\PythonCore",
-        nullptr
-    };
+        nullptr};
 
     HKEY hRoot = nullptr;
     HKEY hVersion = nullptr;
@@ -149,12 +148,13 @@ bool InitializePythonRuntime()
     pythonDLL = LoadPythonFromRegistry();
     if (!pythonDLL)
     {
-        MessageBoxW(NULL,
-                    "Could not load Python DLL from registry!\n\n"
-                    "Please install Python 3.8+ from python.org\n"
-                    "Make sure to check 'Add Python to PATH' during installation.",
-                    "Python Error",
-                    MB_OK | MB_ICONERROR);
+        MessageBoxW(
+            NULL,
+            L"Could not load Python DLL from registry!\n\n"
+            L"Please install Python 3.8+ from python.org\n"
+            L"Make sure to check 'Add Python to PATH' during installation.",
+            L"Python Error",
+            MB_OK | MB_ICONERROR);
         return false;
     }
 
@@ -302,7 +302,7 @@ bool GetPythonPluginInfo(const char *pluginPath, PluginInfo *info)
     }
 
     void *pResult = PyObject_CallObject(pFunc, nullptr);
-    
+
     if (pResult && PyDict_GetItemString)
     {
         void *pName = PyDict_GetItemString(pResult, "name");
@@ -395,7 +395,6 @@ bool CanPluginDisassemble(const char *pluginPath)
 
     if (!canDisasm)
     {
-       
     }
 
     if (pFunc)
@@ -404,7 +403,6 @@ bool CanPluginDisassemble(const char *pluginPath)
     Py_DecRef(pModule);
     return canDisasm;
 }
-
 
 bool CanPluginAnalyze(const char *pluginPath)
 {

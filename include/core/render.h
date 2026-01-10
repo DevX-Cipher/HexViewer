@@ -407,6 +407,7 @@ struct WidgetState
   bool hovered;
   bool pressed;
   bool enabled;
+  bool checked;
 
   WidgetState() : hovered(false), pressed(false), enabled(true) {}
   WidgetState(const Rect &r) : rect(r), hovered(false), pressed(false), enabled(true) {}

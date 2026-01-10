@@ -12,6 +12,8 @@ struct AppOptions {
   bool autoReload;
   bool contextMenu;
   char language[64];
+  char enabledPlugins[10][128];
+  int enabledPluginCount;
   
   AppOptions()
     : darkMode(true),
@@ -90,6 +92,7 @@ void DetectNative();
 void LoadOptionsFromFile(AppOptions& options);
 void SaveOptionsToFile(const AppOptions& options);
 bool IsPointInRect(int x, int y, const Rect& rect);
+void GetConfigPath(char *outPath, int maxLen);
 
 class OptionsDialog {
 public:

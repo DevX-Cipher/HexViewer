@@ -301,7 +301,7 @@ void InvalidateWindow()
   {
     XClearWindow(g_display, g_window);
     XEvent exposeEvent;
-    memSet(&exposeEvent, 0, sizeof(exposeEvent));
+    MemSet(&exposeEvent, 0, sizeof(exposeEvent));
     exposeEvent.type = Expose;
     exposeEvent.xexpose.window = g_window;
     XSendEvent(g_display, g_window, False, ExposureMask, &exposeEvent);
@@ -937,7 +937,7 @@ void AppContextMenu::executeAction(int actionId)
       hexBuf[hexIdx] = '\0';
       StrCopy(p, hexBuf);
 #ifdef _WIN32
-      MessageBoxW(g_Hwnd, msg, "Bookmark", MB_OK | MB_ICONINFORMATION);
+      MessageBoxA(g_Hwnd, msg, "Bookmark", MB_OK | MB_ICONINFORMATION);
 #elif APPLE
       @autoreleasepool
       {

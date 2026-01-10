@@ -156,22 +156,17 @@ HexData::~HexData() {
 }
 
 void HexData::setDisassemblyPlugin(const char* path) {
-    if (!path) return;
-    
-    extern bool CanPluginDisassemble(const char* pluginPath);
-    if (!CanPluginDisassemble(path)) {
-        return;
-    }
-    
+    if (!path || !path[0]) return;
+
     int i = 0;
     while (path[i] && i < 511) {
         pluginPath[i] = path[i];
         i++;
     }
     pluginPath[i] = '\0';
-    
+
     usePlugin = true;
-    
+
     if (!bb_empty(&fileData)) {
         convertDataToHex(currentBytesPerLine);
     }
@@ -192,18 +187,7 @@ bool HexData::hasDisassemblyPlugin() const {
 
 void HexData::generateDisassemblyFromPlugin(int bytesPerLine) {
     la_clear(&disassemblyLines);
-    
-    if (bb_empty(&fileData) || !usePlugin) {
-        #ifdef _WIN32
-        MessageBoxW(NULL, "generateDisassemblyFromPlugin: No data or no plugin!", "Debug", MB_OK);
-        #endif
-        return;
-    }
-    
-    #ifdef _WIN32
-    MessageBoxW(NULL, pluginPath, "Debug - Plugin Path", MB_OK);
-    #endif
-    
+   
     extern bool ExecutePythonDisassembly(
         const char* pluginPath,
         const uint8_t* data,
@@ -211,7 +195,6 @@ void HexData::generateDisassemblyFromPlugin(int bytesPerLine) {
         size_t offset,
         LineArray* outLines);
     
-    int linesGenerated = 0;
     for (size_t i = 0; i < fileData.size; i += (size_t)bytesPerLine) {
         SimpleString line;
         ss_init(&line);
@@ -231,7 +214,6 @@ void HexData::generateDisassemblyFromPlugin(int bytesPerLine) {
             
             if (tempLines.count > 0 && tempLines.lines[0].length > 0) {
                 ss_append_cstr(&line, tempLines.lines[0].data);
-                linesGenerated++;
             }
         }
         
@@ -240,14 +222,6 @@ void HexData::generateDisassemblyFromPlugin(int bytesPerLine) {
         la_push_back(&disassemblyLines, &line);
         ss_free(&line);
     }
-    
-    #ifdef _WIN32
-    if (linesGenerated > 0) {
-        MessageBoxW(NULL, "Disassembly lines generated successfully!", "Debug - Success", MB_OK);
-    } else {
-        MessageBoxW(NULL, "No disassembly lines were generated!", "Debug - Warning", MB_OK);
-    }
-    #endif
 }
 
 void HexData::generateDisassembly(int bytesPerLine) {

@@ -10,6 +10,9 @@
 #define DEBUG_OUTPUT(msg)
 #endif
 
+extern int g_RecentFileCount;
+extern char g_RecentFiles[10][MAX_PATH_LEN];
+
 MenuItem::MenuItem()
     : label(nullptr), shortcut(nullptr), type(MenuItemType::Normal),
       enabled(true), checked(false), callback(nullptr),
@@ -29,16 +32,31 @@ MenuItem::MenuItem(const char *lbl, MenuItemType t)
 MenuItem::~MenuItem()
 {
   if (label)
-    memFree(label, StrLen(label) + 1);
+    MemFree(label, StrLen(label) + 1);
   if (shortcut)
-    memFree(shortcut, StrLen(shortcut) + 1);
+    MemFree(shortcut, StrLen(shortcut) + 1);
+
   if (submenu)
   {
     for (int i = 0; i < submenuCount; i++)
     {
-      submenu[i].~MenuItem();
+      if (submenu[i].label)
+        MemFree(submenu[i].label, StrLen(submenu[i].label) + 1);
+      if (submenu[i].shortcut)
+        MemFree(submenu[i].shortcut, StrLen(submenu[i].shortcut) + 1);
+      if (submenu[i].submenu)
+      {
+        for (int j = 0; j < submenu[i].submenuCount; j++)
+        {
+          if (submenu[i].submenu[j].label)
+            MemFree(submenu[i].submenu[j].label, StrLen(submenu[i].submenu[j].label) + 1);
+          if (submenu[i].submenu[j].shortcut)
+            MemFree(submenu[i].submenu[j].shortcut, StrLen(submenu[i].submenu[j].shortcut) + 1);
+        }
+        MemFree(submenu[i].submenu, submenu[i].submenuCount * sizeof(MenuItem));
+      }
     }
-    memFree(submenu, submenuCount * sizeof(MenuItem));
+    MemFree(submenu, submenuCount * sizeof(MenuItem));
   }
 }
 
@@ -47,7 +65,6 @@ MenuItem::MenuItem(const MenuItem &other)
       enabled(other.enabled), checked(other.checked),
       callback(other.callback), submenu(nullptr), submenuCount(0)
 {
-
   if (other.label)
     label = StrDup(other.label);
   if (other.shortcut)
@@ -133,14 +150,14 @@ Menu::Menu()
 Menu::~Menu()
 {
   if (title)
-    memFree(title, StrLen(title) + 1);
+    MemFree(title, StrLen(title) + 1);
   if (items)
   {
     for (int i = 0; i < itemCount; i++)
     {
       items[i].~MenuItem();
     }
-    memFree(items, itemCapacity * sizeof(MenuItem));
+    MemFree(items, itemCapacity * sizeof(MenuItem));
   }
 }
 
@@ -148,7 +165,6 @@ Menu::Menu(const Menu &other)
     : title(nullptr), items(nullptr), itemCount(0), itemCapacity(0),
       visible(other.visible), bounds(other.bounds), selectedIndex(other.selectedIndex)
 {
-
   if (other.title)
     title = StrDup(other.title);
 
@@ -268,8 +284,27 @@ void Menu::addItem(const MenuItem &item)
   items[itemCount].enabled = item.enabled;
   items[itemCount].checked = item.checked;
   items[itemCount].callback = item.callback;
-  items[itemCount].submenu = nullptr;
-  items[itemCount].submenuCount = 0;
+  items[itemCount].submenuCount = item.submenuCount;
+
+  if (item.submenu && item.submenuCount > 0)
+  {
+    items[itemCount].submenu = (MenuItem *)PlatformAlloc(item.submenuCount * sizeof(MenuItem));
+    for (int i = 0; i < item.submenuCount; i++)
+    {
+      items[itemCount].submenu[i].label = item.submenu[i].label ? StrDup(item.submenu[i].label) : nullptr;
+      items[itemCount].submenu[i].shortcut = item.submenu[i].shortcut ? StrDup(item.submenu[i].shortcut) : nullptr;
+      items[itemCount].submenu[i].type = item.submenu[i].type;
+      items[itemCount].submenu[i].enabled = item.submenu[i].enabled;
+      items[itemCount].submenu[i].checked = item.submenu[i].checked;
+      items[itemCount].submenu[i].callback = item.submenu[i].callback;
+      items[itemCount].submenu[i].submenu = nullptr;
+      items[itemCount].submenu[i].submenuCount = 0;
+    }
+  }
+  else
+  {
+    items[itemCount].submenu = nullptr;
+  }
 
   itemCount++;
 }
@@ -286,7 +321,8 @@ void Menu::clear()
 MenuBar::MenuBar()
     : menus(nullptr), menuCount(0), menuCapacity(0),
       x(0), y(0), height(32), openMenuIndex(-1),
-      hoveredMenuIndex(-1), hoveredItemIndex(-1)
+      hoveredMenuIndex(-1), hoveredItemIndex(-1),
+      openSubmenuIndex(-1), hoveredSubmenuIndex(-1)
 #ifdef _WIN32
       ,
       hMenu(nullptr)
@@ -306,7 +342,7 @@ MenuBar::~MenuBar()
     {
       menus[i].~Menu();
     }
-    memFree(menus, menuCapacity * sizeof(Menu));
+    MemFree(menus, menuCapacity * sizeof(Menu));
   }
 }
 
@@ -380,8 +416,27 @@ void MenuBar::addMenu(const Menu &menu)
       menus[menuCount].items[i].enabled = menu.items[i].enabled;
       menus[menuCount].items[i].checked = menu.items[i].checked;
       menus[menuCount].items[i].callback = menu.items[i].callback;
-      menus[menuCount].items[i].submenu = nullptr;
-      menus[menuCount].items[i].submenuCount = 0;
+      menus[menuCount].items[i].submenuCount = menu.items[i].submenuCount;
+
+      if (menu.items[i].submenu && menu.items[i].submenuCount > 0)
+      {
+        menus[menuCount].items[i].submenu = (MenuItem *)PlatformAlloc(menu.items[i].submenuCount * sizeof(MenuItem));
+        for (int j = 0; j < menu.items[i].submenuCount; j++)
+        {
+          menus[menuCount].items[i].submenu[j].label = menu.items[i].submenu[j].label ? StrDup(menu.items[i].submenu[j].label) : nullptr;
+          menus[menuCount].items[i].submenu[j].shortcut = menu.items[i].submenu[j].shortcut ? StrDup(menu.items[i].submenu[j].shortcut) : nullptr;
+          menus[menuCount].items[i].submenu[j].type = menu.items[i].submenu[j].type;
+          menus[menuCount].items[i].submenu[j].enabled = menu.items[i].submenu[j].enabled;
+          menus[menuCount].items[i].submenu[j].checked = menu.items[i].submenu[j].checked;
+          menus[menuCount].items[i].submenu[j].callback = menu.items[i].submenu[j].callback;
+          menus[menuCount].items[i].submenu[j].submenu = nullptr;
+          menus[menuCount].items[i].submenu[j].submenuCount = 0;
+        }
+      }
+      else
+      {
+        menus[menuCount].items[i].submenu = nullptr;
+      }
     }
   }
   else
@@ -498,7 +553,9 @@ void MenuBar::render(RenderManager *renderer, int windowWidth)
       else
       {
         Rect itemRect(dropdownX, itemY, maxWidth, 32);
-        if (i == hoveredItemIndex && item.enabled)
+
+        bool isSubmenuParent = (i == openSubmenuIndex);
+        if ((i == hoveredItemIndex || isSubmenuParent) && item.enabled)
         {
           renderer->drawRoundedRect(itemRect, 3.0f, theme.menuHover, true);
         }
@@ -535,21 +592,199 @@ void MenuBar::render(RenderManager *renderer, int windowWidth)
         itemY += 32;
       }
     }
+
+if (openSubmenuIndex >= 0 && openSubmenuIndex < menu.itemCount)
+{
+  const MenuItem &parentItem = menu.items[openSubmenuIndex];
+  
+  if (parentItem.type == MenuItemType::Submenu && parentItem.submenuCount > 0)
+  {
+    int submenuX = dropdownX + maxWidth - 2;
+    int submenuY = dropdownY + 8;
+    
+    for (int i = 0; i < openSubmenuIndex; i++)
+    {
+      submenuY += (menu.items[i].type == MenuItemType::Separator) ? 8 : 32;
+    }
+    
+    int submenuWidth = 250;
+    for (int i = 0; i < parentItem.submenuCount; i++)
+    {
+      if (parentItem.submenu[i].label)
+      {
+        int labelLen = StrLen(parentItem.submenu[i].label);
+        int itemWidth = labelLen * charWidth + 50;
+        if (itemWidth > submenuWidth)
+        {
+          submenuWidth = itemWidth;
+        }
+      }
+    }
+    int maxAllowedWidth = windowWidth - submenuX - 20;
+    if (submenuWidth > maxAllowedWidth && maxAllowedWidth > 250)
+    {
+      submenuWidth = maxAllowedWidth;
+    }
+    
+    int submenuHeight = 16;
+    for (int i = 0; i < parentItem.submenuCount; i++)
+    {
+      if (parentItem.submenu[i].type == MenuItemType::Separator)
+      {
+        submenuHeight += 8;
+      }
+      else
+      {
+        submenuHeight += 32;
+      }
+    }
+
+    submenuBounds = Rect(submenuX, submenuY, submenuWidth, submenuHeight);
+
+    Rect subShadow(submenuX + 3, submenuY + 3, submenuWidth, submenuHeight);
+    renderer->drawRect(subShadow, Color(0, 0, 0, 80), true);
+
+    Rect submenuRect(submenuX, submenuY, submenuWidth, submenuHeight);
+    renderer->drawRect(submenuRect, theme.menuBackground, true);
+    renderer->drawRect(submenuRect, theme.menuBorder, false);
+
+    int subItemY = submenuY + 8;
+    for (int i = 0; i < parentItem.submenuCount; i++)
+    {
+      const MenuItem &subItem = parentItem.submenu[i];
+
+      if (subItem.type == MenuItemType::Separator)
+      {
+        int sepY = subItemY + 4;
+        renderer->drawLine(submenuX + 10, sepY, submenuX + submenuWidth - 10, sepY, theme.separator);
+        subItemY += 8;
+      }
+      else
+      {
+        Rect subItemRect(submenuX, subItemY, submenuWidth, 32);
+        
+        if (i == hoveredSubmenuIndex && subItem.enabled)
+        {
+          renderer->drawRoundedRect(subItemRect, 3.0f, theme.menuHover, true);
+        }
+
+        if (subItem.checked)
+        {
+          renderer->drawText("✓", submenuX + 10, subItemY + (32 - charHeight) / 2,
+                             subItem.enabled ? theme.textColor : theme.disabledText);
+        }
+
+        Color subTextColor = subItem.enabled ? theme.textColor : theme.disabledText;
+        if (subItem.label)
+        {
+          int labelX = submenuX + (subItem.checked ? 35 : 15);
+          int labelY = subItemY + (32 - charHeight) / 2;
+          
+          renderer->drawText(subItem.label, labelX, labelY, subTextColor);
+        }
+
+        if (subItem.shortcut)
+        {
+          int shortcutLen = StrLen(subItem.shortcut);
+          int shortcutX = submenuX + submenuWidth - (shortcutLen * charWidth) - 15;
+          int shortcutY = subItemY + (32 - charHeight) / 2;
+          renderer->drawText(subItem.shortcut, shortcutX, shortcutY, theme.disabledText);
+        }
+
+        subItemY += 32;
+      }
+    }
+  }
+}
   }
 }
 
 bool MenuBar::handleMouseMove(int mx, int my)
 {
   int oldHoveredMenu = hoveredMenuIndex;
+  int oldHoveredItem = hoveredItemIndex;
+  int oldHoveredSubmenu = hoveredSubmenuIndex;
+
   hoveredMenuIndex = getMenuIndexAt(mx, my);
 
   if (openMenuIndex >= 0)
   {
     hoveredItemIndex = getMenuItemIndexAt(openMenuIndex, mx, my);
 
+    if (openSubmenuIndex >= 0 && openSubmenuIndex < menus[openMenuIndex].itemCount)
+    {
+      const MenuItem &parentItem = menus[openMenuIndex].items[openSubmenuIndex];
+
+      if (parentItem.type == MenuItemType::Submenu && parentItem.submenuCount > 0)
+      {
+        if (mx >= submenuBounds.x && mx < submenuBounds.x + submenuBounds.width &&
+            my >= submenuBounds.y && my < submenuBounds.y + submenuBounds.height)
+        {
+          int relY = my - submenuBounds.y - 8;
+          int currentY = 0;
+          hoveredSubmenuIndex = -1;
+
+          for (int i = 0; i < parentItem.submenuCount; i++)
+          {
+            int itemHeight = (parentItem.submenu[i].type == MenuItemType::Separator) ? 8 : 32;
+
+            if (relY >= currentY && relY < currentY + itemHeight)
+            {
+              if (parentItem.submenu[i].type != MenuItemType::Separator)
+              {
+                hoveredSubmenuIndex = i;
+              }
+              break;
+            }
+            currentY += itemHeight;
+          }
+        }
+        else
+        {
+          hoveredSubmenuIndex = -1;
+        }
+      }
+    }
+
+    if (hoveredItemIndex >= 0 && hoveredItemIndex < menus[openMenuIndex].itemCount)
+    {
+      const MenuItem &item = menus[openMenuIndex].items[hoveredItemIndex];
+      if (item.type == MenuItemType::Submenu && item.submenuCount > 0)
+      {
+        if (openSubmenuIndex != hoveredItemIndex)
+        {
+          openSubmenuIndex = hoveredItemIndex;
+          hoveredSubmenuIndex = -1;
+        }
+      }
+      else
+      {
+        openSubmenuIndex = -1;
+        hoveredSubmenuIndex = -1;
+      }
+    }
+    else
+    {
+      if (openSubmenuIndex >= 0)
+      {
+        const MenuItem &parentItem = menus[openMenuIndex].items[openSubmenuIndex];
+        if (parentItem.type == MenuItemType::Submenu && parentItem.submenuCount > 0)
+        {
+          if (!(mx >= submenuBounds.x && mx < submenuBounds.x + submenuBounds.width &&
+                my >= submenuBounds.y && my < submenuBounds.y + submenuBounds.height))
+          {
+            openSubmenuIndex = -1;
+            hoveredSubmenuIndex = -1;
+          }
+        }
+      }
+    }
+
     if (hoveredMenuIndex >= 0 && hoveredMenuIndex != openMenuIndex)
     {
       openMenu(hoveredMenuIndex);
+      openSubmenuIndex = -1;
+      hoveredSubmenuIndex = -1;
     }
 
     return true;
@@ -577,6 +812,31 @@ bool MenuBar::handleMouseDown(int mx, int my)
 
   if (openMenuIndex >= 0)
   {
+    if (openSubmenuIndex >= 0 && openSubmenuIndex < menus[openMenuIndex].itemCount)
+    {
+      const MenuItem &parentItem = menus[openMenuIndex].items[openSubmenuIndex];
+
+      if (parentItem.type == MenuItemType::Submenu && parentItem.submenuCount > 0)
+      {
+        if (mx >= submenuBounds.x && mx < submenuBounds.x + submenuBounds.width &&
+            my >= submenuBounds.y && my < submenuBounds.y + submenuBounds.height)
+        {
+          if (hoveredSubmenuIndex >= 0 && hoveredSubmenuIndex < parentItem.submenuCount)
+          {
+            MenuItem &subItem = parentItem.submenu[hoveredSubmenuIndex];
+
+            if (subItem.enabled && subItem.type == MenuItemType::Normal)
+            {
+              executeMenuItem(subItem);
+              closeMenu();
+              return true;
+            }
+          }
+          return true;
+        }
+      }
+    }
+
     Menu &menu = menus[openMenuIndex];
     int dropdownX = menu.bounds.x;
     int dropdownY = y + height;
@@ -592,14 +852,27 @@ bool MenuBar::handleMouseDown(int mx, int my)
     if (mx >= dropdownX && mx < dropdownX + maxWidth &&
         my >= dropdownY && my < dropdownY + dropdownHeight)
     {
-
       int itemIndex = getMenuItemIndexAt(openMenuIndex, mx, my);
 
       if (itemIndex >= 0)
       {
         MenuItem &item = menu.items[itemIndex];
 
-        if (item.enabled && item.type == MenuItemType::Normal)
+        if (item.type == MenuItemType::Submenu)
+        {
+          if (openSubmenuIndex == itemIndex)
+          {
+            openSubmenuIndex = -1;
+            hoveredSubmenuIndex = -1;
+          }
+          else
+          {
+            openSubmenuIndex = itemIndex;
+            hoveredSubmenuIndex = -1;
+          }
+          return true;
+        }
+        else if (item.enabled && item.type == MenuItemType::Normal)
         {
           executeMenuItem(item);
           closeMenu();
@@ -763,8 +1036,9 @@ void MenuBar::closeMenu()
 {
   openMenuIndex = -1;
   hoveredItemIndex = -1;
+  openSubmenuIndex = -1;
+  hoveredSubmenuIndex = -1;
 }
-
 int MenuBar::getMenuIndexAt(int mx, int my) const
 {
   if (my < y || my >= y + height)
@@ -806,7 +1080,6 @@ int MenuBar::getMenuItemIndexAt(int menuIndex, int mx, int my) const
     if (mx >= dropdownX && mx < dropdownX + maxWidth &&
         my >= itemY && my < itemY + itemHeight)
     {
-
       if (item.type != MenuItemType::Separator)
         return i;
 
@@ -860,12 +1133,15 @@ void MenuBar::destroyNativeMenu()
 
 namespace MenuHelper
 {
-  Menu createFileMenu(MenuCallback onNew, MenuCallback onOpen,
-                      MenuCallback onSave, MenuCallback onExit)
+  Menu createFileMenu(MenuCallback onNew,
+                      MenuCallback onOpen,
+                      MenuCallback onSave,
+                      MenuCallback onExit,
+                      MenuCallback recentCallbacks[10])
   {
     Menu menu;
-
     menu.title = StrDup("File");
+
     MenuItem newItem;
     newItem.label = StrDup("New");
     newItem.shortcut = StrDup("Ctrl+N");
@@ -886,6 +1162,46 @@ namespace MenuHelper
     saveItem.type = MenuItemType::Normal;
     saveItem.callback = onSave;
     menu.addItem(saveItem);
+
+    MenuItem recentHeader;
+    recentHeader.label = StrDup("Recent Files");
+    recentHeader.type = MenuItemType::Submenu;
+    recentHeader.enabled = true;
+    recentHeader.callback = nullptr;
+
+    if (g_RecentFileCount == 0)
+    {
+      recentHeader.submenuCount = 1;
+      recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem));
+
+      recentHeader.submenu[0].label = StrDup("No recent files");
+      recentHeader.submenu[0].shortcut = nullptr;
+      recentHeader.submenu[0].type = MenuItemType::Normal;
+      recentHeader.submenu[0].enabled = false;
+      recentHeader.submenu[0].checked = false;
+      recentHeader.submenu[0].callback = nullptr;
+      recentHeader.submenu[0].submenu = nullptr;
+      recentHeader.submenu[0].submenuCount = 0;
+    }
+    else
+    {
+      recentHeader.submenuCount = g_RecentFileCount;
+      recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem) * g_RecentFileCount);
+
+      for (int i = 0; i < g_RecentFileCount; i++)
+      {
+        recentHeader.submenu[i].label = StrDup(g_RecentFiles[i]);
+        recentHeader.submenu[i].shortcut = nullptr;
+        recentHeader.submenu[i].type = MenuItemType::Normal;
+        recentHeader.submenu[i].enabled = true;
+        recentHeader.submenu[i].checked = false;
+        recentHeader.submenu[i].callback = recentCallbacks ? recentCallbacks[i] : nullptr;
+        recentHeader.submenu[i].submenu = nullptr;
+        recentHeader.submenu[i].submenuCount = 0;
+      }
+    }
+
+    menu.addItem(recentHeader);
 
     MenuItem sepItem;
     sepItem.type = MenuItemType::Separator;
@@ -923,8 +1239,8 @@ namespace MenuHelper
     return menu;
   }
 
- Menu createToolsMenu(MenuCallback onOptions, MenuCallback onPlugins)
-{
+  Menu createToolsMenu(MenuCallback onOptions, MenuCallback onPlugins)
+  {
     Menu toolsMenu;
     toolsMenu.title = StrDup("Tools");
 
@@ -941,8 +1257,7 @@ namespace MenuHelper
     toolsMenu.addItem(pluginsItem);
 
     return toolsMenu;
-}
-
+  }
 
   Menu createHelpMenu(MenuCallback onAbout, MenuCallback onDocumentation)
   {

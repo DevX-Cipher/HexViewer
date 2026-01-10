@@ -58,7 +58,7 @@ static void CleanReleaseNotes(char *text)
     if (src[0] == '\\' && src[1] == 'u')
     {
       char hex[5] = {src[2], src[3], src[4], src[5], 0};
-      int code = strHexToInt(hex);
+      int code = StrHexToInt(hex);
 
       switch (code)
       {
@@ -314,7 +314,7 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
       }
 
       info->updateAvailable =
-          !strEquals(info->latestVersion, info->currentVersion) &&
+          !StrEquals(info->latestVersion, info->currentVersion) &&
           !StringIsEmpty(info->latestVersion);
     }
     else
@@ -748,7 +748,7 @@ void AboutDialog::RenderContent(int width, int height)
   renderer->drawModernButton(updateState, theme, Translations::T("Check for Updates"));
 
   char copyright[] = "(c) 2025 DiE team!";
-  int copyrightX = (width - (stringLength(copyright) * 8)) / 2;
+  int copyrightX = (width - (StringLength(copyright) * 8)) / 2;
   renderer->drawText(copyright, copyrightX, height - 20, theme.disabledText);
 }
 

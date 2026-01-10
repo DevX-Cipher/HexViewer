@@ -15,6 +15,7 @@
 #endif
 
 static PluginManagerData *g_pluginDialogData = nullptr;
+extern AppOptions g_Options;
 
 void GetPluginDirectory(char *outPath, int maxLen)
 {
@@ -86,32 +87,37 @@ void GetPluginDirectory(char *outPath, int maxLen)
 #endif
 }
 
-bool CheckPluginCapabilities(const char* pluginPath, PluginInfo* info) {
-    if (!pluginPath || !info) return false;
-    
+bool CheckPluginCapabilities(const char *pluginPath, PluginInfo *info)
+{
+    if (!pluginPath || !info)
+        return false;
+
     info->canDisassemble = false;
     info->canAnalyze = false;
     info->canTransform = false;
-    
-    if (!strEquals(info->language, "python")) {
+
+    if (!StrEquals(info->language, "python"))
+    {
         return false;
     }
-    
-    if (!InitializePythonRuntime()) {
+
+    if (!InitializePythonRuntime())
+    {
         StrCopy(info->description, "Python not installed");
         return false;
     }
-    
+
     info->canDisassemble = CanPluginDisassemble(pluginPath);
     info->canAnalyze = CanPluginAnalyze(pluginPath);
     info->canTransform = CanPluginTransform(pluginPath);
-    
+
     bool hasCapability = (info->canDisassemble || info->canAnalyze || info->canTransform);
-    
-    if (!hasCapability) {
+
+    if (!hasCapability)
+    {
         StrCopy(info->description, "No valid plugin functions");
     }
-    
+
     return hasCapability;
 }
 
@@ -182,15 +188,15 @@ bool PluginManager::ParsePluginManifest(const char *manifestPath, PluginInfo *in
                 char *key = line;
                 char *val = line + eq + 1;
 
-                if (strEquals(key, "name"))
+                if (StrEquals(key, "name"))
                     StrCopy(info->name, val);
-                else if (strEquals(key, "version"))
+                else if (StrEquals(key, "version"))
                     StrCopy(info->version, val);
-                else if (strEquals(key, "author"))
+                else if (StrEquals(key, "author"))
                     StrCopy(info->author, val);
-                else if (strEquals(key, "description"))
+                else if (StrEquals(key, "description"))
                     StrCopy(info->description, val);
-                else if (strEquals(key, "language"))
+                else if (StrEquals(key, "language"))
                     StrCopy(info->language, val);
             }
 
@@ -229,84 +235,107 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
             continue;
 
         int nameLen = 0;
-        while (findData.cFileName[nameLen]) nameLen++;
-        
+        while (findData.cFileName[nameLen])
+            nameLen++;
+
         bool isPython = false;
         bool isJavaScript = false;
-        
-        if (nameLen > 3) {
-            if (findData.cFileName[nameLen-3] == L'.' &&
-                findData.cFileName[nameLen-2] == L'p' &&
-                findData.cFileName[nameLen-1] == L'y') {
+
+        if (nameLen > 3)
+        {
+            if (findData.cFileName[nameLen - 3] == L'.' &&
+                findData.cFileName[nameLen - 2] == L'p' &&
+                findData.cFileName[nameLen - 1] == L'y')
+            {
                 isPython = true;
             }
         }
-        
-        if (nameLen > 3) {
-            if (findData.cFileName[nameLen-3] == L'.' &&
-                findData.cFileName[nameLen-2] == L'j' &&
-                findData.cFileName[nameLen-1] == L's') {
+
+        if (nameLen > 3)
+        {
+            if (findData.cFileName[nameLen - 3] == L'.' &&
+                findData.cFileName[nameLen - 2] == L'j' &&
+                findData.cFileName[nameLen - 1] == L's')
+            {
                 isJavaScript = true;
             }
         }
-        
+
         if (!isPython && !isJavaScript)
             continue;
 
         PluginInfo *info = (PluginInfo *)PlatformAlloc(sizeof(PluginInfo));
-        memSet(info, 0, sizeof(PluginInfo));
+        MemSet(info, 0, sizeof(PluginInfo));
 
         WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, info->name, 128, nullptr, nullptr);
-        
-        if (isPython) {
+
+        if (isPython)
+        {
             StrCopy(info->language, "python");
-        } else {
+        }
+        else
+        {
             StrCopy(info->language, "javascript");
         }
-        
+
         StrCopy(info->version, "1.0");
         StrCopy(info->author, "Unknown");
-        
+
         WideCharToMultiByte(CP_UTF8, 0, wpath, -1, info->path, 512, nullptr, nullptr);
         int pathLen = (int)StrLen(info->path);
         info->path[pathLen] = '\\';
-        WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, 
-            info->path + pathLen + 1, 512 - pathLen - 1, nullptr, nullptr);
+        WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1,
+                            info->path + pathLen + 1, 512 - pathLen - 1, nullptr, nullptr);
 
         info->enabled = false;
         info->loaded = false;
-        
+
         info->canDisassemble = false;
         info->canAnalyze = false;
         info->canTransform = false;
-        
-        if (isPython) {
+
+        if (isPython)
+        {
             GetPythonPluginInfo(info->path, info);
-            if (CheckPluginCapabilities(info->path, info)) {
-                if (info->canDisassemble && info->canAnalyze) {
+            if (CheckPluginCapabilities(info->path, info))
+            {
+                if (info->canDisassemble && info->canAnalyze)
+                {
                     StrCopy(info->description, "Disassembler & Analyzer");
-                } else if (info->canDisassemble) {
+                }
+                else if (info->canDisassemble)
+                {
                     StrCopy(info->description, "Disassembler Plugin");
-                } else if (info->canAnalyze) {
+                }
+                else if (info->canAnalyze)
+                {
                     StrCopy(info->description, "Analysis Plugin");
-                } else if (info->canTransform) {
+                }
+                else if (info->canTransform)
+                {
                     StrCopy(info->description, "Data Transform Plugin");
-                } else {
+                }
+                else
+                {
                     StrCopy(info->description, "Python Plugin");
                 }
-            } else {
+            }
+            else
+            {
                 StrCopy(info->description, "Python Plugin (error loading)");
             }
-        } else {
+        }
+        else
+        {
             StrCopy(info->description, "JavaScript Plugin (not supported)");
         }
-        
+
         data->plugins.push_back(info);
 
     } while (FindNextFileW(hFind, &findData));
 
     FindClose(hFind);
-    
+
 #else
     DIR *dir = opendir(path);
     if (!dir)
@@ -329,73 +358,96 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
             continue;
 
         int nameLen = 0;
-        while (entry->d_name[nameLen]) nameLen++;
-        
+        while (entry->d_name[nameLen])
+            nameLen++;
+
         bool isPython = false;
         bool isJavaScript = false;
-        
-        if (nameLen > 3) {
-            if (entry->d_name[nameLen-3] == '.' &&
-                entry->d_name[nameLen-2] == 'p' &&
-                entry->d_name[nameLen-1] == 'y') {
+
+        if (nameLen > 3)
+        {
+            if (entry->d_name[nameLen - 3] == '.' &&
+                entry->d_name[nameLen - 2] == 'p' &&
+                entry->d_name[nameLen - 1] == 'y')
+            {
                 isPython = true;
             }
         }
-        
-        if (nameLen > 3) {
-            if (entry->d_name[nameLen-3] == '.' &&
-                entry->d_name[nameLen-2] == 'j' &&
-                entry->d_name[nameLen-1] == 's') {
+
+        if (nameLen > 3)
+        {
+            if (entry->d_name[nameLen - 3] == '.' &&
+                entry->d_name[nameLen - 2] == 'j' &&
+                entry->d_name[nameLen - 1] == 's')
+            {
                 isJavaScript = true;
             }
         }
-        
+
         if (!isPython && !isJavaScript)
             continue;
 
         PluginInfo *info = (PluginInfo *)PlatformAlloc(sizeof(PluginInfo));
-        memSet(info, 0, sizeof(PluginInfo));
+        MemSet(info, 0, sizeof(PluginInfo));
 
         StrCopy(info->name, entry->d_name);
-        
-        if (isPython) {
+
+        if (isPython)
+        {
             StrCopy(info->language, "python");
-        } else {
+        }
+        else
+        {
             StrCopy(info->language, "javascript");
         }
-        
+
         StrCopy(info->version, "1.0");
         StrCopy(info->author, "Unknown");
-        
+
         StrCopy(info->path, fullPath);
 
         info->enabled = false;
         info->loaded = false;
-        
+
         info->canDisassemble = false;
         info->canAnalyze = false;
         info->canTransform = false;
-        
-        if (isPython) {
-            if (CheckPluginCapabilities(info->path, info)) {
-                if (info->canDisassemble && info->canAnalyze) {
+
+        if (isPython)
+        {
+            if (CheckPluginCapabilities(info->path, info))
+            {
+                if (info->canDisassemble && info->canAnalyze)
+                {
                     StrCopy(info->description, "Disassembler & Analyzer");
-                } else if (info->canDisassemble) {
+                }
+                else if (info->canDisassemble)
+                {
                     StrCopy(info->description, "Disassembler Plugin");
-                } else if (info->canAnalyze) {
+                }
+                else if (info->canAnalyze)
+                {
                     StrCopy(info->description, "Analysis Plugin");
-                } else if (info->canTransform) {
+                }
+                else if (info->canTransform)
+                {
                     StrCopy(info->description, "Data Transform Plugin");
-                } else {
+                }
+                else
+                {
                     StrCopy(info->description, "Python Plugin");
                 }
-            } else {
+            }
+            else
+            {
                 StrCopy(info->description, "Python Plugin (error loading)");
             }
-        } else {
+        }
+        else
+        {
             StrCopy(info->description, "JavaScript Plugin (not supported)");
         }
-        
+
         data->plugins.push_back(info);
     }
 
@@ -411,114 +463,63 @@ void PluginManager::LoadPluginsFromDirectory(PluginManagerData *data)
     CreatePluginDirectory(pluginDir);
 
     ScanDirectory(pluginDir, data);
-
     LoadPluginStates(data);
 }
 
 void PluginManager::SavePluginStates(PluginManagerData *data)
 {
-    char configPath[512];
-    GetPluginDirectory(configPath, 512);
-    int len = (int)StrLen(configPath);
-    StrCopy(configPath + len, "/enabled_plugins.txt");
-
-#ifdef _WIN32
-    wchar_t wpath[512];
-    MultiByteToWideChar(CP_UTF8, 0, configPath, -1, wpath, 512);
-
-    HANDLE hFile = CreateFileW(wpath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-                               FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (hFile == INVALID_HANDLE_VALUE)
-        return;
+    g_Options.enabledPluginCount = 0;
 
     for (size_t i = 0; i < data->plugins.size(); i++)
     {
-        if (data->plugins[i]->enabled)
+        if (data->plugins[i]->enabled && g_Options.enabledPluginCount < 10)
         {
-            char buf[256];
-            StrCopy(buf, data->plugins[i]->name);
-            int bufLen = (int)StrLen(buf);
-            StrCopy(buf + bufLen, "\n");
+            const char *fullPath = data->plugins[i]->path;
+            int lastSlash = -1;
 
-            DWORD written;
-            WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+            for (int j = 0; fullPath[j]; j++)
+            {
+                if (fullPath[j] == '\\' || fullPath[j] == '/')
+                    lastSlash = j;
+            }
+
+            const char *filename = (lastSlash >= 0) ? (fullPath + lastSlash + 1) : fullPath;
+
+            StrCopy(g_Options.enabledPlugins[g_Options.enabledPluginCount], filename);
+            g_Options.enabledPluginCount++;
         }
     }
 
-    CloseHandle(hFile);
-#else
-    int fd = open(configPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0)
-        return;
-
-    for (size_t i = 0; i < data->plugins.size(); i++)
-    {
-        if (data->plugins[i]->enabled)
-        {
-            char buf[256];
-            StrCopy(buf, data->plugins[i]->name);
-            int bufLen = (int)StrLen(buf);
-            StrCopy(buf + bufLen, "\n");
-            write(fd, buf, StrLen(buf));
-        }
-    }
-
-    close(fd);
-#endif
+    SaveOptionsToFile(g_Options);
 }
 
 void PluginManager::LoadPluginStates(PluginManagerData *data)
 {
-    char configPath[512];
-    GetPluginDirectory(configPath, 512);
-    int len = (int)StrLen(configPath);
-    StrCopy(configPath + len, "/enabled_plugins.txt");
-
-#ifdef _WIN32
-    wchar_t wpath[512];
-    MultiByteToWideChar(CP_UTF8, 0, configPath, -1, wpath, 512);
-
-    HANDLE hFile = CreateFileW(wpath, GENERIC_READ, FILE_SHARE_READ, nullptr,
-                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (hFile == INVALID_HANDLE_VALUE)
-        return;
-
-    char buf[2048];
-    DWORD read;
-    ReadFile(hFile, buf, 2047, &read, nullptr);
-    buf[read] = 0;
-    CloseHandle(hFile);
-#else
-    int fd = open(configPath, O_RDONLY);
-    if (fd < 0)
-        return;
-
-    char buf[2048];
-    ssize_t read = ::read(fd, buf, 2047);
-    if (read < 0)
-        read = 0;
-    buf[read] = 0;
-    close(fd);
-#endif
-
-    int lineStart = 0;
-    for (int i = 0; i <= (int)read; i++)
+    for (int i = 0; i < g_Options.enabledPluginCount; i++)
     {
-        if (buf[i] == '\n' || buf[i] == '\r' || buf[i] == 0)
+        const char* enabledName = g_Options.enabledPlugins[i];
+        
+        if (!enabledName || enabledName[0] == '\0')
+            continue;
+        
+        for (size_t j = 0; j < data->plugins.size(); j++)
         {
-            buf[i] = 0;
-            char *pluginName = buf + lineStart;
-
-            for (size_t j = 0; j < data->plugins.size(); j++)
+            const char* pluginPath = data->plugins[j]->path;
+            int lastSlash = -1;
+            
+            for (int k = 0; pluginPath[k]; k++)
             {
-                if (strEquals(data->plugins[j]->name, pluginName))
-                {
-                    data->plugins[j]->enabled = true;
-                    break;
-                }
+                if (pluginPath[k] == '\\' || pluginPath[k] == '/')
+                    lastSlash = k;
             }
-
-            lineStart = i + 1;
+            
+            const char* filename = (lastSlash >= 0) ? (pluginPath + lastSlash + 1) : pluginPath;
+            
+            if (StrEquals(filename, enabledName))
+            {
+                data->plugins[j]->enabled = true;
+                break;
+            }
         }
     }
 }
@@ -575,6 +576,7 @@ void RenderPluginManager(PluginManagerData *data, int windowWidth, int windowHei
         Rect checkboxRect(itemRect.x + 10, itemRect.y + 20, 18, 18);
         WidgetState checkboxState(checkboxRect);
         checkboxState.hovered = isHovered;
+        checkboxState.checked = plugin->enabled;
 
         data->renderer->drawModernCheckbox(checkboxState, theme, plugin->enabled);
 
@@ -601,7 +603,7 @@ void RenderPluginManager(PluginManagerData *data, int windowWidth, int windowHei
         int badgeY = itemRect.y + 10;
         Rect badgeRect(badgeX, badgeY, 70, 20);
 
-        Color badgeColor = strEquals(plugin->language, "python")
+        Color badgeColor = StrEquals(plugin->language, "python")
                                ? Color(60, 90, 150)
                                : Color(240, 180, 40);
 
@@ -718,19 +720,12 @@ void HandlePluginClick(PluginManagerData *data, int x, int y, int windowWidth, i
         {
             data->plugins[data->hoveredPlugin]->enabled =
                 !data->plugins[data->hoveredPlugin]->enabled;
-            
-            if (data->plugins[data->hoveredPlugin]->enabled && 
+
+            if (data->plugins[data->hoveredPlugin]->enabled &&
                 data->plugins[data->hoveredPlugin]->canDisassemble)
             {
                 extern HexData g_HexData;
                 g_HexData.setDisassemblyPlugin(data->plugins[data->hoveredPlugin]->path);
-                
-                #ifdef _WIN32
-                MessageBoxW(NULL, 
-                    "Disassembly plugin activated!\nReload your file to see disassembly.", 
-                    "Plugin Activated", 
-                    MB_OK | MB_ICONINFORMATION);
-                #endif
             }
             else if (!data->plugins[data->hoveredPlugin]->enabled)
             {
@@ -771,9 +766,7 @@ void HandlePluginClick(PluginManagerData *data, int x, int y, int windowWidth, i
         break;
     }
 }
-
 #ifdef _WIN32
-
 LRESULT CALLBACK PluginWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     PluginManagerData *data = g_pluginDialogData;
@@ -901,7 +894,8 @@ LRESULT CALLBACK PluginWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
-
+#endif
+#ifdef _WIN32
 bool PluginManager::Show(NativeWindow parent)
 {
     const wchar_t *className = L"PluginManagerWindow";
@@ -1007,7 +1001,6 @@ bool PluginManager::Show(NativeWindow parent)
     g_pluginDialogData = nullptr;
     return data.dialogResult;
 }
-
 #elif defined(__linux__)
 
 bool PluginManager::Show(NativeWindow parent)
@@ -1028,7 +1021,6 @@ bool PluginManager::Show(NativeWindow parent)
     data.selectedPlugin = -1;
     data.scrollOffset = 0;
     g_pluginDialogData = &data;
-
 
     int width = 600;
     int height = 500;

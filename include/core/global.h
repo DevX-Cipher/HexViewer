@@ -7,7 +7,11 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#define MAX_PATH_LEN MAX_PATH
+#else
+#define MAX_PATH_LEN 4096
 #endif
+
 
 inline void* sys_alloc(size_t size)
 {
@@ -89,7 +93,7 @@ extern int g_SearchCaretX;
 extern int g_SearchCaretY;
 extern bool caretVisible;
 
-inline void* memSet(void* dest, int val, size_t count)
+inline void* MemSet(void* dest, int val, size_t count)
 {
     unsigned char* p = (unsigned char*)dest;
     while (count--) {
@@ -106,7 +110,7 @@ inline char* StrCopy(char* dest, const char* src)
     return original;
 }
 
-inline int stringLength(const char *str)
+inline int StringLength(const char *str)
 {
     int len = 0;
     while (str[len])
@@ -125,7 +129,7 @@ inline void StringCopy(char *dest, const char *src, int maxLen)
     dest[i] = 0;
 }
 
-inline int strHexToInt(const char* hex)
+inline int StrHexToInt(const char* hex)
 {
     int value = 0;
     for (int i = 0; i < 4; i++)
@@ -150,7 +154,7 @@ inline int strHexToInt(const char* hex)
 
 inline void StringAppend(char *dest, char ch, int maxLen)
 {
-    int len = stringLength(dest);
+    int len = StringLength(dest);
     if (len < maxLen - 1)
     {
         dest[len] = ch;
@@ -160,7 +164,7 @@ inline void StringAppend(char *dest, char ch, int maxLen)
 
 inline void StringRemoveLast(char *str)
 {
-    int len = stringLength(str);
+    int len = StringLength(str);
     if (len > 0)
     {
         str[len - 1] = 0;
@@ -288,7 +292,7 @@ inline double Floor(double x)
     return (double)(i - (x < i));
 }
 
-inline bool strEquals(const char* a, const char* b)
+inline bool StrEquals(const char* a, const char* b)
 {
     if (a == b) return true;
     if (!a || !b) return false;
@@ -335,7 +339,7 @@ inline void* MemAlloc(size_t size) {
     return PlatformAlloc(size);
 }
 
-inline void memFree(void* ptr, size_t size = 0) {
+inline void MemFree(void* ptr, size_t size = 0) {
     PlatformFree(ptr, size);
 }
 

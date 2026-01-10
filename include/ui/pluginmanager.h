@@ -4,6 +4,7 @@
 #include "render.h"
 #include "plugintypes.h"
 #include "pluginexecutor.h"
+#include "options.h"
 
 struct PluginManagerData {
     NativeWindow window;
