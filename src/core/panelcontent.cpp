@@ -310,7 +310,7 @@ int Bookmarks_FindAtOffset(long long byteOffset)
 
 void ByteStats_Compute(HexData &hexData)
 {
-    memSet(&g_ByteStats, 0, sizeof(ByteStatistics));
+    MemSet(&g_ByteStats, 0, sizeof(ByteStatistics));
 
     uint64_t fileSize = (uint64_t)hexData.getFileSize();
     if (fileSize == 0)
@@ -364,7 +364,7 @@ void ByteStats_Compute(HexData &hexData)
 
 void ByteStats_Clear()
 {
-    memSet(&g_ByteStats, 0, sizeof(ByteStatistics));
+    MemSet(&g_ByteStats, 0, sizeof(ByteStatistics));
     g_ByteStats.computed = false;
 }
 
@@ -382,24 +382,24 @@ void DIE_OpenInApplication()
 #ifdef _WIN32
     if (!g_DIEExecutablePath[0])
     {
-        MessageBoxW(nullptr, "DIE path is empty!", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxA(nullptr, "DIE path is empty!", "Error", MB_OK | MB_ICONERROR);
         return;
     }
 
     if (!g_CurrentFilePath[0])
     {
-        MessageBoxW(nullptr, "Current file path is empty!", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxA(nullptr, "Current file path is empty!", "Error", MB_OK | MB_ICONERROR);
         return;
     }
 
-    char debugMsg[1024];
-    StrCopy(debugMsg, "DIE Path: ");
-    StrCat(debugMsg, g_DIEExecutablePath);
-    StrCat(debugMsg, "\n\nFile Path: ");
-    StrCat(debugMsg, g_CurrentFilePath);
-    MessageBoxW(nullptr, debugMsg, "Debug Info", MB_OK | MB_ICONINFORMATION);
-
-    HINSTANCE result = ShellExecuteA(nullptr, "open", g_DIEExecutablePath, g_CurrentFilePath, nullptr, SW_SHOW);
+    HINSTANCE result = ShellExecuteA(
+        nullptr,
+        "open",
+        g_DIEExecutablePath,
+        g_CurrentFilePath,
+        nullptr,
+        SW_SHOW
+    );
 
     if ((int)result <= 32)
     {
@@ -408,14 +408,12 @@ void DIE_OpenInApplication()
         char code[32];
         IntToStr((int)result, code, 32);
         StrCat(errorMsg, code);
-        MessageBoxW(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);
-    }
-    else
-    {
-        MessageBoxW(nullptr, "DIE launched successfully!", "Success", MB_OK | MB_ICONINFORMATION);
+
+        MessageBoxA(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);
     }
 #endif
 }
+
 
 bool HandleBottomPanelContentClick(int x, int y, int windowWidth, int windowHeight)
 {
