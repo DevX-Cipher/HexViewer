@@ -460,17 +460,17 @@ void LoadOptionsFromFile(AppOptions &options)
         
         if (line[0] == '[')
         {
-          if (StrEquals(line, "[Options]"))
+          if (strEquals(line, "[Options]"))
           {
             inRecentFilesSection = false;
             inPluginsSection = false;
           }
-          else if (StrEquals(line, "[RecentFiles]"))
+          else if (strEquals(line, "[RecentFiles]"))
           {
             inRecentFilesSection = true;
             inPluginsSection = false;
           }
-          else if (StrEquals(line, "[Plugins]"))
+          else if (strEquals(line, "[Plugins]"))
           {
             inRecentFilesSection = false;
             inPluginsSection = true;
@@ -498,7 +498,7 @@ void LoadOptionsFromFile(AppOptions &options)
           
           if (inPluginsSection)
           {
-            if (StrEquals(key, "enabled") && val[0] != 0)
+            if (strEquals(key, "enabled") && val[0] != 0)
             {
               if (options.enabledPluginCount < 10)
               {
@@ -525,13 +525,13 @@ void LoadOptionsFromFile(AppOptions &options)
           }
           else
           {
-            if (StrEquals(key, "darkMode"))
-              options.darkMode = StrEquals(val, "1");
-            else if (StrEquals(key, "bytesPerLine"))
+            if (strEquals(key, "darkMode"))
+              options.darkMode = strEquals(val, "1");
+            else if (strEquals(key, "bytesPerLine"))
               options.defaultBytesPerLine = StrToInt(val);
-            else if (StrEquals(key, "autoReload"))
-              options.autoReload = StrEquals(val, "1");
-            else if (StrEquals(key, "language"))
+            else if (strEquals(key, "autoReload"))
+              options.autoReload = strEquals(val, "1");
+            else if (strEquals(key, "language"))
               StrCopy(options.language, val);
           }
         }
@@ -1028,7 +1028,7 @@ bool OptionsDialog::Show(HWND parent, AppOptions &options)
 
   for (size_t i = 0; i < data.languages.size(); i++)
   {
-    if (StrEquals(data.languages[i], options.language))
+    if (strEquals(data.languages[i], options.language))
     {
       data.selectedLanguage = (int)i;
       break;

@@ -96,7 +96,7 @@ bool CheckPluginCapabilities(const char *pluginPath, PluginInfo *info)
     info->canAnalyze = false;
     info->canTransform = false;
 
-    if (!StrEquals(info->language, "python"))
+    if (!strEquals(info->language, "python"))
     {
         return false;
     }
@@ -188,15 +188,15 @@ bool PluginManager::ParsePluginManifest(const char *manifestPath, PluginInfo *in
                 char *key = line;
                 char *val = line + eq + 1;
 
-                if (StrEquals(key, "name"))
+                if (strEquals(key, "name"))
                     StrCopy(info->name, val);
-                else if (StrEquals(key, "version"))
+                else if (strEquals(key, "version"))
                     StrCopy(info->version, val);
-                else if (StrEquals(key, "author"))
+                else if (strEquals(key, "author"))
                     StrCopy(info->author, val);
-                else if (StrEquals(key, "description"))
+                else if (strEquals(key, "description"))
                     StrCopy(info->description, val);
-                else if (StrEquals(key, "language"))
+                else if (strEquals(key, "language"))
                     StrCopy(info->language, val);
             }
 
@@ -515,7 +515,7 @@ void PluginManager::LoadPluginStates(PluginManagerData *data)
             
             const char* filename = (lastSlash >= 0) ? (pluginPath + lastSlash + 1) : pluginPath;
             
-            if (StrEquals(filename, enabledName))
+            if (strEquals(filename, enabledName))
             {
                 data->plugins[j]->enabled = true;
                 break;
@@ -603,7 +603,7 @@ void RenderPluginManager(PluginManagerData *data, int windowWidth, int windowHei
         int badgeY = itemRect.y + 10;
         Rect badgeRect(badgeX, badgeY, 70, 20);
 
-        Color badgeColor = StrEquals(plugin->language, "python")
+        Color badgeColor = strEquals(plugin->language, "python")
                                ? Color(60, 90, 150)
                                : Color(240, 180, 40);
 
