@@ -50,6 +50,8 @@ inline void sys_free(void* ptr)
 
 #ifdef _WIN32
 
+
+
 inline void* PlatformAlloc(size_t size)
 {
     return HeapAlloc(GetProcessHeap(), 0, size);
@@ -92,6 +94,12 @@ inline void PlatformFree(void* ptr, size_t = 0)
 extern int g_SearchCaretX;
 extern int g_SearchCaretY;
 extern bool caretVisible;
+
+inline void Swap(int &a, int &b) {
+    int temp = a;
+    a = b;
+    b = temp;
+}
 
 inline void* memSet(void* dest, int val, size_t count)
 {

@@ -11,6 +11,7 @@
 
 #include "global.h"
 
+
 struct PatternSearchState;
 struct ChecksumState;
 struct CompareState;
