@@ -9,8 +9,6 @@
 #error "Unsupported platform"
 #endif
 
-typedef unsigned long long size_t_custom;
-
 #include "render.h"
 #include "options.h"
 #include "menu.h"
@@ -21,10 +19,14 @@ typedef unsigned long long size_t_custom;
 #include "about.h"
 #include "pluginmanager.h"
 
+typedef unsigned long long size_t_custom;
+
 void SaveOptionsToFile(const AppOptions &opts);
 void LoadOptionsFromFile(AppOptions &opts);
 void OnFileSaveAs();
 void LinuxRedraw();
+void RebuildFileMenu();
+void OpenRecentFile(int index);
 
 #if defined(_WIN32)
 
@@ -129,38 +131,38 @@ void operator delete(void *p, std::size_t) noexcept
 
 #endif
 
+#if defined(_WIN32)
+HWND g_Hwnd = nullptr;
+#else
+void *g_Hwnd = nullptr;
+#endif
+
+RenderManager g_Renderer;
+ScrollbarState g_MainScrollbar;
+SelectionState g_Selection;
+HexData g_HexData;
+AppOptions g_Options;
+MenuBar g_MenuBar;
+LeftPanelState g_LeftPanel;
+BottomPanelState g_BottomPanel;
+ChecksumResults g_Checksums;
+size_t editingOffset = (size_t)-1;
+
 int g_SearchCaretX = 0;
 int g_SearchCaretY = 0;
 int g_SearchBoxXStart = 0;
 bool caretVisible = true;
-ScrollbarState g_MainScrollbar;
-SelectionState g_Selection;
-HexData g_HexData;
-size_t editingOffset = (size_t)-1;
 int g_ScrollY = 0;
 int maxScrolls;
 int g_LinesPerPage = 0;
 int g_TotalLines = 0;
-AppOptions g_Options;
-MenuBar g_MenuBar;
 bool darkmode = true;
-#if defined(_WIN32)
-HWND g_Hwnd = nullptr;
-#define MAX_PATH_LEN MAX_PATH
-#else
-void *g_Hwnd = nullptr;
-#define MAX_PATH_LEN 4096
-#endif
-
-RenderManager g_Renderer;
 long long cursorBytePos = -1;
 int cursorNibblePos = 0;
 long long selectionLength = 0;
 char g_CurrentFilePath[MAX_PATH_LEN] = {0};
-LeftPanelState g_LeftPanel;
-BottomPanelState g_BottomPanel;
-ChecksumResults g_Checksums;
-
+int g_RecentFileCount = 0;
+char g_RecentFiles[10][MAX_PATH_LEN] = {0};
 bool g_ResizingLeftPanel = false;
 bool g_ResizingBottomPanel = false;
 int g_ResizeStartX = 0;
@@ -214,6 +216,62 @@ char *GetFileNameFromCmdLine()
 
 #endif
 
+void OnRecent0() { OpenRecentFile(0); }
+void OnRecent1() { OpenRecentFile(1); }
+void OnRecent2() { OpenRecentFile(2); }
+void OnRecent3() { OpenRecentFile(3); }
+void OnRecent4() { OpenRecentFile(4); }
+void OnRecent5() { OpenRecentFile(5); }
+void OnRecent6() { OpenRecentFile(6); }
+void OnRecent7() { OpenRecentFile(7); }
+void OnRecent8() { OpenRecentFile(8); }
+void OnRecent9() { OpenRecentFile(9); }
+MenuCallback RecentCallbacks[10] =
+    {
+        OnRecent0, OnRecent1, OnRecent2, OnRecent3, OnRecent4,
+        OnRecent5, OnRecent6, OnRecent7, OnRecent8, OnRecent9};
+
+void AddToRecentFiles(const char *filepath)
+{
+    if (!filepath || filepath[0] == '\0')
+        return;
+
+    int existingIndex = -1;
+    for (int i = 0; i < g_RecentFileCount; i++)
+    {
+        if (StrCompare(g_RecentFiles[i], filepath) == 0)
+        {
+            existingIndex = i;
+            break;
+        }
+    }
+
+    if (existingIndex >= 0)
+    {
+        char temp[MAX_PATH_LEN];
+        StrCopy(temp, g_RecentFiles[existingIndex]);
+
+        for (int i = existingIndex; i > 0; i--)
+        {
+            StrCopy(g_RecentFiles[i], g_RecentFiles[i - 1]);
+        }
+
+        StrCopy(g_RecentFiles[0], temp);
+    }
+    else
+    {
+        if (g_RecentFileCount < 10)
+            g_RecentFileCount++;
+
+        for (int i = g_RecentFileCount - 1; i > 0; i--)
+        {
+            StrCopy(g_RecentFiles[i], g_RecentFiles[i - 1]);
+        }
+
+        StrCopy(g_RecentFiles[0], filepath);
+    }
+}
+
 void CopyString(char *dest, const char *src, int maxLen)
 {
     int i = 0;
@@ -223,6 +281,39 @@ void CopyString(char *dest, const char *src, int maxLen)
         i++;
     }
     dest[i] = '\0';
+}
+
+void ApplyEnabledPlugins()
+{
+    if (g_HexData.getFileSize() == 0)
+        return;
+
+    g_HexData.clearDisassemblyPlugin();
+
+    if (g_Options.enabledPluginCount > 0)
+    {
+        for (int i = 0; i < g_Options.enabledPluginCount; i++)
+        {
+            char fullPath[512];
+            GetPluginDirectory(fullPath, 512);
+            int len = (int)StrLen(fullPath);
+#ifdef _WIN32
+            fullPath[len] = '\\';
+#else
+            fullPath[len] = '/';
+#endif
+            StrCopy(fullPath + len + 1, g_Options.enabledPlugins[i]);
+
+            g_HexData.setDisassemblyPlugin(fullPath);
+
+            if (g_HexData.hasDisassemblyPlugin())
+            {
+                int bpl = g_HexData.getCurrentBytesPerLine();
+                g_HexData.generateDisassemblyFromPlugin(bpl);
+                break;
+            }
+        }
+    }
 }
 
 void OnNew()
@@ -263,6 +354,12 @@ void OnFileOpen()
         if (g_HexData.loadFile(ofn.lpstrFile))
         {
             StrCopy(g_CurrentFilePath, ofn.lpstrFile);
+            AddToRecentFiles(ofn.lpstrFile);
+            SaveOptionsToFile(g_Options);
+            RebuildFileMenu();
+
+            ApplyEnabledPlugins();
+
             g_TotalLines = (int)g_HexData.getHexLines().count;
             g_ScrollY = 0;
             RECT rc;
@@ -280,33 +377,9 @@ void OnFileOpen()
         }
         else
         {
-            MessageBoxW(g_Hwnd, "Failed to open file.", "Error", MB_OK | MB_ICONERROR);
+            MessageBoxA(g_Hwnd, "Failed to open file.", "Error", MB_OK | MB_ICONERROR);
         }
     }
-
-#elif defined(__APPLE__)
-    @autoreleasepool
-    {
-        NSOpenPanel *panel = [NSOpenPanel openPanel];
-        [panel setCanChooseFiles:YES];
-        [panel setCanChooseDirectories:NO];
-        [panel setAllowsMultipleSelection:NO];
-
-        if ([panel runModal] == NSModalResponseOK)
-        {
-            NSString *path = [[[panel URLs] objectAtIndex:0] path];
-            const char *cpath = [path UTF8String];
-
-            if (g_HexData.loadFile(cpath))
-            {
-                StrCopy(g_CurrentFilePath, cpath);
-                g_TotalLines = (int)g_HexData.getHexLines().count;
-                g_ScrollY = 0;
-                g_Renderer.resize(g_Renderer.getWindowWidth(), g_Renderer.getWindowHeight());
-            }
-        }
-    }
-
 #elif defined(__linux__)
     FILE *fp = popen("zenity --file-selection 2>/dev/null", "r");
     if (!fp)
@@ -331,6 +404,12 @@ void OnFileOpen()
     if (g_HexData.loadFile(path))
     {
         StrCopy(g_CurrentFilePath, path);
+        AddToRecentFiles(path);
+        SaveOptionsToFile(g_Options);
+        RebuildFileMenu();
+
+        ApplyEnabledPlugins();
+
         g_TotalLines = (int)g_HexData.getHexLines().count;
         g_ScrollY = 0;
         LinuxRedraw();
@@ -353,14 +432,14 @@ void OnFileSave()
     if (g_HexData.saveFile(g_CurrentFilePath))
     {
 #if defined(_WIN32)
-        MessageBoxW(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
+        MessageBoxA(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
 #else
 #endif
     }
     else
     {
 #if defined(_WIN32)
-        MessageBoxW(g_Hwnd, "Failed to save file.", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxA(g_Hwnd, "Failed to save file.", "Error", MB_OK | MB_ICONERROR);
 #else
 #endif
     }
@@ -388,11 +467,11 @@ void OnFileSaveAs()
         if (g_HexData.saveFile(ofn.lpstrFile))
         {
             CopyString(g_CurrentFilePath, ofn.lpstrFile, MAX_PATH_LEN);
-            MessageBoxW(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
+            MessageBoxA(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
         }
         else
         {
-            MessageBoxW(g_Hwnd, "Failed to write file.", "Error", MB_OK | MB_ICONERROR);
+            MessageBoxA(g_Hwnd, "Failed to write file.", "Error", MB_OK | MB_ICONERROR);
         }
     }
 #else
@@ -440,17 +519,111 @@ void OnPluginsDialog()
 #endif
 }
 
-void OnHelp() {}
+void RebuildFileMenu()
+{
+    Menu *fileMenu = g_MenuBar.getMenu(0);
+    if (!fileMenu)
+        return;
+
+    fileMenu->clear();
+
+    MenuItem newItem;
+    newItem.label = StrDup("New");
+    newItem.shortcut = StrDup("Ctrl+N");
+    newItem.type = MenuItemType::Normal;
+    newItem.callback = OnNew;
+    fileMenu->addItem(newItem);
+
+    MenuItem openItem;
+    openItem.label = StrDup("Open...");
+    openItem.shortcut = StrDup("Ctrl+O");
+    openItem.type = MenuItemType::Normal;
+    openItem.callback = OnFileOpen;
+    fileMenu->addItem(openItem);
+
+    MenuItem saveItem;
+    saveItem.label = StrDup("Save");
+    saveItem.shortcut = StrDup("Ctrl+S");
+    saveItem.type = MenuItemType::Normal;
+    saveItem.callback = OnFileSave;
+    fileMenu->addItem(saveItem);
+
+    MenuItem recentHeader;
+    recentHeader.label = StrDup("Recent Files");
+    recentHeader.type = MenuItemType::Submenu;
+    recentHeader.enabled = true;
+    recentHeader.callback = nullptr;
+
+    if (g_RecentFileCount == 0)
+    {
+        recentHeader.submenuCount = 1;
+        recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem));
+
+        recentHeader.submenu[0].label = StrDup("No recent files");
+        recentHeader.submenu[0].shortcut = nullptr;
+        recentHeader.submenu[0].type = MenuItemType::Normal;
+        recentHeader.submenu[0].enabled = false;
+        recentHeader.submenu[0].checked = false;
+        recentHeader.submenu[0].callback = nullptr;
+        recentHeader.submenu[0].submenu = nullptr;
+        recentHeader.submenu[0].submenuCount = 0;
+    }
+    else
+    {
+        recentHeader.submenuCount = g_RecentFileCount;
+        recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem) * g_RecentFileCount);
+
+        for (int i = 0; i < g_RecentFileCount; i++)
+        {
+            recentHeader.submenu[i].label = StrDup(g_RecentFiles[i]);
+            recentHeader.submenu[i].shortcut = nullptr;
+            recentHeader.submenu[i].type = MenuItemType::Normal;
+            recentHeader.submenu[i].enabled = true;
+            recentHeader.submenu[i].checked = false;
+            recentHeader.submenu[i].callback = RecentCallbacks[i];
+            recentHeader.submenu[i].submenu = nullptr;
+            recentHeader.submenu[i].submenuCount = 0;
+        }
+    }
+
+    fileMenu->addItem(recentHeader);
+
+    MenuItem sepItem;
+    sepItem.type = MenuItemType::Separator;
+    fileMenu->addItem(sepItem);
+
+    MenuItem exitItem;
+    exitItem.label = StrDup("Exit");
+    exitItem.shortcut = StrDup("Alt+F4");
+    exitItem.type = MenuItemType::Normal;
+    exitItem.callback = OnFileExit;
+    fileMenu->addItem(exitItem);
+}
+
+void OpenRecentFile(int index)
+{
+    if (index < 0 || index >= g_RecentFileCount)
+        return;
+
+    if (g_HexData.loadFile(g_RecentFiles[index]))
+    {
+        StrCopy(g_CurrentFilePath, g_RecentFiles[index]);
+        AddToRecentFiles(g_RecentFiles[index]);
+        SaveOptionsToFile(g_Options);
+        RebuildFileMenu();
+
+        ApplyEnabledPlugins();
+
+        g_TotalLines = (int)g_HexData.getHexLines().count;
+        g_ScrollY = 0;
 
 #if defined(_WIN32)
-void OnCopy() { MessageBoxW(g_Hwnd, "Copy not implemented.", "Info", MB_OK); }
-void OnPaste() { MessageBoxW(g_Hwnd, "Paste not implemented.", "Info", MB_OK); }
-void OnFind() { MessageBoxW(g_Hwnd, "Find not implemented.", "Info", MB_OK); }
+        InvalidateRect(g_Hwnd, NULL, FALSE);
 #else
-void OnCopy() {}
-void OnPaste() {}
-void OnFind() {}
+        LinuxRedraw();
 #endif
+    }
+}
 
 void OnFindReplace()
 {
@@ -474,7 +647,7 @@ void OnFindReplace()
 
             CopyString(buf + len, replace, sizeof(buf) - len);
 
-            MessageBoxW(g_Hwnd, buf, "Find & Replace", MB_OK);
+            MessageBoxA(g_Hwnd, buf, "Find & Replace", MB_OK);
         },
         nullptr);
 #else
@@ -503,7 +676,7 @@ void OnGoTo()
             CopyString(buf, "Go to line: ", sizeof(buf));
             CopyString(buf + StrLen(buf), num, sizeof(buf) - StrLen(buf));
 
-            MessageBoxW(g_Hwnd, buf, "Go To", MB_OK);
+            MessageBoxA(g_Hwnd, buf, "Go To", MB_OK);
         },
         nullptr);
 #else
@@ -529,8 +702,6 @@ void OnToggleDarkMode()
 }
 
 #if defined(_WIN32)
-void OnZoomIn() { MessageBoxW(g_Hwnd, "Zoom In not implemented.", "Info", MB_OK); }
-void OnZoomOut() { MessageBoxW(g_Hwnd, "Zoom Out not implemented.", "Info", MB_OK); }
 void OnAbout()
 {
 #ifdef _WIN32
@@ -543,11 +714,9 @@ void OnAbout()
 }
 void OnDocumentation()
 {
-    MessageBoxW(g_Hwnd, "Documentation not available.", "Info", MB_OK);
+    MessageBoxA(g_Hwnd, "Documentation not available.", "Info", MB_OK);
 }
 #else
-void OnZoomIn() {}
-void OnZoomOut() {}
 void OnAbout() {}
 void OnDocumentation() {}
 #endif
@@ -600,66 +769,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         g_MenuBar.setPosition(0, 0);
         SetTimer(hwnd, 1, 500, nullptr);
-        char pluginDir[512];
-        GetPluginDirectory(pluginDir, 512);
 
-        char configPath[600];
-        StrCopy(configPath, pluginDir);
-        int configLen = (int)StrLen(configPath);
-        StrCopy(configPath + configLen, "\\enabled_plugins.txt");
-
-        HANDLE hFile = CreateFileA(configPath, GENERIC_READ, FILE_SHARE_READ, NULL,
-                                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-        if (hFile != INVALID_HANDLE_VALUE)
-        {
-            char buf[2048];
-            DWORD bytesRead = 0;
-            if (ReadFile(hFile, buf, sizeof(buf) - 1, &bytesRead, NULL))
-            {
-                buf[bytesRead] = '\0';
-
-                int lineStart = 0;
-                bool foundDisassembler = false;
-
-                for (int i = 0; i <= (int)bytesRead && !foundDisassembler; i++)
-                {
-                    if (buf[i] == '\n' || buf[i] == '\r' || buf[i] == '\0')
-                    {
-                        if (i > lineStart)
-                        {
-                            buf[i] = '\0';
-                            char *pluginName = buf + lineStart;
-
-                            while (*pluginName == ' ' || *pluginName == '\t')
-                                pluginName++;
-
-                            if (*pluginName != '\0')
-                            {
-                                char fullPluginPath[600];
-                                StrCopy(fullPluginPath, pluginDir);
-                                int pathLen = (int)StrLen(fullPluginPath);
-                                fullPluginPath[pathLen] = '\\';
-                                StrCopy(fullPluginPath + pathLen + 1, pluginName);
-
-                                extern bool CanPluginDisassemble(const char *);
-                                if (CanPluginDisassemble(fullPluginPath))
-                                {
-                                    g_HexData.setDisassemblyPlugin(fullPluginPath);
-                                    foundDisassembler = true;
-
-                                    char msg[600];
-                                    StrCopy(msg, "Auto-activated plugin: ");
-                                    StrCat(msg, pluginName);
-                                }
-                            }
-                        }
-                        lineStart = i + 1;
-                    }
-                }
-            }
-            CloseHandle(hFile);
-        }
         int leftPanelWidth = g_LeftPanel.visible ? g_LeftPanel.width : 0;
         g_Renderer.UpdateHexMetrics(leftPanelWidth, g_MenuBar.getHeight());
         return 0;
@@ -1653,10 +1763,10 @@ extern "C" void entry()
 {
     RunConstructors();
     DetectNative();
+    g_Options.enabledPluginCount = 0;
     LoadOptionsFromFile(g_Options);
-
     g_MenuBar.setPosition(0, 0);
-    g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit));
+    g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, RecentCallbacks));
     g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnFindReplace, OnGoTo));
     g_MenuBar.addMenu(MenuHelper::createToolsMenu(OnOptionsDialog, OnPluginsDialog));
     g_MenuBar.addMenu(MenuHelper::createHelpMenu(OnAbout, OnDocumentation));
@@ -1667,12 +1777,11 @@ extern "C" void entry()
         if (g_HexData.loadFile(filename))
         {
             CopyString(g_CurrentFilePath, filename, MAX_PATH_LEN);
+            ApplyEnabledPlugins();
+
             g_TotalLines = (int)g_HexData.getHexLines().count;
         }
-        else
-        {
-            MessageBoxW(0, "Failed to open file specified in command line.", "Error", MB_OK | MB_ICONERROR);
-        }
+       
     }
 
     WNDCLASSA wc = {0};
@@ -1683,7 +1792,6 @@ extern "C" void entry()
 
     if (!RegisterClassA(&wc))
     {
-        MessageBoxW(0, "RegisterClassA failed", "Error", MB_OK | MB_ICONERROR);
         ExitProcess(1);
     }
 
@@ -1700,7 +1808,6 @@ extern "C" void entry()
 
     if (!hwnd)
     {
-        MessageBoxW(0, "CreateWindowExA failed", "Error", MB_OK | MB_ICONERROR);
         ExitProcess(1);
     }
     ShowScrollBar(hwnd, SB_VERT, FALSE);
@@ -2294,7 +2401,7 @@ int main(int argc, char **argv)
         CWBackPixel | CWEventMask,
         &attrs);
 
-    XStoreName(g_display, g_window, "Hex Viewer");
+    XStoreName(g_display, g_window, "NO-CRT Hex Viewer");
 
     g_WmDeleteWindow = XInternAtom(g_display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(g_display, g_window, &g_WmDeleteWindow, 1);
@@ -2312,7 +2419,7 @@ int main(int argc, char **argv)
     g_Renderer.resize(800, 600);
     g_MenuBar.setPosition(0, 0);
 
-    g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit));
+    g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, RecentCallbacks));
     g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnFindReplace, OnGoTo));
     g_MenuBar.addMenu(MenuHelper::createToolsMenu(OnOptionsDialog, OnPluginsDialog));
     g_MenuBar.addMenu(MenuHelper::createHelpMenu(OnAbout, OnDocumentation));
