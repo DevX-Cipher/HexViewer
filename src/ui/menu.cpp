@@ -150,14 +150,14 @@ Menu::Menu()
 Menu::~Menu()
 {
   if (title)
-    MemFree(title, StrLen(title) + 1);
+    memFree(title, StrLen(title) + 1);
   if (items)
   {
     for (int i = 0; i < itemCount; i++)
     {
       items[i].~MenuItem();
     }
-    MemFree(items, itemCapacity * sizeof(MenuItem));
+    memFree(items, itemCapacity * sizeof(MenuItem));
   }
 }
 
@@ -342,7 +342,7 @@ MenuBar::~MenuBar()
     {
       menus[i].~Menu();
     }
-    MemFree(menus, menuCapacity * sizeof(Menu));
+    memFree(menus, menuCapacity * sizeof(Menu));
   }
 }
 

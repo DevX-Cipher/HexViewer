@@ -37,8 +37,6 @@ namespace SearchDialogs
                y >= rect.y && y <= rect.y + rect.height;
     }
 
-    void CleanupDialogs() {};
-
     void RenderFindReplaceDialog(FindReplaceDialogData *data, int windowWidth, int windowHeight)
     {
         if (!data || !data->renderer)
