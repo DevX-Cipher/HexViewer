@@ -22,6 +22,7 @@
 #include "panelcontent.h"
 #include "about.h"
 #include "pluginmanager.h"
+#include "processdialog.h"
 
 typedef unsigned long long size_t_custom;
 
@@ -336,6 +337,18 @@ void OnNew()
 #endif
 }
 
+void OnFileProcessOpen()
+{
+#if defined(_WIN32)
+	if (g_Hwnd)
+	{
+		ShowProcessDialog(g_Hwnd, g_Options);
+	}
+#else
+	ShowProcessDialog((NativeWindow)(uintptr_t)g_Hwnd, g_Options);
+#endif
+}
+
 void OnFileOpen()
 {
 #if defined(_WIN32)
@@ -551,6 +564,17 @@ void RebuildFileMenu()
 	openItem.type = MenuItemType::Normal;
 	openItem.callback = OnFileOpen;
 	fileMenu->addItem(openItem);
+
+	MenuItem openProcItem;
+	openProcItem.label = StrDup("Open Process...");
+	openProcItem.shortcut = StrDup("Ctrl+P");
+	openProcItem.type = MenuItemType::Normal;
+	openProcItem.callback = OnFileProcessOpen;
+	openProcItem.enabled = true;
+	openProcItem.checked = false;
+	openProcItem.submenu = nullptr;
+	openProcItem.submenuCount = 0;
+	fileMenu->addItem(openProcItem);
 
 	MenuItem saveItem;
 	saveItem.label = StrDup("Save");
@@ -937,6 +961,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			InvalidateRect(hwnd, 0, FALSE);
 		}
+		
 		return 0;
 	}
 
@@ -2236,7 +2261,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				g_ContextMenu.getState(),
 				g_Options.darkMode ? Theme::Dark() : Theme::Light());
 		}
-
+		
 		g_Renderer.endFrame(hdc);
 		EndPaint(hwnd, &ps);
 		return 0;
@@ -2275,7 +2300,7 @@ extern "C" void entry()
 	g_Options.enabledPluginCount = 0;
 	LoadOptionsFromFile(g_Options);
 	g_MenuBar.setPosition(0, 0);
-	g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, RecentCallbacks));
+	g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, OnFileProcessOpen, RecentCallbacks));
 	g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnFindReplace, OnGoTo));
 	g_MenuBar.addMenu(MenuHelper::createToolsMenu(OnOptionsDialog, OnPluginsDialog));
 	g_MenuBar.addMenu(MenuHelper::createHelpMenu(OnAbout, OnDocumentation));

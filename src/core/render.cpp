@@ -1,21 +1,3 @@
-#include "render.h"
-#include "panelcontent.h"
-#include "hexdata.h"
-#include "platform_die.h"
-
-
-extern AppOptions g_Options;
-extern HexData g_HexData;
-extern BookmarksState g_Bookmarks;
-extern ByteStatistics g_ByteStats;
-extern DetectItEasyState g_DIEState;
-
-char buf[256];
-char g_DIEExecutablePath[260];
-extern long long cursorBytePos;
-int fontSize = g_Options.fontSize;
-
-
 #ifdef _WIN32
 #include <windows.h>
 #include <objidl.h>
@@ -27,6 +9,23 @@ static ULONG_PTR g_gdiplusToken = 0;
 #else
 #define NATIVE_WINDOW_NULL 0UL
 #endif
+
+#include "render.h"
+#include "panelcontent.h"
+#include "hexdata.h"
+#include "platform_die.h"
+
+extern AppOptions g_Options;
+extern HexData g_HexData;
+extern BookmarksState g_Bookmarks;
+extern ByteStatistics g_ByteStats;
+extern DetectItEasyState g_DIEState;
+
+char buf[256];
+char g_DIEExecutablePath[260];
+extern long long cursorBytePos;
+int fontSize = g_Options.fontSize;
+const int PANEL_TITLE_HEIGHT = 28;
 
 RenderManager::RenderManager()
     : window(NATIVE_WINDOW_NULL),
@@ -376,7 +375,6 @@ void RenderManager::setColor(const Color& color)
 #endif
 }
 
-
 void RenderManager::drawRect(const Rect &rect, const Color &color, bool filled)
 {
 #ifdef _WIN32
@@ -469,7 +467,6 @@ int RenderManager::measureTextWidth(const char* text)
 #endif
 }
 
-
 void RenderManager::drawRoundedRect(const Rect &rect, float radius, const Color &color, bool filled)
 {
 #ifdef _WIN32
@@ -511,8 +508,6 @@ void RenderManager::drawRoundedRect(const Rect &rect, float radius, const Color 
   drawRect(rect, color, filled);
 #endif
 }
-
-const int PANEL_TITLE_HEIGHT = 28;
 
 Rect GetLeftPanelBounds(const LeftPanelState &state, int windowWidth, int windowHeight, int menuBarHeight)
 {
@@ -625,10 +620,7 @@ void RenderManager::drawModernButton(const WidgetState &state, const Theme &them
 }
 
 #ifdef _WIN32
-static void BuildRoundedRectPath(Gdiplus::GraphicsPath &path,
-                                 float x, float y,
-                                 float w, float h,
-                                 float r)
+static void BuildRoundedRectPath(Gdiplus::GraphicsPath &path, float x, float y, float w, float h, float r)
 {
   float d = r * 2.0f;
 
@@ -664,12 +656,7 @@ void RenderManager::drawModernCheckbox(const WidgetState &state, const Theme &th
   Gdiplus::Color border(borderColor.a, borderColor.r, borderColor.g, borderColor.b);
 
   Gdiplus::GraphicsPath path;
-  BuildRoundedRectPath(path,
-                       (float)state.rect.x,
-                       (float)state.rect.y,
-                       (float)state.rect.width,
-                       (float)state.rect.height,
-                       radius);
+  BuildRoundedRectPath(path, (float)state.rect.x, (float)state.rect.y, (float)state.rect.width, (float)state.rect.height, radius);
 
   Gdiplus::SolidBrush bgBrush(bg);
   g.FillPath(&bgBrush, &path);
@@ -757,32 +744,15 @@ void RenderManager::drawModernRadioButton(const WidgetState &state, const Theme 
   Gdiplus::SolidBrush bg(Gdiplus::Color(bgColor.a, bgColor.r, bgColor.g, bgColor.b));
   Gdiplus::Pen border(Gdiplus::Color(borderColor.a, borderColor.r, borderColor.g, borderColor.b), 1.0f);
 
-  g.FillEllipse(&bg,
-                (float)state.rect.x,
-                (float)state.rect.y,
-                (float)state.rect.width,
-                (float)state.rect.height);
-
-  g.DrawEllipse(&border,
-                (float)state.rect.x,
-                (float)state.rect.y,
-                (float)state.rect.width,
-                (float)state.rect.height);
+  g.FillEllipse(&bg, (float)state.rect.x, (float)state.rect.y, (float)state.rect.width, (float)state.rect.height);
+  g.DrawEllipse(&border, (float)state.rect.x, (float)state.rect.y, (float)state.rect.width, (float)state.rect.height);
 
   if (selected)
   {
     int inner = r - 4;
+    Gdiplus::SolidBrush dot(Gdiplus::Color(theme.controlCheck.a, theme.controlCheck.r, theme.controlCheck.g, theme.controlCheck.b));
+    g.FillEllipse(&dot, (float)(cx - inner), (float)(cy - inner), (float)(inner * 2), (float)(inner * 2));
 
-    Gdiplus::SolidBrush dot(Gdiplus::Color(theme.controlCheck.a,
-                                           theme.controlCheck.r,
-                                           theme.controlCheck.g,
-                                           theme.controlCheck.b));
-
-    g.FillEllipse(&dot,
-                  (float)(cx - inner),
-                  (float)(cy - inner),
-                  (float)(inner * 2),
-                  (float)(inner * 2));
   }
   return;
 #elif __APPLE__
@@ -891,9 +861,7 @@ void RenderManager::drawDropdown(
 #ifdef _WIN32
     if (memDC)
     {
-      RECT clearRect = { listRect.x, listRect.y,
-                        listRect.x + listRect.width,
-                        listRect.y + listRect.height };
+      RECT clearRect = { listRect.x, listRect.y, listRect.x + listRect.width, listRect.y + listRect.height };
       HBRUSH brush = CreateSolidBrush(RGB(44, 44, 44));
       FillRect(memDC, &clearRect, brush);
       DeleteObject(brush);
@@ -1046,7 +1014,6 @@ BytePositionInfo RenderManager::GetHexBytePositionInfo(Point screenPoint)
 
   long long bytePos = _startByte + ((long long)row * _bytesPerLine) + column;
 
-  extern HexData g_HexData;
   long long maxPos = (long long)g_HexData.getFileSize() - 1;
   if (maxPos < 0)
   {
@@ -1067,10 +1034,6 @@ BytePositionInfo RenderManager::GetHexBytePositionInfo(Point screenPoint)
   }
 
   return BytePositionInfo(bytePos, byteCharPos);
-}
-
-void RenderManager::UpdateCaret()
-{
 }
 
 CaretInfo RenderManager::GetCaretPosition()

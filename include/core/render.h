@@ -346,8 +346,7 @@ struct SelectionState
 };
 
 Rect GetLeftPanelBounds(const LeftPanelState &state, int windowWidth, int windowHeight, int menuBarHeight);
-Rect GetBottomPanelBounds(const BottomPanelState &state, int windowWidth, int windowHeight,
-                          int menuBarHeight, const LeftPanelState &leftPanel);
+Rect GetBottomPanelBounds(const BottomPanelState &state, int windowWidth, int windowHeight, int menuBarHeight, const LeftPanelState &leftPanel);
 bool IsInPanelTitleBar(int mouseX, int mouseY, const Rect &panelBounds);
 PanelDockPosition GetDockPositionFromMouse(int mouseX, int mouseY, int windowWidth, int windowHeight, int menuBarHeight);
 
@@ -557,50 +556,18 @@ public:
   void UpdateCaret();
   void DrawCaret();
   long long ScreenToByteIndex(int mouseX, int mouseY);
-  bool IsPointInHexArea(int mouseX, int mouseY, int leftPanelWidth,
-                        int menuBarHeight, int windowWidth, int windowHeight);
+  bool IsPointInHexArea(int mouseX, int mouseY, int leftPanelWidth, int menuBarHeight, int windowWidth, int windowHeight);
 
-  void drawModernScrollbar(
-      const ScrollbarState &state,
-      const Theme &theme,
-      bool vertical = true);
+  void drawModernScrollbar(const ScrollbarState& state, const Theme& theme, bool vertical = true);
+  void updateScrollbarMetrics(ScrollbarState& state, int x, int y, int width, int height, float contentSize, float viewportSize, bool vertical = true);
+  bool isPointInScrollbarThumb(int mouseX, int mouseY, const ScrollbarState& state);
+  bool isPointInScrollbarTrack(int mouseX, int mouseY, const ScrollbarState& state);
+  float getScrollbarPositionFromMouse(int mouseY, const ScrollbarState& state, bool vertical = true);
+  void drawByteStatsContent(int contentX, int& contentY, int panelWidth, const Theme& theme);
+  void drawBookmarksContent(int contentX, int& contentY, int panelWidth, const Theme& theme);
+  void drawDataInspectorContent(int contentX, int& contentY, int panelWidth, const DataInspectorValues& vals, const Theme& theme);
+  void drawFileInfoContent(int contentX, int& contentY, int panelWidth, const FileInfoValues& info, const Theme& theme);
 
-  void updateScrollbarMetrics(
-      ScrollbarState &state,
-      int x, int y, int width, int height,
-      float contentSize, float viewportSize,
-      bool vertical = true);
-
-  bool isPointInScrollbarThumb(
-      int mouseX, int mouseY,
-      const ScrollbarState &state);
-
-  bool isPointInScrollbarTrack(
-      int mouseX, int mouseY,
-      const ScrollbarState &state);
-
-  float getScrollbarPositionFromMouse(
-      int mouseY,
-      const ScrollbarState &state,
-      bool vertical = true);
-
-  void drawByteStatsContent(
-      int contentX, int &contentY, int panelWidth,
-      const Theme &theme);
-
-  void drawBookmarksContent(
-      int contentX, int &contentY, int panelWidth,
-      const Theme &theme);
-
-  void drawDataInspectorContent(
-      int contentX, int &contentY, int panelWidth,
-      const DataInspectorValues &vals,
-      const Theme &theme);
-
-  void drawFileInfoContent(
-      int contentX, int &contentY, int panelWidth,
-      const FileInfoValues &info,
-      const Theme &theme);
 
   CaretInfo GetCaretPosition();
 
@@ -623,34 +590,15 @@ public:
   int getCharWidth() const { return _charWidth; }
   int getCharHeight() const { return _charHeight; }
 
-  void drawLeftPanel(
-      const LeftPanelState &state,
-      const Theme &theme,
-      int windowHeight,
-      const Rect &panelBounds);
-
-  void drawBottomPanel(
-      const BottomPanelState &state,
-      const Theme &theme,
-      const ChecksumResults &checksums,
-      int windowWidth,
-      int windowHeight,
-      const Rect &panelBounds);
+  void drawLeftPanel(const LeftPanelState& state, const Theme& theme, int windowHeight, const Rect& panelBounds);
+  void drawBottomPanel(const BottomPanelState& state, const Theme& theme, const ChecksumResults& checksums, int windowWidth, int windowHeight, const Rect& panelBounds);
 
   bool isLeftPanelResizeHandle(int mouseX, int mouseY, const LeftPanelState &state);
   bool isBottomPanelResizeHandle(int mouseX, int mouseY, const BottomPanelState &state, int leftPanelWidth);
 
-  int getContextMenuHoveredItem(
-      int mouseX, int mouseY,
-      const ContextMenuState &state);
-
-  void drawContextMenu(
-      const ContextMenuState &state,
-      const Theme &theme);
-
-  bool isPointInContextMenu(
-      int mouseX, int mouseY,
-      const ContextMenuState &state);
+  int getContextMenuHoveredItem(int mouseX, int mouseY, const ContextMenuState& state);
+  void drawContextMenu(const ContextMenuState& state, const Theme& theme);
+  bool isPointInContextMenu(int mouseX, int mouseY, const ContextMenuState& state);
 
   int getSectionHeaderY(const LeftPanelState &state, int sectionIndex, int menuBarHeight);
   int getItemY(const LeftPanelState &state, int sectionIndex, int itemIndex, int menuBarHeight);
@@ -663,34 +611,8 @@ public:
   void drawX11Pixmap(Pixmap pixmap, int width, int height, int x, int y);
 #endif
 
-  void drawDropdown(
-      const WidgetState &state,
-      const Theme &theme,
-      const char *selectedText,
-      bool isOpen,
-      const Vector<char *> &items,
-      int selectedIndex,
-      int hoveredIndex,
-      int scrollOffset);
-
-  void renderHexViewer(
-      const Vector<char *> &hexLines,
-      const char *headerLine,
-      int scrollPos,
-      int maxScrollPos,
-      bool scrollbarHovered,
-      bool scrollbarPressed,
-      const Rect &scrollbarRect,
-      const Rect &thumbRect,
-      bool darkMode,
-      int editingRow,
-      int editingCol,
-      const char *editBuffer,
-      long long cursorBytePos,
-      int cursorNibblePos,
-      long long totalBytes,
-      int leftPanelWidth,
-      int effectiveWindowHeight = 0);
+  void drawDropdown(const WidgetState& state, const Theme& theme, const char* selectedText, bool isOpen, const Vector<char*>& items, int selectedIndex, int hoveredIndex, int scrollOffset);
+  void renderHexViewer(const Vector<char*>& hexLines, const char* headerLine, int scrollPos, int maxScrollPos, bool scrollbarHovered, bool scrollbarPressed, const Rect& scrollbarRect, const Rect& thumbRect, bool darkMode, int editingRow, int editingCol, const char* editBuffer, long long cursorBytePos, int cursorNibblePos, long long totalBytes, int leftPanelWidth, int effectiveWindowHeight = 0);
 
   Theme getCurrentTheme() const { return currentTheme; }
 
@@ -733,6 +655,5 @@ private:
   Pixmap backBuffer;
   XFontStruct *fontInfo;
 #endif
-
   void setColor(const Color &color);
 };

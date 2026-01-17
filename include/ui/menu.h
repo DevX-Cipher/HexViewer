@@ -107,7 +107,7 @@ public:
 
 namespace MenuHelper
 {
-    Menu createFileMenu(MenuCallback onNew, MenuCallback onOpen, MenuCallback onSave, MenuCallback onExit, MenuCallback recentCallbacks[10]);
+    Menu createFileMenu(MenuCallback onNew, MenuCallback onOpen, MenuCallback onSave, MenuCallback onExit, MenuCallback onOpenProcess, MenuCallback recentCallbacks[10]);
     Menu createSearchMenu(MenuCallback onFindReplace, MenuCallback onGoTo);
     Menu createHelpMenu(MenuCallback onAbout, MenuCallback onDocumentation);
     Menu createToolsMenu(MenuCallback onOptions, MenuCallback onPlugins);

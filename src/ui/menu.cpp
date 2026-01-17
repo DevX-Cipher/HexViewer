@@ -1132,6 +1132,7 @@ namespace MenuHelper
                       MenuCallback onOpen,
                       MenuCallback onSave,
                       MenuCallback onExit,
+		                  MenuCallback onOpenProcess,
                       MenuCallback recentCallbacks[10])
   {
     Menu menu;
@@ -1150,6 +1151,17 @@ namespace MenuHelper
     openItem.type = MenuItemType::Normal;
     openItem.callback = onOpen;
     menu.addItem(openItem);
+
+    MenuItem openProcItem;
+    openProcItem.label = StrDup("Open Process...");
+    openProcItem.shortcut = StrDup("Ctrl+P");
+    openProcItem.type = MenuItemType::Normal;
+    openProcItem.callback = onOpenProcess;
+    openProcItem.enabled = true;
+    openProcItem.checked = false;
+    openProcItem.submenu = nullptr;
+    openProcItem.submenuCount = 0;
+    menu.addItem(openProcItem);
 
     MenuItem saveItem;
     saveItem.label = StrDup("Save");
