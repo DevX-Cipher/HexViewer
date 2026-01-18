@@ -20,6 +20,7 @@ public:
 
     HexData();
     ~HexData();
+    ByteBuffer fileData;
 
     bool loadFile(const char *filepath);
     bool saveFile(const char *filepath);
@@ -57,21 +58,20 @@ public:
     const PluginBookmarkArray* getPluginAnnotations() const { return &pluginAnnotations; }
     void clearPluginAnnotations();
     void executeBookmarkPlugins();
-
+    void convertDataToHex(int bytesPerLine);
 private:
     char pluginPath[512];
     bool usePlugin;
 
-    void convertDataToHex(int bytesPerLine);
+   
     void generateHeader(int bytesPerLine);
     void generateDisassembly(int bytesPerLine);
 
     void disassembleInstruction(size_t offset, int &instructionLength, SimpleString &outInstr);
     bool initializeCapstone();
     void cleanupCapstone();
-
 private:
-    ByteBuffer fileData;
+    
     LineArray hexLines;
     LineArray disassemblyLines;
     SimpleString headerLine;
