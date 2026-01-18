@@ -3,6 +3,13 @@
 #include "global.h"
 #include "options.h"
 
+struct ProcessPriority
+{
+  int index;
+  int priority;
+  FILETIME lastAccessTime;
+};
+
 struct ProcessEntry
 {
   int pid;
@@ -15,6 +22,12 @@ struct ProcessList
   ProcessEntry* entries;
   int count;
   int capacity;
+};
+
+struct EnumData
+{
+  DWORD pid;
+  bool hasWindow;
 };
 
 struct ProcessDialogData
