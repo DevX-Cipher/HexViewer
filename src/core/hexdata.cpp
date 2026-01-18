@@ -1,4 +1,3 @@
-#include "hexdata.h"
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -10,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #endif
+
+#include "hexdata.h"
 
 static bool read_file_all(const char *path, ByteBuffer *outBuffer)
 {
@@ -151,20 +152,27 @@ static int clamp_int(int v, int lo, int hi)
 }
 
 HexData::HexData()
-    : currentBytesPerLine(16),
-      modified(false),
-      capstoneInitialized(false),
-      currentArch(0),
-      currentMode(0),
-      csHandle(0),
-      usePlugin(false)
+  : currentBytesPerLine(16),
+  modified(false),
+  capstoneInitialized(false),
+  currentArch(0),
+  currentMode(0),
+  csHandle(0),
+  usePlugin(false),
+  pluginCount(0),
+  usePlugins(false)
 {
-    bb_init(&fileData);
-    la_init(&hexLines);
-    la_init(&disassemblyLines);
-    ss_init(&headerLine);
-    pluginPath[0] = '\0';
-    pba_init(&pluginAnnotations);
+  bb_init(&fileData);
+  la_init(&hexLines);
+  la_init(&disassemblyLines);
+  ss_init(&headerLine);
+  pluginPath[0] = '\0';
+  pba_init(&pluginAnnotations);
+
+  for (int i = 0; i < MAX_PLUGINS; i++)
+  {
+    pluginPaths[i][0] = '\0';
+  }
 }
 
 HexData::~HexData()
@@ -177,56 +185,111 @@ HexData::~HexData()
     pba_free(&pluginAnnotations);
 }
 
-void HexData::setDisassemblyPlugin(const char *path)
+void HexData::addPlugin(const char* path)
 {
-    if (!path || !path[0])
-        return;
+  if (!path || !path[0] || pluginCount >= MAX_PLUGINS)
+    return;
 
-    int i = 0;
-    while (path[i] && i < 511)
-    {
-        pluginPath[i] = path[i];
-        i++;
-    }
-    pluginPath[i] = '\0';
+  for (int i = 0; i < pluginCount; i++)
+  {
+    if (strEquals(pluginPaths[i], path))
+      return;
+  }
 
-    usePlugin = true;
+  int i = 0;
+  while (path[i] && i < 511)
+  {
+    pluginPaths[pluginCount][i] = path[i];
+    i++;
+  }
+  pluginPaths[pluginCount][i] = '\0';
 
-    if (!bb_empty(&fileData))
-    {
-        convertDataToHex(currentBytesPerLine);
-    }
+  pluginCount++;
+  usePlugins = true;
+
+  if (!bb_empty(&fileData))
+  {
+    convertDataToHex(currentBytesPerLine);
+  }
+}
+
+void HexData::clearAllPlugins()
+{
+  pluginCount = 0;
+  usePlugins = false;
+
+  for (int i = 0; i < MAX_PLUGINS; i++)
+  {
+    pluginPaths[i][0] = '\0';
+  }
+
+  if (!bb_empty(&fileData))
+  {
+    convertDataToHex(currentBytesPerLine);
+  }
+}
+
+bool HexData::hasPlugins() const
+{
+  return usePlugins && pluginCount > 0;
+}
+
+const char* HexData::getPluginPath(int index) const
+{
+  if (index < 0 || index >= pluginCount)
+    return nullptr;
+  return pluginPaths[index];
+}
+
+
+void HexData::setDisassemblyPlugin(const char* path)
+{
+  if (!path || !path[0])
+    return;
+
+  clearAllPlugins();
+  addPlugin(path);
+
+  int i = 0;
+  while (path[i] && i < 511)
+  {
+    pluginPath[i] = path[i];
+    i++;
+  }
+  pluginPath[i] = '\0';
+  usePlugin = true;
 }
 
 void HexData::clearDisassemblyPlugin()
 {
-    usePlugin = false;
-    pluginPath[0] = '\0';
+  clearAllPlugins();
 
-    if (!bb_empty(&fileData))
-    {
-        convertDataToHex(currentBytesPerLine);
-    }
+  usePlugin = false;
+  pluginPath[0] = '\0';
 }
 
 bool HexData::hasDisassemblyPlugin() const
 {
-    return usePlugin && pluginPath[0] != '\0';
+  return hasPlugins();
 }
 
 void HexData::generateDisassemblyFromPlugin(int bytesPerLine)
 {
-    la_clear(&disassemblyLines);
+  la_clear(&disassemblyLines);
 
-    size_t numLines = (fileData.size + bytesPerLine - 1) / bytesPerLine;
-    for (size_t i = 0; i < numLines; i++)
-    {
-        SimpleString line;
-        ss_init(&line);
-        la_push_back(&disassemblyLines, &line);
-        ss_free(&line);
-    }
+  if (!hasPlugins())
+    return;
+
+  size_t numLines = (fileData.size + bytesPerLine - 1) / bytesPerLine;
+  for (size_t i = 0; i < numLines; i++)
+  {
+    SimpleString line;
+    ss_init(&line);
+    la_push_back(&disassemblyLines, &line);
+    ss_free(&line);
+  }
 }
+
 void HexData::generateDisassembly(int bytesPerLine)
 {
     if (usePlugin)
@@ -340,64 +403,67 @@ bool HexData::isRangeDisassembled(size_t startOffset, size_t endOffset)
 
 void HexData::disassembleRange(size_t offset, size_t size)
 {
-    if (!hasDisassemblyPlugin() || size == 0)
+  if (!hasPlugins() || size == 0)
+    return;
+
+  extern bool ExecutePythonDisassembly(
+    const char* pluginPath,
+    const uint8_t * data,
+    size_t dataSize,
+    size_t offset,
+    LineArray * outLines);
+
+  size_t startLine = offset / currentBytesPerLine;
+  size_t endLine = (offset + size) / currentBytesPerLine;
+
+  for (size_t lineIdx = startLine; lineIdx <= endLine && lineIdx < hexLines.count; lineIdx++)
+  {
+    size_t byteOffset = lineIdx * currentBytesPerLine;
+
+    if (byteOffset >= fileData.size)
+      break;
+
+    size_t remaining = fileData.size - byteOffset;
+    size_t chunkSize = remaining < (size_t)currentBytesPerLine ? remaining : (size_t)currentBytesPerLine;
+
+    LineArray tempLines;
+    la_init(&tempLines);
+
+    bool disassembled = false;
+    for (int pluginIdx = 0; pluginIdx < pluginCount && !disassembled; pluginIdx++)
     {
-        return;
-    }
-
-    extern bool ExecutePythonDisassembly(
-        const char *pluginPath,
-        const uint8_t *data,
-        size_t dataSize,
-        size_t offset,
-        LineArray *outLines);
-
-    size_t startLine = offset / currentBytesPerLine;
-    size_t endLine = (offset + size) / currentBytesPerLine;
-
-    for (size_t lineIdx = startLine; lineIdx <= endLine && lineIdx < hexLines.count; lineIdx++)
-    {
-        size_t byteOffset = lineIdx * currentBytesPerLine;
-
-        if (byteOffset >= fileData.size)
-        {
-            break;
-        }
-
-        size_t remaining = fileData.size - byteOffset;
-        size_t chunkSize = remaining < (size_t)currentBytesPerLine ? remaining : (size_t)currentBytesPerLine;
-
-        LineArray tempLines;
-        la_init(&tempLines);
-
+      if (CanPluginDisassemble(pluginPaths[pluginIdx]))
+      {
         if (ExecutePythonDisassembly(
-                pluginPath,
-                fileData.data + byteOffset,
-                chunkSize,
-                byteOffset,
-                &tempLines))
+          pluginPaths[pluginIdx],
+          fileData.data + byteOffset,
+          chunkSize,
+          byteOffset,
+          &tempLines))
         {
+          if (lineIdx < disassemblyLines.count)
+          {
+            ss_free(&disassemblyLines.lines[lineIdx]);
+            ss_init(&disassemblyLines.lines[lineIdx]);
 
-            if (lineIdx < disassemblyLines.count)
+            if (tempLines.count > 0 && tempLines.lines[0].length > 0)
             {
-                ss_free(&disassemblyLines.lines[lineIdx]);
-                ss_init(&disassemblyLines.lines[lineIdx]);
-
-                if (tempLines.count > 0 && tempLines.lines[0].length > 0)
-                {
-                    ss_append_cstr(&disassemblyLines.lines[lineIdx], tempLines.lines[0].data);
-                }
+              ss_append_cstr(&disassemblyLines.lines[lineIdx], tempLines.lines[0].data);
             }
+          }
+          disassembled = true;
         }
-
-        la_free(&tempLines);
+      }
     }
 
-    DisasmCache cache;
-    cache.startOffset = offset;
-    cache.endOffset = offset + size;
-    cache.valid = true;
-    disasmRanges.push_back(cache);
+    la_free(&tempLines);
+  }
+
+  DisasmCache cache;
+  cache.startOffset = offset;
+  cache.endOffset = offset + size;
+  cache.valid = true;
+  disasmRanges.push_back(cache);
 }
 
 void HexData::clearDisassemblyCache()
@@ -489,37 +555,24 @@ void HexData::executeBookmarkPlugins()
 {
   clearPluginAnnotations();
 
-  if (bb_empty(&fileData))
+  if (bb_empty(&fileData) || !hasPlugins())
     return;
 
-  extern AppOptions g_Options;
+  extern bool ExecutePluginBookmarks(
+    const char* pluginPath,
+    const uint8_t * data,
+    size_t dataSize,
+    PluginBookmarkArray * outBookmarks);
 
-  for (int i = 0; i < g_Options.enabledPluginCount; i++)
+  for (int i = 0; i < pluginCount; i++)
   {
-    char fullPath[512];
-    GetPluginDirectory(fullPath, 512);
-    int len = (int)StrLen(fullPath);
-#ifdef _WIN32
-    fullPath[len] = '\\';
-#else
-    fullPath[len] = '/';
-#endif
-    StrCopy(fullPath + len + 1, g_Options.enabledPlugins[i]);
-
-    if (CanPluginGenerateBookmarks(fullPath))
+    if (CanPluginGenerateBookmarks(pluginPaths[i]))
     {
-      extern bool ExecutePluginBookmarks(
-        const char* pluginPath,
-        const uint8_t * data,
-        size_t dataSize,
-        PluginBookmarkArray * outBookmarks);
-
       ExecutePluginBookmarks(
-        fullPath,
+        pluginPaths[i],
         fileData.data,
         fileData.size,
         &pluginAnnotations);
-  
     }
   }
 }

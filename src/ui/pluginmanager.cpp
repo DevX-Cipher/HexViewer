@@ -1,8 +1,3 @@
-#include "pluginmanager.h"
-#include "options.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-
 #ifdef _WIN32
 #include <windows.h>
 #elif __APPLE__
@@ -13,6 +8,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #endif
+
+#include "pluginmanager.h"
+#include "options.h"
+
 
 static PluginManagerData *g_pluginDialogData = nullptr;
 extern AppOptions g_Options;

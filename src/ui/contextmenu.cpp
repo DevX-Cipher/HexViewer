@@ -1,15 +1,19 @@
-#include <contextmenu.h>
-#include "panelcontent.h"
-
 #ifdef _WIN32
 #include <shlobj.h>
 #include <windows.h>
+extern HWND g_Hwnd;
 #elif __APPLE__
 #import <Cocoa/Cocoa.h>
+extern NSWindow* g_nsWindow;
 #else
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+extern Display* g_display;
+extern Window g_window;
 #endif
+
+#include "contextmenu.h"
+#include "panelcontent.h"
 
 extern HexData g_HexData;
 extern ScrollbarState g_MainScrollbar;
@@ -26,15 +30,6 @@ extern int cursorNibblePos;
 extern long long selectionLength;
 extern size_t editingOffset;
 extern int maxScrolls;
-
-#ifdef _WIN32
-extern HWND g_Hwnd;
-#elif __APPLE__
-extern NSWindow *g_nsWindow;
-#else
-extern Display *g_display;
-extern Window g_window;
-#endif
 
 #ifdef _WIN32
 

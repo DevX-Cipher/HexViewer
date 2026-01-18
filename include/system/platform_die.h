@@ -11,7 +11,6 @@ static bool g_DIEPathDebug = false;
 #include <stdlib.h>
 #endif
 
-
 inline bool FindDIEPath(char* outPath, int outSize)
 {
 #ifdef _WIN32

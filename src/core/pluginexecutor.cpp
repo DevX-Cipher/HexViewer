@@ -1,11 +1,11 @@
-#include "pluginexecutor.h"
-
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <dlfcn.h>
 #include <cstring>
 #endif
+
+#include "pluginexecutor.h"
 
 static bool pythonInitialized = false;
 

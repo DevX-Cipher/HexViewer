@@ -1,5 +1,3 @@
-#include "options.h"
-
 #ifdef _WIN32
 #include <windows.h>
 #include <appmodel.h>
@@ -15,6 +13,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #endif
+
+#include "options.h"
 
 extern int g_RecentFileCount;
 extern char g_RecentFiles[10][MAX_PATH_LEN];

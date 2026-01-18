@@ -296,7 +296,7 @@ void ApplyEnabledPlugins()
 	if (g_HexData.getFileSize() == 0)
 		return;
 
-	g_HexData.clearDisassemblyPlugin();
+	g_HexData.clearAllPlugins();
 
 	if (g_Options.enabledPluginCount > 0)
 	{
@@ -312,16 +312,16 @@ void ApplyEnabledPlugins()
 #endif
 			StrCopy(fullPath + len + 1, g_Options.enabledPlugins[i]);
 
-			g_HexData.setDisassemblyPlugin(fullPath);
+			g_HexData.addPlugin(fullPath);
+		}
 
-			if (g_HexData.hasDisassemblyPlugin())
-			{
-				int bpl = g_HexData.getCurrentBytesPerLine();
-				g_HexData.generateDisassemblyFromPlugin(bpl);
-				break;
-			}
+		if (g_HexData.hasPlugins())
+		{
+			int bpl = g_HexData.getCurrentBytesPerLine();
+			g_HexData.generateDisassemblyFromPlugin(bpl);
 		}
 	}
+
 	g_HexData.executeBookmarkPlugins();
 }
 

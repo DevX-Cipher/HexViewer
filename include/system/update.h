@@ -13,10 +13,6 @@ typedef void* NativeWindow;
 typedef Window NativeWindow;
 #endif
 
-#ifndef _WIN32
-#include <string>
-#endif
-
 extern bool g_isNative;
 
 #ifdef _WIN32

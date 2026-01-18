@@ -17,9 +17,9 @@
 #include <thread>
 #endif
 
-#include <global.h>
-#include <language.h>
-#include <about.h>
+#include "global.h"
+#include "language.h"
+#include "about.h"
 #include "imageloader.h"
 #include "resource.h"
 
