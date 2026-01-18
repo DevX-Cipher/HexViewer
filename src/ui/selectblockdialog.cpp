@@ -1,9 +1,9 @@
-#include "selectblockdialog.h"
-#include <language.h>
-
 #ifdef __linux__
 #include <unistd.h>
 #endif
+
+#include "selectblockdialog.h"
+#include "language.h"
 
 static SelectBlockDialogData* g_selectBlockData = nullptr;
 

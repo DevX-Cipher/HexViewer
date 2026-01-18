@@ -2,8 +2,6 @@
 #include "platform_die.h"
 #include "global.h"
 
-extern MenuBar g_MenuBar;
-
 #ifdef _WIN32
 extern HWND g_Hwnd;
 #endif
@@ -11,7 +9,11 @@ extern HWND g_Hwnd;
 extern LeftPanelState g_LeftPanel;
 extern BottomPanelState g_BottomPanel;
 extern ChecksumResults g_Checksums;
-
+extern MenuBar g_MenuBar;
+extern long long cursorBytePos;
+extern int cursorNibblePos;
+extern int g_ScrollY;
+extern int g_LinesPerPage;
 extern char g_CurrentFilePath[260];
 extern char g_DIEExecutablePath[260];
 const int PANEL_TITLE_HEIGHT = 28;
@@ -19,16 +21,11 @@ extern HexData g_HexData;
 BookmarksState g_Bookmarks = { {}, -1, -1 }; 
 ByteStatistics g_ByteStats = {{0}, 0, 0, 0, 0, 0, 0.0, false};
 DetectItEasyState g_DIEState = {false, "", "", ""};
+PatternSearchState g_PatternSearch = { "", -1, false };
+ChecksumState g_Checksum = { false, false, false, false, true };
+CompareState g_Compare = { "", false };
 
-extern long long cursorBytePos;
-extern int cursorNibblePos;
-extern int g_ScrollY;
-extern int g_LinesPerPage;
 void InvalidateWindow();
-
-PatternSearchState g_PatternSearch = {"", -1, false};
-ChecksumState g_Checksum = {false, false, false, false, true};
-CompareState g_Compare = {"", false};
 
 void PatternSearch_SetFocus()
 {

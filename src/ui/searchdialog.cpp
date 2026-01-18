@@ -1,14 +1,6 @@
-#include <functional>
-#include <string>
-#include "darkmode.h"
-#include "render.h"
-#include "searchdialog.h"
-#include "global.h"
-
 #ifdef _WIN32
 #include <windows.h>
 #include <dwmapi.h>
-
 
 #elif defined(__APPLE__)
 #include <objc/objc.h>
@@ -23,6 +15,11 @@ typedef void *SEL;
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #endif
+
+#include "darkmode.h"
+#include "render.h"
+#include "searchdialog.h"
+#include "global.h"
 #include "language.h"
 
 namespace SearchDialogs

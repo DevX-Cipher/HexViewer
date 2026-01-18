@@ -1,6 +1,4 @@
 #include "update.h"
-#include "global.h"
-#include "options.h"
 
 #ifdef _WIN32
 #include <shellapi.h>
@@ -39,7 +37,9 @@
 #include <fstream>
 #endif
 
-#include <language.h>
+#include "global.h"
+#include "options.h"
+#include "language.h"
 
 #ifdef _WIN32
 

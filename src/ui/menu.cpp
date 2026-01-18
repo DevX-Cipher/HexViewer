@@ -1,14 +1,8 @@
 #define _DISABLE_STRING_ANNOTATION
 #define _HAS_ALIGNED_NEW 0
+
 #include "menu.h"
 #include "render.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#define DEBUG_OUTPUT(msg) OutputDebugStringA(msg)
-#else
-#define DEBUG_OUTPUT(msg)
-#endif
 
 extern int g_RecentFileCount;
 extern char g_RecentFiles[10][MAX_PATH_LEN];
@@ -1019,11 +1013,7 @@ void MenuBar::openMenu(int menuIndex)
     numStr[idx] = '\0';
 
     int prefixLen = 0;
-    while (debugMsg[prefixLen])
-      prefixLen++;
-    StrCopy(debugMsg + prefixLen, numStr);
-
-    DEBUG_OUTPUT(debugMsg);
+    
   }
 }
 

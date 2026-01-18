@@ -1,5 +1,3 @@
-#include "processdialog.h"
-
 #ifdef _WIN32
 #include <windows.h>
 #include <tlhelp32.h>
@@ -34,6 +32,8 @@
 #include <sys/sysctl.h>
 #include <ApplicationServices/ApplicationServices.h>
 #endif
+
+#include "processdialog.h"
 
 
 static ProcessDialogData* g_processDialogData = nullptr;
