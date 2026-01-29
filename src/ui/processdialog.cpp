@@ -102,7 +102,7 @@ void RenderProcessDialog(ProcessDialogData* data, int windowWidth, int windowHei
     }
 
     char pidBuf[32];
-    IntToStr(e->pid, pidBuf, sizeof(pidBuf));
+    ItoaDec((long long)e->pid, pidBuf, sizeof(pidBuf));
     Color textColor = (i == data->selectedIndex) ? theme.controlCheck : theme.textColor;
     data->renderer->drawText(pidBuf, margin, rowY + 8, textColor);
 
@@ -835,7 +835,7 @@ bool ShowProcessDialog(HWND parent, AppOptions& options)
     {
       StrCopy(g_CurrentFilePath, "[Process Memory - PID ");
       char pidBuf[32];
-      IntToStr(selectedPid, pidBuf, sizeof(pidBuf));
+      ItoaDec((long long)selectedPid, pidBuf, sizeof(pidBuf));
       StrCat(g_CurrentFilePath, pidBuf);
       StrCat(g_CurrentFilePath, "]");
 

@@ -579,7 +579,7 @@ void DIE_OpenInApplication()
         char errorMsg[256];
         StrCopy(errorMsg, "ShellExecute failed with code: ");
         char code[32];
-        IntToStr((int)result, code, 32);
+        ItoaDec((long long)result, code, 32);
         StrCat(errorMsg, code);
 
         MessageBoxA(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);

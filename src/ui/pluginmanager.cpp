@@ -5,6 +5,8 @@
 #elif __APPLE__
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/stat.h> 
+#include <sys/types.h>
 #else
 #include <dirent.h>
 #include <unistd.h>

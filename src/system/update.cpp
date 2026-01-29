@@ -392,8 +392,8 @@ bool DownloadFile(const char* url, const char* outputPath,
 
       char status[256];
       char totalKB[32], fileKB[32];
-      IntToStr(totalRead / 1024, totalKB, sizeof(totalKB));
-      IntToStr(fileSize / 1024, fileKB, sizeof(fileKB));
+      ItoaDec((long long)totalRead / 1024, totalKB, sizeof(totalKB));
+      ItoaDec((long long)fileSize / 1024, fileKB, sizeof(fileKB));
 
       StringCopy(status, "Downloaded ", sizeof(status));
       StrCat(status, totalKB);
@@ -1639,7 +1639,7 @@ void UpdateDialog::RenderContent(int width, int height)
     renderer->drawProgressBar(progressBarRect, downloadProgress, theme);
 
     char pctText[32];
-    IntToStr((int)(downloadProgress * 100), pctText, sizeof(pctText));
+    ItoaDec((long long)(downloadProgress * 100), pctText, sizeof(pctText));
     StrCat(pctText, "%");
     renderer->drawText(pctText, width / 2 - 15, progressY + 38, theme.textColor);
   }

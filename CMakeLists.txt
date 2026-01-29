@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.15)
-
 if (MSVC)
     project(HexViewer LANGUAGES CXX RC)
 else()
@@ -26,43 +25,33 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/resources/ui
 )
 
-set(SOURCES
-    src/hexviewer.cpp
+set(CPP_SOURCES
     src/core/hexdata.cpp
     src/core/render.cpp
     src/core/panelcontent.cpp
     src/ui/menu.cpp
-    src/ui/options.cpp
-    src/ui/searchdialog.cpp
-    src/ui/contextmenu.cpp
-    src/ui/about.cpp
-    src/system/update.cpp
+    
     src/ui/pluginmanager.cpp
     src/core/pluginexecutor.cpp
     src/ui/selectblockdialog.cpp
-	src/ui/processdialog.cpp
 )
 
-if (WIN32)
-    list(APPEND SOURCES resources/ui/hexviewer.rc)
-
-   set_property(
-    SOURCE resources/ui/hexviewer.rc
-    PROPERTY COMPILE_OPTIONS
-        "/I${CMAKE_CURRENT_SOURCE_DIR}/include/system"
-        "/I${CMAKE_CURRENT_SOURCE_DIR}/resources/images"
-        "/I${CMAKE_CURRENT_SOURCE_DIR}/resources/icons"
+# Files that must be compiled as Objective‑C++ on macOS
+set(MAC_OBJCXX_SOURCES
+    src/hexviewer.cpp
+    src/system/update.cpp
+    src/ui/about.cpp
+    src/ui/contextmenu.cpp
+    src/ui/processdialog.cpp
+    src/ui/searchdialog.cpp
+    src/ui/options.cpp
 )
-
-endif()
 
 if (UNIX AND NOT APPLE)
     find_program(OBJCOPY objcopy REQUIRED)
-
     set(ABOUT_PNG about.png)
     set(ABOUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/resources/images)
     set(ABOUT_OBJ ${CMAKE_BINARY_DIR}/about_png.o)
-
     add_custom_command(
         OUTPUT ${ABOUT_OBJ}
         COMMAND ${CMAKE_COMMAND} -E chdir ${ABOUT_DIR}
@@ -72,12 +61,32 @@ if (UNIX AND NOT APPLE)
                     --binary-architecture=i386
                     ${ABOUT_PNG} ${ABOUT_OBJ}
         DEPENDS ${ABOUT_DIR}/${ABOUT_PNG}
-        COMMENT "Embedding about.png into object file with clean symbol names"
+        COMMENT "Embedding about.png into object file"
     )
-
-    list(APPEND SOURCES ${ABOUT_OBJ})
+    list(APPEND CPP_SOURCES ${ABOUT_OBJ})
 endif()
 
+if (APPLE)
+    set(SOURCES ${CPP_SOURCES} ${MAC_OBJCXX_SOURCES})
+    set_source_files_properties(
+        ${MAC_OBJCXX_SOURCES}
+        PROPERTIES
+        COMPILE_FLAGS "-x objective-c++"
+    )
+else()
+    set(SOURCES ${CPP_SOURCES} ${MAC_OBJCXX_SOURCES})
+endif()
+
+if (WIN32)
+    list(APPEND SOURCES resources/ui/hexviewer.rc)
+    set_property(
+        SOURCE resources/ui/hexviewer.rc
+        PROPERTY COMPILE_OPTIONS
+            "/I${CMAKE_CURRENT_SOURCE_DIR}/include/system"
+            "/I${CMAKE_CURRENT_SOURCE_DIR}/resources/images"
+            "/I${CMAKE_CURRENT_SOURCE_DIR}/resources/icons"
+    )
+endif()
 
 add_executable(HexViewer ${SOURCES})
 
@@ -105,11 +114,19 @@ if (WIN32)
         dwmapi.lib gdiplus.lib wininet.lib msimg32.lib
     )
 elseif(APPLE)
+    find_library(COCOA_FRAMEWORK Cocoa REQUIRED)
+    find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    find_library(CORETEXT_FRAMEWORK CoreText REQUIRED)
+    find_library(COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
+    
     target_link_libraries(HexViewer PRIVATE
-        "-framework Cocoa"
-        "-framework AppKit"
-        "-framework CoreFoundation"
+        ${COCOA_FRAMEWORK}
+        ${APPKIT_FRAMEWORK}
+        ${COREFOUNDATION_FRAMEWORK}
+        ${CORETEXT_FRAMEWORK}
+        ${COREGRAPHICS_FRAMEWORK}
     )
-else()  # Linux
+else() # Linux
     target_link_libraries(HexViewer PRIVATE X11 pthread dl)
 endif()

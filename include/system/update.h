@@ -8,6 +8,7 @@
 typedef HWND NativeWindow;
 #elif defined(__APPLE__)
 typedef void* NativeWindow;
+#include <string>
 #elif defined(__linux__)
 #include <X11/Xlib.h>
 #include <string>

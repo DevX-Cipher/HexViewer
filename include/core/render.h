@@ -3,7 +3,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #elif defined(__APPLE__)
-#include <ApplicationServices/ApplicationServices.h>
+#include <CoreGraphics/CoreGraphics.h>
+#include <CoreFoundation/CoreFoundation.h>
+#define Rect HexRect
+#define Point HexPoint
 #else
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -16,6 +19,7 @@ struct ChecksumState;
 struct CompareState;
 struct DataInspectorValues;
 struct FileInfoValues;
+
 
 struct Rect
 {
@@ -629,7 +633,9 @@ public:
   int getWindowHeight() const { return windowHeight; }
   void createFont();
   void destroyFont();
-
+#ifdef __APPLE__ 
+  void setContext(void* ctx); 
+#endif
 private:
   NativeWindow window;
   int windowWidth;

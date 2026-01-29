@@ -371,8 +371,8 @@ namespace SearchDialogs
 			}
 			else
 			{
-				offset = StringToInt(data->lineNumberText);
-			}
+        offset = StrToInt(data->lineNumberText);
+      }
 			
 			data->callback(offset);
 #else
@@ -914,102 +914,93 @@ namespace SearchDialogs
 
 #elif defined(__APPLE__)
 
-    extern "C" id objc_msgSend(id, SEL, ...);
-    extern "C" SEL sel_registerName(const char *);
-    extern "C" Class objc_getClass(const char *);
-    extern "C" id objc_allocateClassPair(Class, const char *, size_t);
-    extern "C" void objc_registerClassPair(Class);
-    extern "C" bool class_addMethod(Class, SEL, void *, const char *);
+  typedef struct { double x, y; } NSPoint_compat;
+  typedef struct { double width, height; } NSSize_compat;
+  typedef struct { NSPoint_compat origin; NSSize_compat size; } NSRect_compat;
 
-    void FindReplaceDrawRect(id self, SEL _cmd, void *dirtyRect)
+  void FindReplaceDrawRect(id self, SEL _cmd, void* dirtyRect)
+  {
+    FindReplaceDialogData* data = g_findReplaceData;
+    if (!data || !data->renderer)
+      return;
+
+    id window = ((id(*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
+    id contentView = ((id(*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
+
+    NSRect_compat bounds = ((NSRect_compat(*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds"));
+
+    RenderFindReplaceDialog(data, (int)bounds.size.width, (int)bounds.size.height);
+  }
+
+  void FindReplaceMouseMoved(id self, SEL _cmd, id event)
+  {
+    FindReplaceDialogData* data = g_findReplaceData;
+    if (!data)
+      return;
+
+    id window = ((id(*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
+    id contentView = ((id(*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
+
+    NSRect_compat bounds = ((NSRect_compat(*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds"));
+    NSPoint_compat location = ((NSPoint_compat(*)(id, SEL))objc_msgSend)(event, sel_registerName("locationInWindow"));
+
+    UpdateFindReplaceHover(data, (int)location.x, (int)(bounds.size.height - location.y),
+      (int)bounds.size.width, (int)bounds.size.height);
+    ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
+  }
+
+  void FindReplaceMouseDown(id self, SEL _cmd, id event)
+  {
+    FindReplaceDialogData* data = g_findReplaceData;
+    if (!data)
+      return;
+
+    data->pressedWidget = data->hoveredWidget;
+    ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
+  }
+
+  void FindReplaceMouseUp(id self, SEL _cmd, id event)
+  {
+    FindReplaceDialogData* data = g_findReplaceData;
+    if (!data)
+      return;
+
+    id window = ((id(*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
+    id contentView = ((id(*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
+
+    NSRect_compat bounds = ((NSRect_compat(*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds"));
+    NSPoint_compat location = ((NSPoint_compat(*)(id, SEL))objc_msgSend)(event, sel_registerName("locationInWindow"));
+
+    if (data->pressedWidget == data->hoveredWidget && data->hoveredWidget != -1)
     {
-        FindReplaceDialogData *data = g_findReplaceData;
-        if (!data || !data->renderer)
-            return;
-
-        id window = ((id (*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
-        id contentView = ((id (*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
-
-        double width = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.width;
-        double height = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.height;
-
-        RenderFindReplaceDialog(data, (int)width, (int)height);
+      HandleFindReplaceClick(data, (int)location.x, (int)(bounds.size.height - location.y),
+        (int)bounds.size.width, (int)bounds.size.height);
     }
 
-    void FindReplaceMouseMoved(id self, SEL _cmd, id event)
+    data->pressedWidget = -1;
+    ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
+  }
+
+  void FindReplaceKeyDown(id self, SEL _cmd, id event)
+  {
+    FindReplaceDialogData* data = g_findReplaceData;
+    if (!data)
+      return;
+
+    id characters = ((id(*)(id, SEL))objc_msgSend)(event, sel_registerName("characters"));
+    const char* str = ((const char* (*)(id, SEL))objc_msgSend)(characters, sel_registerName("UTF8String"));
+
+    id window = ((id(*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
+    id contentView = ((id(*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
+
+    NSRect_compat bounds = ((NSRect_compat(*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds"));
+
+    if (str && str[0])
     {
-        FindReplaceDialogData *data = g_findReplaceData;
-        if (!data)
-            return;
-
-        id window = ((id (*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
-        id contentView = ((id (*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
-
-        double width = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.width;
-        double height = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.height;
-
-        double x = ((double (*)(id, SEL))objc_msgSend)(event, sel_registerName("locationInWindow")).x;
-        double y = ((double (*)(id, SEL))objc_msgSend)(event, sel_registerName("locationInWindow")).y;
-
-        UpdateFindReplaceHover(data, (int)x, (int)(height - y), (int)width, (int)height);
-        ((void (*)(id, SEL))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
+      HandleFindReplaceChar(data, str[0], (int)bounds.size.width, (int)bounds.size.height);
+      ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
     }
-
-    void FindReplaceMouseDown(id self, SEL _cmd, id event)
-    {
-        FindReplaceDialogData *data = g_findReplaceData;
-        if (!data)
-            return;
-
-        data->pressedWidget = data->hoveredWidget;
-        ((void (*)(id, SEL))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
-    }
-
-    void FindReplaceMouseUp(id self, SEL _cmd, id event)
-    {
-        FindReplaceDialogData *data = g_findReplaceData;
-        if (!data)
-            return;
-
-        id window = ((id (*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
-        id contentView = ((id (*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
-
-        double width = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.width;
-        double height = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.height;
-
-        double x = ((double (*)(id, SEL))objc_msgSend)(event, sel_registerName("locationInWindow")).x;
-        double y = ((double (*)(id, SEL))objc_msgSend)(event, sel_registerName("locationInWindow")).y;
-
-        if (data->pressedWidget == data->hoveredWidget && data->hoveredWidget != -1)
-        {
-            HandleFindReplaceClick(data, (int)x, (int)(height - y), (int)width, (int)height);
-        }
-
-        data->pressedWidget = -1;
-        ((void (*)(id, SEL))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
-    }
-
-    void FindReplaceKeyDown(id self, SEL _cmd, id event)
-    {
-        FindReplaceDialogData *data = g_findReplaceData;
-        if (!data)
-            return;
-
-        id characters = ((id (*)(id, SEL))objc_msgSend)(event, sel_registerName("characters"));
-        const char *str = ((const char *(*)(id, SEL))objc_msgSend)(characters, sel_registerName("UTF8String"));
-
-        id window = ((id (*)(id, SEL))objc_msgSend)(self, sel_registerName("window"));
-        id contentView = ((id (*)(id, SEL))objc_msgSend)(window, sel_registerName("contentView"));
-
-        double width = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.width;
-        double height = ((double (*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds")).size.height;
-
-        if (str && str[0])
-        {
-            HandleFindReplaceChar(data, str[0], (int)width, (int)height);
-            ((void (*)(id, SEL))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
-        }
-    }
+  }
 
 #endif
 
@@ -1467,8 +1458,6 @@ namespace SearchDialogs
       data->renderer->endFrame(data->renderer->getDrawContext());
 #endif
     }
-
-
 
     void UpdateInputHover(InputDialogData* data, int x, int y, int windowWidth, int windowHeight)
     {
