@@ -10,7 +10,6 @@
 #include <dwmapi.h>
 #elif defined(__APPLE__)
 #include <objc/objc.h>
-typedef void* id;
 #elif defined(__linux__)
 #include <X11/Xlib.h>
 #endif
@@ -74,24 +73,52 @@ struct GoToDialogData {
 #endif
 };
 
-namespace SearchDialogs {
-  
+struct InputDialogData
+{
+  bool caretVisible;
+  uint64_t lastCaretToggleTime;
 #ifdef _WIN32
-void ShowFindReplaceDialog(
+  struct { HWND hwnd; } platformWindow;
+  char inputText[256];
+  void (*callback)(const char*);
+  void* callbackUserData;
+#else
+  struct {
+#ifdef __APPLE__
+    void* nsWindow;
+#else
+    Display* display;
+    Window window;
+    Atom wmDeleteWindow;
+#endif
+  } platformWindow;
+  std::string inputText;
+  std::function<void(const std::string&)> callback;
+#endif
+  RenderManager* renderer = nullptr;
+  bool running = false;
+  bool dialogResult = false;
+  int hoveredWidget = -1;
+  int pressedWidget = -1;
+  int activeTextBox = 0;
+};
+
+namespace SearchDialogs {
+
+#ifdef _WIN32
+  void ShowFindReplaceDialog(
     void* parentHandle,
     bool darkMode,
     void (*callback)(const char*, const char*),
     void* userData = nullptr
-);
-
-void ShowGoToDialog(
+  );
+  void ShowGoToDialog(
     void* parentHandle,
     bool darkMode,
     void (*callback)(int),
     void* userData = nullptr
-);
+  );
 #else
-
   void ShowFindReplaceDialog(void* parentHandle, bool darkMode,
     std::function<void(const std::string&, const std::string&)> callback);
   void ShowGoToDialog(void* parentHandle, bool darkMode,
@@ -107,30 +134,4 @@ void ShowGoToDialog(
     const char* defaultText, bool darkMode,
     std::function<void(const std::string&)> callback);
 #endif
-
 }
-
-struct InputDialogData
-{
-  bool caretVisible;
-  uint64_t lastCaretToggleTime;
-
-#ifdef _WIN32
-  struct { HWND hwnd; } platformWindow;
-  char inputText[256];
-  void (*callback)(const char*);
-  void* callbackUserData;
-#else
-  struct { Display* display; Window window; Atom wmDeleteWindow; } platformWindow;
-  std::string inputText;
-  std::function<void(const std::string&)> callback;
-#endif
-
-  RenderManager* renderer = nullptr;
-  bool running = false;
-  bool dialogResult = false;
-  int hoveredWidget = -1;
-  int pressedWidget = -1;
-  int activeTextBox = 0;
-};
-

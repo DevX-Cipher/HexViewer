@@ -120,14 +120,6 @@ inline char *StrCopy(char *dest, const char *src)
     return original;
 }
 
-inline int stringLength(const char *str)
-{
-    int len = 0;
-    while (str[len])
-        len++;
-    return len;
-}
-
 inline void StringCopy(char *dest, const char *src, int maxLen)
 {
     int i = 0;
@@ -138,6 +130,7 @@ inline void StringCopy(char *dest, const char *src, int maxLen)
     }
     dest[i] = 0;
 }
+
 
 inline int strHexToInt(const char *hex)
 {
@@ -161,102 +154,9 @@ inline int strHexToInt(const char *hex)
     return value;
 }
 
-inline void StringAppend(char *dest, char ch, int maxLen)
-{
-    int len = stringLength(dest);
-    if (len < maxLen - 1)
-    {
-        dest[len] = ch;
-        dest[len + 1] = 0;
-    }
-}
-
-inline void StringRemoveLast(char *str)
-{
-    int len = stringLength(str);
-    if (len > 0)
-    {
-        str[len - 1] = 0;
-    }
-}
-
 inline bool StringIsEmpty(const char *str)
 {
     return str[0] == 0;
-}
-
-inline int StringToInt(const char *str)
-{
-    int result = 0;
-    int i = 0;
-    bool isHex = false;
-
-    if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
-    {
-        isHex = true;
-        i = 2;
-    }
-
-    while (str[i])
-    {
-        if (isHex)
-        {
-            result *= 16;
-            if (str[i] >= '0' && str[i] <= '9')
-                result += str[i] - '0';
-            else if (str[i] >= 'a' && str[i] <= 'f')
-                result += str[i] - 'a' + 10;
-            else if (str[i] >= 'A' && str[i] <= 'F')
-                result += str[i] - 'A' + 10;
-        }
-        else
-        {
-            if (str[i] >= '0' && str[i] <= '9')
-            {
-                result = result * 10 + (str[i] - '0');
-            }
-        }
-        i++;
-    }
-    return result;
-}
-
-inline void IntToString(int value, char *out, int maxLen)
-{
-    if (!out || maxLen <= 1)
-        return;
-
-    unsigned int v;
-    int pos = 0;
-
-    if (value < 0)
-    {
-        if (maxLen < 2)
-        {
-            out[0] = '\0';
-            return;
-        }
-        out[pos++] = '-';
-        v = (unsigned int)(-value);
-    }
-    else
-    {
-        v = (unsigned int)value;
-    }
-
-    char temp[32];
-    int tpos = 0;
-
-    do
-    {
-        temp[tpos++] = '0' + (v % 10);
-        v /= 10;
-    } while (v && tpos < 31);
-
-    for (int i = tpos - 1; i >= 0 && pos < maxLen - 1; i--)
-        out[pos++] = temp[i];
-
-    out[pos] = '\0';
 }
 
 inline size_t StrLen(const char *str)
@@ -265,6 +165,25 @@ inline size_t StrLen(const char *str)
     while (*s)
         s++;
     return (size_t)(s - str);
+}
+
+inline void StringAppend(char* dest, char ch, int maxLen)
+{
+  int len = StrLen(dest);
+  if (len < maxLen - 1)
+  {
+    dest[len] = ch;
+    dest[len + 1] = 0;
+  }
+}
+
+inline void StringRemoveLast(char* str)
+{
+  int len = StrLen(str);
+  if (len > 0)
+  {
+    str[len - 1] = 0;
+  }
 }
 
 inline char *AllocString(const char *str)
@@ -407,56 +326,6 @@ inline char *StrRChr(const char *s, char c)
     return (char *)last;
 }
 
-inline void IntToStr(int value, char *buffer, size_t bufferSize)
-{
-    if (!buffer || bufferSize == 0)
-        return;
-
-    if (value == 0)
-    {
-        if (bufferSize >= 2)
-        {
-            buffer[0] = '0';
-            buffer[1] = '\0';
-        }
-        return;
-    }
-
-    bool negative = false;
-    unsigned int v;
-
-    if (value < 0)
-    {
-        negative = true;
-        v = (unsigned int)(-value);
-    }
-    else
-    {
-        v = (unsigned int)value;
-    }
-
-    char temp[32];
-    size_t idx = 0;
-
-    while (v > 0 && idx < sizeof(temp))
-    {
-        temp[idx++] = (char)('0' + (v % 10));
-        v /= 10;
-    }
-
-    if (negative && idx < sizeof(temp))
-        temp[idx++] = '-';
-
-    size_t out = 0;
-    if (idx >= bufferSize)
-        idx = bufferSize - 1;
-
-    while (idx > 0)
-        buffer[out++] = temp[--idx];
-
-    buffer[out] = '\0';
-}
-
 inline size_t WcsLen(const wchar_t *str)
 {
     const wchar_t *s = str;
@@ -472,6 +341,17 @@ inline wchar_t *WcsCopy(wchar_t *dest, const wchar_t *src)
     {
     }
     return original;
+}
+
+inline void WcsAppend(wchar_t* dest, const wchar_t* src, size_t maxLen)
+{
+  size_t d = WcsLen(dest);
+  size_t s = 0;
+
+  while (src[s] && d + 1 < maxLen)
+    dest[d++] = src[s++];
+
+  dest[d] = 0;
 }
 
 inline const wchar_t* wcsStr(const wchar_t* haystack, const wchar_t* needle)
@@ -636,6 +516,35 @@ inline void StrCat(char *dest, const char *src)
         *dest++ = *src++;
 
     *dest = '\0';
+}
+
+inline int WcsCompareIgnoreCase(const wchar_t* a, const wchar_t* b)
+{
+  if (!a && !b)
+    return 0;
+  if (!a)
+    return -1;
+  if (!b)
+    return 1;
+
+  while (*a && *b)
+  {
+    wchar_t ca = *a;
+    wchar_t cb = *b;
+
+    if (ca >= L'A' && ca <= L'Z')
+      ca += 32;
+    if (cb >= L'A' && cb <= L'Z')
+      cb += 32;
+
+    if (ca != cb)
+      return (int)ca - (int)cb;
+
+    ++a;
+    ++b;
+  }
+
+  return (int)*a - (int)*b;
 }
 
 inline int StrCompareIgnoreCase(const char *a, const char *b)

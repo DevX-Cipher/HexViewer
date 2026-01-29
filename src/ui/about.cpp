@@ -746,7 +746,7 @@ void AboutDialog::RenderContent(int width, int height)
   updateState.pressed = (pressedButton == 1);
 
   char copyright[] = "(c) 2025 DiE team!";
-  int copyrightX = (width - (stringLength(copyright) * 8)) / 2;
+  int copyrightX = (width - (StrLen(copyright) * 8)) / 2;
   renderer->drawText(copyright, copyrightX, height - 20, theme.disabledText);
 }
 
@@ -1052,7 +1052,7 @@ void AboutDialog::OnPaint()
   RenderContent(550, 480);
   @autoreleasepool
   {
-    [[nsWindow contentView] setNeedsDisplay:YES];
+    [[NSWindow contentView] setNeedsDisplay:YES];
   }
 }
 

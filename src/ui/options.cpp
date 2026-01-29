@@ -4,6 +4,8 @@
 #include <dwmapi.h>
 #elif __APPLE__
 #include <mach-o/dyld.h>
+#include <sys/stat.h> 
+#include <sys/types.h>
 #else
 #include <unistd.h>
 #include <linux/limits.h>
@@ -232,7 +234,7 @@ void SaveOptionsToFile(const AppOptions& options)
   WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
 
   StrCopy(buf, "bytesPerLine=");
-  IntToStr(options.defaultBytesPerLine, buf + 13, 243);
+  ItoaDec((long long)options.defaultBytesPerLine, buf + 13, 243);
   int len = (int)StrLen(buf);
   StrCopy(buf + len, "\n");
   WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
@@ -249,7 +251,7 @@ void SaveOptionsToFile(const AppOptions& options)
   WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
 
   StrCopy(buf, "fontSize=");
-  IntToStr(options.fontSize, buf + 9, 247);
+  ItoaDec((long long)options.fontSize, buf + 9, 247);
   len = (int)StrLen(buf);
   StrCopy(buf + len, "\n");
   WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
@@ -322,6 +324,7 @@ void SaveOptionsToFile(const AppOptions& options)
     if (dirPath[i] == '/')
     {
       dirPath[i] = 0;
+			mkdir("~/.config", 0755);
       mkdir(dirPath, 0755);
       break;
     }
@@ -677,7 +680,7 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
   int fontDropdownY = y;
   {
     char fontSizeLabel[32];
-    IntToStr(data->tempOptions.fontSize, fontSizeLabel, 32);
+    ItoaDec((long long)data->tempOptions.fontSize, fontSizeLabel, 32);
     StrCat(fontSizeLabel, "pt");
 
     Rect r(margin + 20, fontDropdownY, 200, controlHeight);
@@ -774,7 +777,7 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
   if (data->fontDropdownOpen)
   {
     char fontSizeLabel[32];
-    IntToStr(data->tempOptions.fontSize, fontSizeLabel, 32);
+    ItoaDec((long long)data->tempOptions.fontSize, fontSizeLabel, 32);
     StrCat(fontSizeLabel, "pt");
 
     Rect r(margin + 20, fontDropdownY, 200, controlHeight);
@@ -1621,11 +1624,239 @@ bool OptionsDialog::Show(NativeWindow parent, AppOptions &options)
 
 #elif defined(__APPLE__)
 
-bool OptionsDialog::Show(NativeWindow parent, AppOptions &options)
+#import <Cocoa/Cocoa.h>
+
+@interface OptionsDialogView : NSView
 {
-  (void)parent;
-  (void)options;
-  return false;
+@public
+  OptionsDialogData * data;
+}
+@end
+
+@implementation OptionsDialogView
+
+- (BOOL)isFlipped
+{
+  return YES;
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+  if (!data || !data->renderer)
+    return;
+
+  NSGraphicsContext* nsContext = [NSGraphicsContext currentContext];
+  CGContextRef ctx = (CGContextRef)[nsContext CGContext];
+
+  NSRect bounds = [self bounds];
+
+  data->renderer->setContext(ctx);
+  data->renderer->beginFrame();
+  RenderOptionsDialog(data, (int)bounds.size.width, (int)bounds.size.height);
+  data->renderer->endFrame(ctx);
+}
+
+- (void)mouseDown:(NSEvent*)event
+{
+  NSPoint location = [self convertPoint : [event locationInWindow] fromView : nil];
+  data->mouseDown = true;
+  data->pressedWidget = data->hoveredWidget;
+  [self setNeedsDisplay : YES] ;
+}
+
+- (void)mouseUp:(NSEvent*)event
+{
+  NSPoint location = [self convertPoint : [event locationInWindow] fromView : nil];
+  NSRect bounds = [self bounds];
+
+  data->mouseDown = false;
+
+  if (data->pressedWidget == data->hoveredWidget || data->hoveredDropdownItem >= 0 || data->hoveredFontDropdownItem >= 0)
+  {
+    HandleMouseClick(data, (int)location.x, (int)location.y, (int)bounds.size.width, (int)bounds.size.height);
+  }
+
+  data->pressedWidget = -1;
+  [self setNeedsDisplay : YES] ;
+}
+
+- (void)mouseMoved:(NSEvent*)event
+{
+  NSPoint location = [self convertPoint : [event locationInWindow] fromView : nil];
+  NSRect bounds = [self bounds];
+
+  data->mouseX = (int)location.x;
+  data->mouseY = (int)location.y;
+
+  UpdateHoverState(data, (int)location.x, (int)location.y, (int)bounds.size.width, (int)bounds.size.height);
+  [self setNeedsDisplay : YES] ;
+}
+
+- (void)mouseDragged:(NSEvent*)event
+{
+  [self mouseMoved : event] ;
+}
+
+- (void)scrollWheel : (NSEvent*)event
+{
+  NSRect bounds = [self bounds];
+  int delta = (int)[event deltaY];
+
+  if (data->dropdownOpen)
+  {
+    int maxVisibleItems = 5;
+    int maxScroll = (int)data->languages.size() - maxVisibleItems;
+    if (maxScroll < 0)
+      maxScroll = 0;
+
+    data->dropdownScrollOffset += delta;
+    if (data->dropdownScrollOffset < 0)
+      data->dropdownScrollOffset = 0;
+    if (data->dropdownScrollOffset > maxScroll)
+      data->dropdownScrollOffset = maxScroll;
+
+    UpdateHoverState(data, data->mouseX, data->mouseY, (int)bounds.size.width, (int)bounds.size.height);
+    [self setNeedsDisplay : YES] ;
+  }
+
+  if (data->fontDropdownOpen)
+  {
+    int maxVisibleItems = 5;
+    int maxScroll = (int)data->fontSizes.size() - maxVisibleItems;
+    if (maxScroll < 0)
+      maxScroll = 0;
+
+    data->fontDropdownScrollOffset += delta;
+    if (data->fontDropdownScrollOffset < 0)
+      data->fontDropdownScrollOffset = 0;
+    if (data->fontDropdownScrollOffset > maxScroll)
+      data->fontDropdownScrollOffset = maxScroll;
+
+    UpdateHoverState(data, data->mouseX, data->mouseY, (int)bounds.size.width, (int)bounds.size.height);
+    [self setNeedsDisplay : YES] ;
+  }
+}
+
+@end
+
+bool OptionsDialog::Show(NativeWindow parent, AppOptions& options)
+{
+  @autoreleasepool
+  {
+    OptionsDialogData data = {};
+    data.tempOptions = options;
+    data.tempOptions.bookmarkHighlights = options.bookmarkHighlights;
+    data.tempOptions.contextMenu = false;
+    data.originalOptions = &options;
+    data.dialogResult = false;
+    data.running = true;
+    g_dialogData = &data;
+
+    NSView* parentView = (__bridge NSView*)parent;
+    NSWindow* parentWindow = [parentView window];
+
+    for (size_t i = 0; i < data.languages.size(); i++)
+    {
+      if (strEquals(data.languages[i], options.language))
+      {
+        data.selectedLanguage = (int)i;
+        break;
+      }
+    }
+
+    int actualSizes[] = { 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24 };
+    data.selectedFontSize = 6;
+    for (int i = 0; i < 13; i++)
+    {
+      if (actualSizes[i] == options.fontSize)
+      {
+        data.selectedFontSize = i;
+        break;
+      }
+    }
+
+    NSRect frame = NSMakeRect(0, 0, 400, 600);
+    NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable;
+
+    NSWindow* window = [[NSWindow alloc]initWithContentRect:frame
+                                                    styleMask : style
+                                                      backing : NSBackingStoreBuffered
+                                                        defer : NO];
+
+    [window setTitle:@"Options"] ;
+    [window center] ;
+
+    OptionsDialogView* view = [[OptionsDialogView alloc]initWithFrame:[[window contentView]bounds] ];
+    view->data = &data;
+    [view setAutoresizingMask : NSViewWidthSizable | NSViewHeightSizable] ;
+
+    NSTrackingArea* trackingArea = [[NSTrackingArea alloc]
+      initWithRect:[view bounds]
+           options : (NSTrackingMouseMoved | NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect)
+             owner : view
+          userInfo : nil];
+    [view addTrackingArea:trackingArea] ;
+
+    [window setContentView:view] ;
+    data.window = (__bridge NativeWindow)window;
+
+    data.renderer = new RenderManager();
+    if (!data.renderer || !data.renderer->initialize((__bridge NativeWindow)view))
+    {
+      if (data.renderer)
+        delete data.renderer;
+      g_dialogData = nullptr;
+      return false;
+    }
+
+    data.renderer->resize(400, 600);
+
+    if (parentWindow) {
+      [parentWindow addChildWindow:window ordered : NSWindowAbove] ;
+    }
+    [window makeKeyAndOrderFront:nil];
+
+    while (data.running)
+    {
+      @autoreleasepool
+      {
+        NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                                            untilDate : [NSDate distantFuture]
+                                               inMode : NSDefaultRunLoopMode
+                                              dequeue : YES];
+
+        if (event)
+        {
+          if ([event type] == NSEventTypeKeyDown)
+          {
+            if ([event keyCode] == 53)
+            {
+              data.dialogResult = false;
+              data.running = false;
+              break;
+            }
+          }
+
+          [NSApp sendEvent:event];
+          [NSApp updateWindows] ;
+        }
+      }
+    }
+
+    if (data.renderer)
+    {
+      delete data.renderer;
+      data.renderer = nullptr;
+    }
+
+    if (parentWindow) {
+      [parentWindow removeChildWindow:window] ;
+    }
+    [window close];
+    g_dialogData = nullptr;
+
+    return data.dialogResult;
+  }
 }
 
 #endif

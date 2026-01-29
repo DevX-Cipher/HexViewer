@@ -5,6 +5,8 @@
 static ULONG_PTR g_gdiplusToken = 0;
 #define NATIVE_WINDOW_NULL nullptr
 #elif __APPLE__
+#include <CoreGraphics/CoreGraphics.h>
+#include <CoreText/CoreText.h>
 #define NATIVE_WINDOW_NULL nullptr
 #else
 #define NATIVE_WINDOW_NULL 0UL
@@ -73,7 +75,9 @@ bool RenderManager::initialize(NativeWindow win)
   return true;
 
 #elif __APPLE__
-  return false;
+  window = win;
+
+  return true;
 
 #else
   display = XOpenDisplay(nullptr);
@@ -171,8 +175,6 @@ void RenderManager::resize(int width, int height)
   if (!memDC)
     return;
 #elif __APPLE__
-  if (!context)
-    return;
 #else
   if (!display || !window)
     return;
@@ -238,8 +240,9 @@ void RenderManager::UpdateHexMetrics(int leftPanelWidth, int menuBarHeight)
     }
   }
 #elif __APPLE__
-  layout.charWidth = 9.6f;
-  layout.lineHeight = 20.0f;
+  int fontSize = g_Options.fontSize > 0 ? g_Options.fontSize : 14;
+  layout.charWidth = fontSize * 0.6f;
+  layout.lineHeight = fontSize * 1.4f;
 #else
   if (fontInfo)
   {
@@ -277,8 +280,8 @@ void RenderManager::createFont()
 #ifdef _WIN32
   font = CreateFontA(
     g_Options.fontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-      DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-      DEFAULT_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas");
+    DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+    DEFAULT_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas");
 
   if (font && memDC)
   {
@@ -286,6 +289,9 @@ void RenderManager::createFont()
     SIZE textSize;
     GetTextExtentPoint32A(memDC, "0", 1, &textSize);
   }
+#elif __APPLE__
+  _charWidth = g_Options.fontSize * 0.6f;
+  _charHeight = g_Options.fontSize * 1.2f;
 #endif
 }
 
@@ -304,6 +310,13 @@ void RenderManager::beginFrame()
 {
 }
 
+#ifdef __APPLE__
+void RenderManager::setContext(void* ctx)
+{
+  context = (CGContextRef)ctx;
+}
+#endif
+
 void RenderManager::endFrame(NativeDrawContext ctx)
 {
 #ifdef _WIN32
@@ -313,12 +326,10 @@ void RenderManager::endFrame(NativeDrawContext ctx)
   BitBlt(ctx, 0, 0, windowWidth, windowHeight, memDC, 0, 0, SRCCOPY);
 
 #elif __APPLE__
-  if (!context)
-    return;
-
-  CGContextDrawImage(ctx,
-                     CGRectMake(0, 0, windowWidth, windowHeight),
-                     (CGImageRef)backBuffer);
+  if (context)
+  {
+    CGContextFlush((CGContextRef)context);
+  }
 
 #else
   if (!display || !gc)
@@ -342,14 +353,11 @@ void RenderManager::clear(const Color &color)
   DeleteObject(brush);
 
 #elif __APPLE__
-  if (backBuffer)
+  if (context)
   {
-    unsigned int *buf = (unsigned int *)backBuffer;
-    unsigned int colorValue = (color.r << 16) | (color.g << 8) | color.b;
-    for (int i = 0; i < windowWidth * windowHeight; i++)
-    {
-      buf[i] = colorValue;
-    }
+    CGContextRef ctx = (CGContextRef)context;
+    CGContextSetRGBFillColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, 1.0f);
+    CGContextFillRect(ctx, CGRectMake(0, 0, windowWidth, windowHeight));
   }
 
 #else
@@ -406,6 +414,23 @@ void RenderManager::drawRect(const Rect &rect, const Color &color, bool filled)
     return;
   }
 #elif __APPLE__
+  if (context)
+  {
+    CGContextRef ctx = (CGContextRef)context;
+    CGContextSetRGBFillColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+    CGContextSetRGBStrokeColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+
+    CGRect cgRect = CGRectMake(rect.x, rect.y, rect.width, rect.height);
+
+    if (filled)
+    {
+      CGContextFillRect(ctx, cgRect);
+    }
+    else
+    {
+      CGContextStrokeRect(ctx, cgRect);
+    }
+  }
 #else
   XSetForeground(display, gc, (color.r << 16) | (color.g << 8) | color.b);
   if (filled)
@@ -430,6 +455,16 @@ void RenderManager::drawLine(int x1, int y1, int x2, int y2, const Color &color)
   return;
 
 #elif __APPLE__
+  if (context)
+  {
+    CGContextRef ctx = (CGContextRef)context;
+    CGContextSetRGBStrokeColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+    CGContextSetLineWidth(ctx, 1.0f);
+    CGContextBeginPath(ctx);
+    CGContextMoveToPoint(ctx, x1, y1);
+    CGContextAddLineToPoint(ctx, x2, y2);
+    CGContextStrokePath(ctx);
+  }
 #else
   XSetForeground(display, gc, (color.r << 16) | (color.g << 8) | color.b);
   XDrawLine(display, backBuffer, gc, x1, y1, x2, y2);
@@ -445,6 +480,41 @@ void RenderManager::drawText(const char *text, int x, int y, const Color &color)
   setColor(color);
   TextOutA(memDC, x, y, text, (int)StrLen(text));
 #elif __APPLE__
+  if (!context)
+    return;
+
+  CGContextRef ctx = (CGContextRef)context;
+
+  CGContextSaveGState(ctx);
+
+  CGContextSetRGBFillColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+
+  CFStringRef cfString = CFStringCreateWithCString(NULL, text, kCFStringEncodingUTF8);
+  if (cfString)
+  {
+    int fontSize = g_Options.fontSize > 0 ? g_Options.fontSize : 14;
+    CTFontRef font = CTFontCreateWithName(CFSTR("Monaco"), fontSize, NULL);
+
+    CFStringRef keys[] = { kCTFontAttributeName, kCTForegroundColorFromContextAttributeName };
+    CFTypeRef values[] = { font, kCFBooleanTrue };
+    CFDictionaryRef attributes = CFDictionaryCreate(NULL, (const void**)&keys, (const void**)&values, 2,
+      &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+
+    CFAttributedStringRef attrString = CFAttributedStringCreate(NULL, cfString, attributes);
+    CTLineRef line = CTLineCreateWithAttributedString(attrString);
+
+    CGContextSetTextMatrix(ctx, CGAffineTransformIdentity);
+    CGContextSetTextPosition(ctx, x, y + fontSize);
+    CTLineDraw(line, ctx);
+
+    CFRelease(line);
+    CFRelease(attrString);
+    CFRelease(attributes);
+    CFRelease(font);
+    CFRelease(cfString);
+  }
+
+  CGContextRestoreGState(ctx);
 #else
   XSetForeground(display, gc, (color.r << 16) | (color.g << 8) | color.b);
   XDrawString(display, backBuffer, gc, x, y + 12, text, StrLen(text));
@@ -504,6 +574,42 @@ void RenderManager::drawRoundedRect(const Rect &rect, float radius, const Color 
     return;
   }
 #elif __APPLE__
+  if (context)
+  {
+    CGContextRef ctx = (CGContextRef)context;
+
+    float x = (float)rect.x;
+    float y = (float)rect.y;
+    float w = (float)rect.width;
+    float h = (float)rect.height;
+
+    CGMutablePathRef path = CGPathCreateMutable();
+    CGPathMoveToPoint(path, NULL, x + radius, y);
+    CGPathAddLineToPoint(path, NULL, x + w - radius, y);
+    CGPathAddArc(path, NULL, x + w - radius, y + radius, radius, -M_PI / 2, 0, false);
+    CGPathAddLineToPoint(path, NULL, x + w, y + h - radius);
+    CGPathAddArc(path, NULL, x + w - radius, y + h - radius, radius, 0, M_PI / 2, false);
+    CGPathAddLineToPoint(path, NULL, x + radius, y + h);
+    CGPathAddArc(path, NULL, x + radius, y + h - radius, radius, M_PI / 2, M_PI, false);
+    CGPathAddLineToPoint(path, NULL, x, y + radius);
+    CGPathAddArc(path, NULL, x + radius, y + radius, radius, M_PI, 3 * M_PI / 2, false);
+    CGPathCloseSubpath(path);
+
+    CGContextAddPath(ctx, path);
+
+    if (filled)
+    {
+      CGContextSetRGBFillColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+      CGContextFillPath(ctx);
+    }
+    else
+    {
+      CGContextSetRGBStrokeColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+      CGContextStrokePath(ctx);
+    }
+
+    CGPathRelease(path);
+  }
 #else
   setColor(color);
   drawRect(rect, color, filled);

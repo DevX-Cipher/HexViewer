@@ -139,8 +139,11 @@ void operator delete(void *p, std::size_t) noexcept
 
 #if defined(_WIN32)
 HWND g_Hwnd = nullptr;
+#elif defined(__APPLE__)
+void* g_Hwnd = nullptr;
+NSWindow* g_nsWindow = nullptr;
 #else
-void *g_Hwnd = nullptr;
+void* g_Hwnd = nullptr;
 #endif
 
 RenderManager g_Renderer;
@@ -402,15 +405,52 @@ void OnFileOpen()
 			MessageBoxA(g_Hwnd, "Failed to open file.", "Error", MB_OK | MB_ICONERROR);
 		}
 	}
+#elif defined(__APPLE__)
+	NSOpenPanel* panel = [NSOpenPanel openPanel];
+	[panel setCanChooseFiles : YES] ;
+	[panel setCanChooseDirectories : NO] ;
+	[panel setAllowsMultipleSelection : NO] ;
+
+	if ([panel runModal] == NSModalResponseOK)
+	{
+		NSURL* url = [[panel URLs]objectAtIndex:0];
+		const char* path = [[url path]UTF8String];
+
+		if (g_HexData.loadFile(path))
+		{
+			StrCopy(g_CurrentFilePath, path);
+			AddToRecentFiles(path);
+			SaveOptionsToFile(g_Options);
+			RebuildFileMenu();
+
+			ApplyEnabledPlugins();
+
+			g_TotalLines = (int)g_HexData.getHexLines().count;
+			g_ScrollY = 0;
+
+			if (g_Hwnd) {
+				NSWindow* window = (__bridge NSWindow*)g_Hwnd;
+				[[window contentView]setNeedsDisplay:YES];
+			}
+		}
+		else
+		{
+			NSAlert* alert = [[NSAlert alloc]init];
+			[alert setMessageText:@"Error"] ;
+			[alert setInformativeText:@"Failed to open file."] ;
+			[alert setAlertStyle:NSAlertStyleCritical] ;
+			[alert runModal] ;
+		}
+	}
 #elif defined(__linux__)
-	FILE *fp = popen("zenity --file-selection 2>/dev/null", "r");
+	FILE* fp = popen("zenity --file-selection 2>/dev/null", "r");
 	if (!fp)
 	{
 		printf("Failed to open file dialog.\n");
 		return;
 	}
 
-	char path[512] = {0};
+	char path[512] = { 0 };
 	if (!fgets(path, sizeof(path), fp))
 	{
 		pclose(fp);
@@ -455,14 +495,28 @@ void OnFileSave()
 	{
 #if defined(_WIN32)
 		MessageBoxA(g_Hwnd, "File saved successfully.", "Info", MB_OK | MB_ICONINFORMATION);
+#elif defined(__APPLE__)
+		NSAlert* alert = [[NSAlert alloc]init];
+		[alert setMessageText:@"Success"] ;
+		[alert setInformativeText:@"File saved successfully."] ;
+		[alert setAlertStyle:NSAlertStyleInformational] ;
+		[alert runModal] ;
 #else
+		printf("File saved successfully.\n");
 #endif
 	}
 	else
 	{
 #if defined(_WIN32)
 		MessageBoxA(g_Hwnd, "Failed to save file.", "Error", MB_OK | MB_ICONERROR);
+#elif defined(__APPLE__)
+		NSAlert* alert = [[NSAlert alloc]init];
+		[alert setMessageText:@"Error"] ;
+		[alert setInformativeText:@"Failed to save file."] ;
+		[alert setAlertStyle:NSAlertStyleCritical] ;
+		[alert runModal] ;
 #else
+		printf("Failed to save file.\n");
 #endif
 	}
 }
@@ -496,6 +550,33 @@ void OnFileSaveAs()
 			MessageBoxA(g_Hwnd, "Failed to write file.", "Error", MB_OK | MB_ICONERROR);
 		}
 	}
+#elif defined(__APPLE__)
+	NSSavePanel* panel = [NSSavePanel savePanel];
+	[panel setAllowedFileTypes:@[@"bin", @"dat", @""]] ;
+
+	if ([panel runModal] == NSModalResponseOK)
+	{
+		NSURL* url = [panel URL];
+		const char* path = [[url path]UTF8String];
+
+		if (g_HexData.saveFile(path))
+		{
+			CopyString(g_CurrentFilePath, path, MAX_PATH_LEN);
+			NSAlert* alert = [[NSAlert alloc]init];
+			[alert setMessageText:@"Success"] ;
+			[alert setInformativeText:@"File saved successfully."] ;
+			[alert setAlertStyle:NSAlertStyleInformational] ;
+			[alert runModal] ;
+		}
+		else
+		{
+			NSAlert* alert = [[NSAlert alloc]init];
+			[alert setMessageText:@"Error"] ;
+			[alert setInformativeText:@"Failed to write file."] ;
+			[alert setAlertStyle:NSAlertStyleCritical] ;
+			[alert runModal] ;
+		}
+	}
 #else
 #endif
 }
@@ -504,6 +585,8 @@ void OnFileExit()
 {
 #if defined(_WIN32)
 	PostQuitMessage(0);
+#elif defined(__APPLE__)
+	[NSApp terminate:nil];
 #else
 #endif
 }
@@ -518,6 +601,15 @@ void OnOptionsDialog()
 		g_Renderer.destroyFont();
 		g_Renderer.createFont();
 		InvalidateRect(g_Hwnd, 0, FALSE);
+	}
+#elif defined(__APPLE__)
+	if (g_nsWindow) {
+		NSView* contentView = [g_nsWindow contentView];
+		if (OptionsDialog::Show((__bridge NativeWindow)contentView, g_Options))
+		{
+			SaveOptionsToFile(g_Options);
+			[contentView setNeedsDisplay:YES] ;
+		}
 	}
 #else
 	if (OptionsDialog::Show((NativeWindow)(uintptr_t)g_Hwnd, g_Options))
@@ -535,18 +627,25 @@ void OnPluginsDialog()
 	{
 		InvalidateRect(g_Hwnd, 0, FALSE);
 	}
+#elif defined(__APPLE__)
+	if (PluginManager::Show((NativeWindow)(uintptr_t)g_Hwnd))
+	{
+		if (g_Hwnd) {
+			NSWindow* window = (__bridge NSWindow*)g_Hwnd;
+			[[window contentView]setNeedsDisplay:YES];
+		}
+	}
 #else
 	if (PluginManager::Show((NativeWindow)(uintptr_t)g_Hwnd))
 	{
 		LinuxRedraw();
 	}
-
 #endif
 }
 
 void RebuildFileMenu()
 {
-	Menu *fileMenu = g_MenuBar.getMenu(0);
+	Menu* fileMenu = g_MenuBar.getMenu(0);
 	if (!fileMenu)
 		return;
 
@@ -593,7 +692,7 @@ void RebuildFileMenu()
 	if (g_RecentFileCount == 0)
 	{
 		recentHeader.submenuCount = 1;
-		recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem));
+		recentHeader.submenu = (MenuItem*)PlatformAlloc(sizeof(MenuItem));
 
 		recentHeader.submenu[0].label = StrDup("No recent files");
 		recentHeader.submenu[0].shortcut = nullptr;
@@ -607,7 +706,7 @@ void RebuildFileMenu()
 	else
 	{
 		recentHeader.submenuCount = g_RecentFileCount;
-		recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem) * g_RecentFileCount);
+		recentHeader.submenu = (MenuItem*)PlatformAlloc(sizeof(MenuItem) * g_RecentFileCount);
 
 		for (int i = 0; i < g_RecentFileCount; i++)
 		{
@@ -655,6 +754,11 @@ void OpenRecentFile(int index)
 
 #if defined(_WIN32)
 		InvalidateRect(g_Hwnd, NULL, FALSE);
+#elif defined(__APPLE__)
+		if (g_Hwnd) {
+			NSWindow* window = (__bridge NSWindow*)g_Hwnd;
+			[[window contentView]setNeedsDisplay:YES];
+		}
 #else
 		LinuxRedraw();
 #endif
@@ -667,7 +771,7 @@ void OnFindReplace()
 	SearchDialogs::ShowFindReplaceDialog(
 		g_Hwnd,
 		g_Options.darkMode,
-		[](const char *find, const char *replace)
+		[](const char* find, const char* replace)
 		{
 			char buf[512];
 			buf[0] = '\0';
@@ -686,11 +790,23 @@ void OnFindReplace()
 			MessageBoxA(g_Hwnd, buf, "Find & Replace", MB_OK);
 		},
 		nullptr);
+#elif defined(__APPLE__)
+	SearchDialogs::ShowFindReplaceDialog(
+		g_Hwnd,
+		g_Options.darkMode,
+		[](const std::string& find, const std::string& replace)
+		{
+			printf("Find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
+		});
+	if (g_Hwnd) {
+		NSWindow* window = (__bridge NSWindow*)g_Hwnd;
+		[[window contentView]setNeedsDisplay:YES];
+	}
 #else
 	SearchDialogs::ShowFindReplaceDialog(
 		g_Hwnd,
 		g_Options.darkMode,
-		[](const std::string &find, const std::string &replace)
+		[](const std::string& find, const std::string& replace)
 		{
 			printf("Find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
 		});
@@ -768,6 +884,62 @@ void OnGoTo()
 	{
 		MessageBoxA(g_Hwnd, "Offset out of range.", "Error", MB_OK | MB_ICONERROR);
 	}
+#elif defined(__APPLE__)
+	static int resultOffset = -1;
+	resultOffset = -1;
+
+	SearchDialogs::ShowGoToDialog(
+		g_Hwnd,
+		g_Options.darkMode,
+		[](int offset)
+		{
+			resultOffset = offset;
+		});
+
+	if (resultOffset >= 0 && resultOffset < (long long)g_HexData.getFileSize())
+	{
+		cursorBytePos = resultOffset;
+		cursorNibblePos = 0;
+
+		long long targetLine = resultOffset / 16;
+
+		g_ScrollY = (int)(targetLine - g_LinesPerPage / 2);
+		if (g_ScrollY < 0)
+			g_ScrollY = 0;
+
+		int maxScroll = g_TotalLines - g_LinesPerPage;
+		if (maxScroll < 0)
+			maxScroll = 0;
+
+		if (g_ScrollY > maxScroll)
+			g_ScrollY = maxScroll;
+
+		if (maxScroll > 0)
+		{
+			g_MainScrollbar.position = (float)g_ScrollY / (float)maxScroll;
+			if (g_MainScrollbar.position < 0.0f) g_MainScrollbar.position = 0.0f;
+			if (g_MainScrollbar.position > 1.0f) g_MainScrollbar.position = 1.0f;
+		}
+		else
+		{
+			g_MainScrollbar.position = 0.0f;
+		}
+
+		g_Selection.clear();
+		caretVisible = true;
+
+		int leftPanelWidth = g_LeftPanel.visible ? g_LeftPanel.width : 0;
+		g_Renderer.UpdateHexMetrics(leftPanelWidth, g_MenuBar.getHeight());
+
+		if (g_Hwnd) {
+			NSWindow* window = (__bridge NSWindow*)g_Hwnd;
+			[[window contentView]setNeedsDisplay:YES];
+		}
+	}
+	else if (resultOffset >= (long long)g_HexData.getFileSize())
+	{
+		printf("Offset out of range: 0x%X\n", resultOffset);
+	}
 #else
 	static int resultOffset = -1;
 	resultOffset = -1;
@@ -821,7 +993,6 @@ void OnGoTo()
 	{
 		printf("Offset out of range: 0x%X\n", resultOffset);
 	}
-
 #endif
 }
 
@@ -831,7 +1002,13 @@ void OnToggleDarkMode()
 	SaveOptionsToFile(g_Options);
 #if defined(_WIN32)
 	InvalidateRect(g_Hwnd, NULL, FALSE);
+#elif defined(__APPLE__)
+	if (g_Hwnd) {
+		NSWindow* window = (__bridge NSWindow*)g_Hwnd;
+		[[window contentView]setNeedsDisplay:YES];
+	}
 #else
+	LinuxRedraw();
 #endif
 }
 
@@ -2404,16 +2581,1075 @@ extern "C" void entry()
 
 #elif defined(__APPLE__)
 
-int main(int argc, char **argv)
-{
-	RunConstructors();
+#import <Cocoa/Cocoa.h>
+#import <CoreGraphics/CoreGraphics.h>
 
-	if (argc > 1)
+@interface HexView : NSView
+{
+	NSTimer* caretTimer;
+}
+@end
+
+@implementation HexView
+
+- (id)initWithFrame:(NSRect)frame
+{
+	self = [super initWithFrame:frame];
+	if (self)
 	{
-		SetCommandLineFile(argv[1]);
+		NSTrackingArea* trackingArea = [[NSTrackingArea alloc]
+			initWithRect:[self bounds]
+			options : (NSTrackingMouseMoved | NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect)
+			owner : self
+			userInfo : nil];
+		[self addTrackingArea:trackingArea] ;
+
+		caretTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
+			target : self
+			selector : @selector(blinkCaret:)
+			userInfo:nil
+			repeats : YES];
+	}
+	return self;
+}
+
+- (void)dealloc
+{
+	[caretTimer invalidate] ;
+}
+
+- (void)blinkCaret:(NSTimer*)timer
+{
+	caretVisible = !caretVisible;
+	if (cursorBytePos >= 0)
+	{
+		[self setNeedsDisplay:YES] ;
+	}
+}
+
+- (BOOL)acceptsFirstResponder
+{
+	return YES;
+}
+
+- (BOOL)canBecomeKeyView
+{
+	return YES;
+}
+
+- (BOOL)isFlipped
+{
+	return YES;
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+	NSGraphicsContext* nsContext = [NSGraphicsContext currentContext];
+	CGContextRef ctx = (CGContextRef)[nsContext CGContext];
+
+	NSRect bounds = [self bounds];
+	int windowWidth = (int)bounds.size.width;
+	int windowHeight = (int)bounds.size.height;
+	int menuBarHeight = g_MenuBar.getHeight();
+
+
+	g_Renderer.setContext(ctx);
+	g_Renderer.beginFrame();
+
+	g_Renderer.clear(
+		g_Options.darkMode
+		? Theme::Dark().windowBackground
+		: Theme::Light().windowBackground);
+
+	Rect leftBounds = GetLeftPanelBounds(
+		g_LeftPanel, windowWidth, windowHeight, menuBarHeight);
+	Rect bottomBounds = GetBottomPanelBounds(
+		g_BottomPanel, windowWidth, windowHeight,
+		menuBarHeight, g_LeftPanel);
+
+	int effectiveWindowHeight = windowHeight;
+	if (g_BottomPanel.visible && g_BottomPanel.dockPosition == PanelDockPosition::Bottom)
+	{
+		effectiveWindowHeight -= g_BottomPanel.height;
 	}
 
-	return 0;
+	g_LinesPerPage = (effectiveWindowHeight - menuBarHeight - 40) / 16;
+	if (g_LinesPerPage < 1)
+		g_LinesPerPage = 1;
+
+	if (g_HexData.hasDisassemblyPlugin() && g_HexData.getFileSize() > 0)
+	{
+		int startLine = g_ScrollY;
+		int endLine = g_ScrollY + g_LinesPerPage + 1;
+		size_t startOffset = (size_t)startLine * 16;
+		size_t endOffset = (size_t)endLine * 16;
+
+		if (endOffset > g_HexData.getFileSize())
+			endOffset = g_HexData.getFileSize();
+
+		size_t chunkSize = endOffset - startOffset;
+
+		if (chunkSize > 0 && !g_HexData.isRangeDisassembled(startOffset, endOffset))
+		{
+			g_HexData.disassembleRange(startOffset, chunkSize);
+		}
+	}
+
+	Vector<char*> hexLines;
+	const LineArray& lines = g_HexData.getHexLines();
+	if (lines.count > 0)
+	{
+		for (int i = 0; i < (int)lines.count; i++)
+		{
+			const SimpleString* line = &lines.lines[i];
+			char* buf = (char*)malloc(line->length + 1);
+			for (size_t j = 0; j < line->length; j++)
+				buf[j] = line->data[j];
+			buf[line->length] = '\0';
+			hexLines.push_back(buf);
+		}
+	}
+
+	const SimpleString& header = g_HexData.getHeaderLine();
+	const char* headerStr = header.data ? header.data : "No File Loaded";
+
+	int maxScrollPos = g_TotalLines - g_LinesPerPage;
+	if (maxScrollPos < 0)
+		maxScrollPos = 0;
+
+	g_Renderer.renderHexViewer(
+		hexLines,
+		headerStr,
+		g_ScrollY,
+		maxScrollPos,
+		g_MainScrollbar.hovered,
+		g_MainScrollbar.pressed,
+		Rect(0, 0, 0, 0),
+		Rect(0, 0, 0, 0),
+		g_Options.darkMode,
+		-1,
+		-1,
+		"",
+		cursorBytePos,
+		cursorNibblePos,
+		(long long)g_HexData.getFileSize(),
+		g_LeftPanel.visible ? g_LeftPanel.width : 0,
+		effectiveWindowHeight);
+
+	for (size_t i = 0; i < hexLines.size(); i++)
+		free(hexLines[i]);
+
+	if (g_LeftPanel.visible)
+	{
+		g_Renderer.drawLeftPanel(
+			g_LeftPanel,
+			g_Options.darkMode ? Theme::Dark() : Theme::Light(),
+			windowHeight,
+			leftBounds);
+	}
+
+	if (g_BottomPanel.visible)
+	{
+		g_Renderer.drawBottomPanel(
+			g_BottomPanel,
+			g_Options.darkMode ? Theme::Dark() : Theme::Light(),
+			g_Checksums,
+			windowWidth,
+			windowHeight,
+			bottomBounds);
+	}
+
+	g_MenuBar.render(&g_Renderer, windowWidth);
+
+	if (g_ContextMenu.isVisible())
+	{
+		g_Renderer.drawContextMenu(
+			g_ContextMenu.getState(),
+			g_Options.darkMode ? Theme::Dark() : Theme::Light());
+	}
+
+	g_Renderer.endFrame(ctx);
+}
+
+- (void)mouseDown:(NSEvent*)event
+{
+	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
+	int x = (int)location.x;
+	int y = (int)location.y;
+
+	NSRect bounds = [self bounds];
+	int windowWidth = (int)bounds.size.width;
+	int windowHeight = (int)bounds.size.height;
+	int leftPanelWidth = g_LeftPanel.visible ? g_LeftPanel.width : 0;
+
+	if (g_ContextMenu.isVisible())
+	{
+		int actionId = g_ContextMenu.handleClick(x, y, &g_Renderer);
+		if (actionId > 0)
+		{
+			g_ContextMenu.executeAction(actionId);
+		}
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	if (g_MainScrollbar.visible &&
+		g_Renderer.isPointInScrollbarThumb(x, y, g_MainScrollbar))
+	{
+		g_MainScrollbar.pressed = true;
+		g_MainScrollbar.thumbHovered = true;
+		g_MainScrollbar.dragOffsetY = y - g_MainScrollbar.thumbY;
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_Renderer.isPointInDisasmResizeHandle(x, y, g_MenuBar.getHeight()))
+	{
+		g_Renderer.startDisasmResize(x);
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_MenuBar.handleMouseDown(x, y))
+	{
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_BottomPanel.visible)
+	{
+		Rect bottomBounds = GetBottomPanelBounds(
+			g_BottomPanel, windowWidth, windowHeight,
+			g_MenuBar.getHeight(), g_LeftPanel);
+
+		int tabHeight = 32;
+		int tabStartY = bottomBounds.y + 28 + 5;
+
+		bool isVertical = (g_BottomPanel.dockPosition == PanelDockPosition::Left ||
+			g_BottomPanel.dockPosition == PanelDockPosition::Right);
+
+		BottomPanelState::Tab tabs[] = {
+				BottomPanelState::Tab::EntropyAnalysis,
+				BottomPanelState::Tab::PatternSearch,
+				BottomPanelState::Tab::Checksum,
+				BottomPanelState::Tab::Compare
+		};
+
+		if (isVertical)
+		{
+			int tabY = tabStartY;
+			int tabWidth = bottomBounds.width - 10;
+
+			for (int i = 0; i < 4; i++)
+			{
+				if (x >= bottomBounds.x + 5 &&
+					x <= bottomBounds.x + 5 + tabWidth &&
+					y >= tabY &&
+					y <= tabY + tabHeight - 5)
+				{
+					g_BottomPanel.activeTab = tabs[i];
+					[self setNeedsDisplay:YES] ;
+					return;
+				}
+				tabY += tabHeight;
+			}
+		}
+		else
+		{
+			if (y >= tabStartY && y <= tabStartY + tabHeight - 5)
+			{
+				const char* tabLabels[] = {
+						"Entropy Analysis",
+						"Hex Pattern Search",
+						"Checksum",
+						"Compare"
+				};
+
+				int tabX = bottomBounds.x + 10;
+
+				for (int i = 0; i < 4; i++)
+				{
+					int tabWidth = StrLen(tabLabels[i]) * 8 + 20;
+
+					if (x >= tabX && x <= tabX + tabWidth)
+					{
+						g_BottomPanel.activeTab = tabs[i];
+						[self setNeedsDisplay:YES] ;
+						return;
+					}
+
+					tabX += tabWidth + 5;
+				}
+			}
+		}
+
+		if (IsInPanelTitleBar(x, y, bottomBounds))
+		{
+			g_BottomPanel.dragging = true;
+			g_BottomPanel.dragOffsetX = x - bottomBounds.x;
+			g_BottomPanel.dragOffsetY = y - bottomBounds.y;
+			return;
+		}
+
+		if (HandleBottomPanelContentClick(x, y, windowWidth, windowHeight))
+		{
+			[self setNeedsDisplay:YES] ;
+			return;
+		}
+	}
+
+	if (g_LeftPanel.visible)
+	{
+		Rect leftBounds = GetLeftPanelBounds(
+			g_LeftPanel, windowWidth, windowHeight, g_MenuBar.getHeight());
+
+		if (IsInPanelTitleBar(x, y, leftBounds))
+		{
+			g_LeftPanel.dragging = true;
+			g_LeftPanel.dragOffsetX = x - leftBounds.x;
+			g_LeftPanel.dragOffsetY = y - leftBounds.y;
+			return;
+		}
+
+		if (HandleLeftPanelContentClick(x, y, windowWidth, windowHeight))
+		{
+			[self setNeedsDisplay:YES] ;
+			return;
+		}
+	}
+
+	if (g_Renderer.isLeftPanelResizeHandle(x, y, g_LeftPanel))
+	{
+		g_ResizingLeftPanel = true;
+		g_LeftPanel.resizing = true;
+		g_ResizeStartX = x;
+		g_ResizeStartWidth = g_LeftPanel.width;
+		return;
+	}
+
+	if (g_Renderer.isBottomPanelResizeHandle(x, y, g_BottomPanel,
+		g_LeftPanel.visible ? g_LeftPanel.width : 0))
+	{
+		g_ResizingBottomPanel = true;
+		g_BottomPanel.resizing = true;
+		g_ResizeStartY = y;
+		g_ResizeStartHeight = g_BottomPanel.height;
+		return;
+	}
+
+	g_Renderer.UpdateHexMetrics(leftPanelWidth, g_MenuBar.getHeight());
+
+	if (g_Renderer.IsPointInHexArea(x, y, leftPanelWidth,
+		g_MenuBar.getHeight(),
+		windowWidth, windowHeight))
+	{
+		BytePositionInfo clickInfo = g_Renderer.GetHexBytePositionInfo(Point(x, y));
+
+		if (clickInfo.Index >= 0 &&
+			clickInfo.Index < (long long)g_HexData.getFileSize())
+		{
+			bool shiftHeld = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
+
+			if (shiftHeld && g_Selection.active)
+			{
+				g_Selection.endByte = clickInfo.Index;
+			}
+			else
+			{
+				g_Selection.startByte = clickInfo.Index;
+				g_Selection.endByte = clickInfo.Index;
+				g_Selection.active = true;
+				g_Selection.dragging = true;
+			}
+
+			cursorBytePos = clickInfo.Index;
+			cursorNibblePos = clickInfo.CharacterPosition;
+			caretVisible = true;
+		}
+
+		[self setNeedsDisplay:YES];
+	}
+}
+
+- (void)mouseUp:(NSEvent*)event
+{
+	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
+	int x = (int)location.x;
+	int y = (int)location.y;
+
+	if (g_Selection.dragging)
+	{
+		g_Selection.dragging = false;
+		g_Selection.active = true;
+
+		if (g_Selection.startByte == g_Selection.endByte)
+		{
+			g_Selection.clear();
+		}
+
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	if (g_MainScrollbar.pressed)
+	{
+		g_MainScrollbar.pressed = false;
+		g_MainScrollbar.thumbHovered = false;
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_LeftPanel.dragging || g_BottomPanel.dragging)
+	{
+		g_LeftPanel.dragging = false;
+		g_BottomPanel.dragging = false;
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_ResizingLeftPanel || g_ResizingBottomPanel)
+	{
+		g_ResizingLeftPanel = false;
+		g_ResizingBottomPanel = false;
+		g_LeftPanel.resizing = false;
+		g_BottomPanel.resizing = false;
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_MenuBar.handleMouseUp(x, y))
+	{
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_Renderer.isResizingDisasmColumn())
+	{
+		g_Renderer.endDisasmResize();
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+}
+
+- (void)rightMouseDown:(NSEvent*)event
+{
+	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
+	int x = (int)location.x;
+	int y = (int)location.y;
+
+	g_ContextMenu.show(x, y);
+	[self setNeedsDisplay:YES] ;
+}
+
+- (void)mouseDragged:(NSEvent*)event
+{
+	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
+	int x = (int)location.x;
+	int y = (int)location.y;
+
+	NSRect bounds = [self bounds];
+	int windowWidth = (int)bounds.size.width;
+	int windowHeight = (int)bounds.size.height;
+
+	if (g_Renderer.isResizingDisasmColumn())
+	{
+		g_Renderer.updateDisasmResize(x);
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_MainScrollbar.pressed)
+	{
+		int maxScroll = g_TotalLines - g_LinesPerPage;
+		if (maxScroll < 0)
+			maxScroll = 0;
+
+		int desiredThumbTop = y - g_MainScrollbar.dragOffsetY;
+		int relativeTop = desiredThumbTop - g_MainScrollbar.trackY - 2;
+		int maxThumbTravel = g_MainScrollbar.trackHeight - g_MainScrollbar.thumbHeight - 4;
+
+		if (maxThumbTravel > 0)
+		{
+			float newPos = (float)relativeTop / (float)maxThumbTravel;
+
+			if (newPos < 0.0f)
+				newPos = 0.0f;
+			if (newPos > 1.0f)
+				newPos = 1.0f;
+
+			g_MainScrollbar.position = newPos;
+			g_ScrollY = (int)(newPos * maxScroll);
+
+			if (g_ScrollY < 0)
+				g_ScrollY = 0;
+			if (g_ScrollY > maxScroll)
+				g_ScrollY = maxScroll;
+
+			g_MainScrollbar.thumbY = g_MainScrollbar.trackY + 2 + (int)(maxThumbTravel * newPos);
+		}
+
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	if (g_LeftPanel.dragging)
+	{
+		int newX = x - g_LeftPanel.dragOffsetX;
+		int newY = y - g_LeftPanel.dragOffsetY;
+
+		PanelDockPosition newDock = GetDockPositionFromMouse(
+			x, y, windowWidth, windowHeight, g_MenuBar.getHeight());
+
+		PanelDockPosition oldDock = g_LeftPanel.dockPosition;
+
+		if (newDock == PanelDockPosition::Floating)
+		{
+			g_LeftPanel.dockPosition = PanelDockPosition::Floating;
+			g_LeftPanel.floatingX = newX;
+			g_LeftPanel.floatingY = newY;
+
+			if (oldDock == PanelDockPosition::Top || oldDock == PanelDockPosition::Bottom)
+			{
+				g_LeftPanel.floatingWidth = windowWidth / 2;
+				g_LeftPanel.floatingHeight = g_LeftPanel.height;
+			}
+			else
+			{
+				g_LeftPanel.floatingWidth = g_LeftPanel.width;
+				g_LeftPanel.floatingHeight = windowHeight - g_MenuBar.getHeight();
+			}
+		}
+		else if (newDock != oldDock)
+		{
+			g_LeftPanel.dockPosition = newDock;
+
+			if (newDock == PanelDockPosition::Top || newDock == PanelDockPosition::Bottom)
+			{
+				g_LeftPanel.height = 200;
+				g_LeftPanel.width = windowWidth;
+			}
+			else
+			{
+				g_LeftPanel.width = 280;
+				g_LeftPanel.height = windowHeight - g_MenuBar.getHeight();
+			}
+		}
+
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	if (g_BottomPanel.dragging)
+	{
+		int newX = x - g_BottomPanel.dragOffsetX;
+		int newY = y - g_BottomPanel.dragOffsetY;
+
+		PanelDockPosition newDock = GetDockPositionFromMouse(
+			x, y, windowWidth, windowHeight, g_MenuBar.getHeight());
+
+		PanelDockPosition oldDock = g_BottomPanel.dockPosition;
+
+		if (newDock == PanelDockPosition::Floating)
+		{
+			g_BottomPanel.dockPosition = PanelDockPosition::Floating;
+			g_BottomPanel.floatingX = newX;
+			g_BottomPanel.floatingY = newY;
+
+			if (oldDock == PanelDockPosition::Left || oldDock == PanelDockPosition::Right)
+			{
+				g_BottomPanel.floatingWidth = g_BottomPanel.width;
+				g_BottomPanel.floatingHeight = windowHeight / 2;
+			}
+			else
+			{
+				int leftOffset = (g_LeftPanel.visible &&
+					g_LeftPanel.dockPosition == PanelDockPosition::Left)
+					? g_LeftPanel.width
+					: 0;
+				g_BottomPanel.floatingWidth = windowWidth - leftOffset;
+				g_BottomPanel.floatingHeight = g_BottomPanel.height;
+			}
+		}
+		else if (newDock != oldDock)
+		{
+			g_BottomPanel.dockPosition = newDock;
+
+			if (newDock == PanelDockPosition::Left || newDock == PanelDockPosition::Right)
+			{
+				g_BottomPanel.width = 300;
+				g_BottomPanel.height = windowHeight - g_MenuBar.getHeight();
+			}
+			else
+			{
+				g_BottomPanel.height = 250;
+				int leftOffset = (g_LeftPanel.visible &&
+					g_LeftPanel.dockPosition == PanelDockPosition::Left)
+					? g_LeftPanel.width
+					: 0;
+				int rightOffset = (g_LeftPanel.visible &&
+					g_LeftPanel.dockPosition == PanelDockPosition::Right)
+					? g_LeftPanel.width
+					: 0;
+				g_BottomPanel.width = windowWidth - leftOffset - rightOffset;
+			}
+		}
+
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	if (g_ResizingLeftPanel)
+	{
+		int newWidth = g_ResizeStartWidth + (x - g_ResizeStartX);
+		if (newWidth >= 200 && newWidth <= 500)
+		{
+			if (g_LeftPanel.dockPosition == PanelDockPosition::Left ||
+				g_LeftPanel.dockPosition == PanelDockPosition::Right ||
+				g_LeftPanel.dockPosition == PanelDockPosition::Floating)
+			{
+				g_LeftPanel.width = newWidth;
+				if (g_LeftPanel.dockPosition == PanelDockPosition::Floating)
+				{
+					g_LeftPanel.floatingWidth = newWidth;
+				}
+			}
+		}
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	if (g_ResizingBottomPanel)
+	{
+		int newHeight = g_ResizeStartHeight - (y - g_ResizeStartY);
+		if (newHeight >= 150 && newHeight <= windowHeight - 300)
+		{
+			if (g_BottomPanel.dockPosition == PanelDockPosition::Top ||
+				g_BottomPanel.dockPosition == PanelDockPosition::Bottom ||
+				g_BottomPanel.dockPosition == PanelDockPosition::Floating)
+			{
+				g_BottomPanel.height = newHeight;
+				if (g_BottomPanel.dockPosition == PanelDockPosition::Floating)
+				{
+					g_BottomPanel.floatingHeight = newHeight;
+				}
+			}
+		}
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	if (g_Selection.dragging)
+	{
+		int leftPanelWidth = g_LeftPanel.visible ? g_LeftPanel.width : 0;
+		if (g_Renderer.IsPointInHexArea(x, y, leftPanelWidth, g_MenuBar.getHeight(),
+			windowWidth, windowHeight))
+		{
+			BytePositionInfo hoverInfo = g_Renderer.GetHexBytePositionInfo(Point(x, y));
+
+			if (hoverInfo.Index >= 0 &&
+				hoverInfo.Index < (long long)g_HexData.getFileSize())
+			{
+				g_Selection.endByte = hoverInfo.Index;
+				cursorBytePos = hoverInfo.Index;
+				cursorNibblePos = 2;
+
+				long long cursorLine = hoverInfo.Index / 16;
+				if (cursorLine < g_ScrollY)
+				{
+					g_ScrollY = (int)cursorLine;
+				}
+				else if (cursorLine >= g_ScrollY + g_LinesPerPage)
+				{
+					g_ScrollY = (int)(cursorLine - g_LinesPerPage + 1);
+				}
+
+				[self setNeedsDisplay:YES];
+			}
+		}
+		return;
+	}
+}
+
+- (void)mouseMoved:(NSEvent*)event
+{
+	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
+	int x = (int)location.x;
+	int y = (int)location.y;
+
+	if (g_ContextMenu.isVisible())
+	{
+		g_ContextMenu.handleMouseMove(x, y, &g_Renderer);
+		[self setNeedsDisplay:YES] ;
+		return;
+	}
+
+	if (g_MainScrollbar.visible)
+	{
+		bool wasHovered = g_MainScrollbar.hovered;
+		g_MainScrollbar.hovered = g_Renderer.isPointInScrollbarTrack(x, y, g_MainScrollbar);
+		g_MainScrollbar.thumbHovered = g_Renderer.isPointInScrollbarThumb(x, y, g_MainScrollbar);
+
+		if (wasHovered != g_MainScrollbar.hovered)
+		{
+			[self setNeedsDisplay:YES] ;
+		}
+	}
+
+	if (g_MenuBar.handleMouseMove(x, y))
+	{
+		[self setNeedsDisplay:YES] ;
+	}
+}
+
+- (void)scrollWheel:(NSEvent*)event
+{
+	int delta = (int)[event deltaY];
+	int oldY = g_ScrollY;
+	g_ScrollY += delta;
+
+	int maxScroll = g_TotalLines - g_LinesPerPage;
+	if (maxScroll < 0)
+		maxScroll = 0;
+
+	if (g_ScrollY < 0)
+		g_ScrollY = 0;
+	if (g_ScrollY > maxScroll)
+		g_ScrollY = maxScroll;
+
+	if (maxScroll > 0)
+	{
+		g_MainScrollbar.position = (float)g_ScrollY / (float)maxScroll;
+
+		if (g_MainScrollbar.position < 0.0f)
+			g_MainScrollbar.position = 0.0f;
+		if (g_MainScrollbar.position > 1.0f)
+			g_MainScrollbar.position = 1.0f;
+	}
+
+	if (g_ScrollY != oldY)
+	{
+		[self setNeedsDisplay:YES] ;
+	}
+}
+
+- (void)keyDown:(NSEvent*)event
+{
+	NSString* chars = [event characters];
+	if ([chars length] == 0)
+		return;
+
+	unichar ch = [chars characterAtIndex:0];
+	NSEventModifierFlags flags = [event modifierFlags];
+	bool ctrl = (flags & NSEventModifierFlagCommand) != 0;
+	bool shift = (flags & NSEventModifierFlagShift) != 0;
+	bool alt = (flags & NSEventModifierFlagOption) != 0;
+
+	if (!ctrl && cursorBytePos >= 0 && cursorBytePos < (long long)g_HexData.getFileSize())
+	{
+		char c = (char)ch;
+
+		if (c >= 'a' && c <= 'f')
+			c -= 32;
+
+		if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))
+		{
+			int nibbleValue = (c <= '9') ? (c - '0') : (c - 'A' + 10);
+
+			uint8_t currentByte = g_HexData.getByte((size_t)cursorBytePos);
+			uint8_t newByte;
+
+			if (cursorNibblePos == 0)
+				newByte = (nibbleValue << 4) | (currentByte & 0x0F);
+			else
+				newByte = (currentByte & 0xF0) | nibbleValue;
+
+			g_HexData.editByte((size_t)cursorBytePos, newByte);
+
+			if (cursorNibblePos == 0)
+			{
+				cursorNibblePos = 1;
+			}
+			else
+			{
+				if (cursorBytePos < (long long)g_HexData.getFileSize() - 1)
+				{
+					cursorBytePos++;
+					cursorNibblePos = 0;
+
+					long long cursorLine = cursorBytePos / 16;
+					if (cursorLine >= g_ScrollY + g_LinesPerPage)
+					{
+						g_ScrollY = (int)(cursorLine - g_LinesPerPage + 1);
+					}
+				}
+			}
+
+			caretVisible = true;
+			[self setNeedsDisplay:YES] ;
+			return;
+		}
+	}
+
+	if (ctrl)
+	{
+		switch (ch)
+		{
+		case 'n':
+			OnNew();
+			[self setNeedsDisplay:YES] ;
+			return;
+		case 'o':
+			OnFileOpen();
+			return;
+		case 's':
+			if (shift)
+				OnFileSaveAs();
+			else
+				OnFileSave();
+			return;
+		case 'f':
+			OnFindReplace();
+			return;
+		case 'g':
+			OnGoTo();
+			return;
+		case 'p':
+			OnPluginsDialog();
+			return;
+		case ',':
+			OnOptionsDialog();
+			return;
+		case 'a':
+			if (g_HexData.getFileSize() > 0)
+			{
+				g_Selection.active = true;
+				g_Selection.startByte = 0;
+				g_Selection.endByte = (long long)g_HexData.getFileSize() - 1;
+				[self setNeedsDisplay:YES] ;
+			}
+			return;
+		}
+	}
+
+	if (cursorBytePos >= 0 && g_HexData.getFileSize() > 0)
+	{
+		long long maxPos = (long long)g_HexData.getFileSize() - 1;
+		bool moved = false;
+
+		switch ([event keyCode])
+		{
+		case 123:
+			if (cursorNibblePos > 0)
+			{
+				cursorNibblePos = 0;
+			}
+			else if (cursorBytePos > 0)
+			{
+				cursorBytePos--;
+				cursorNibblePos = 1;
+			}
+			moved = true;
+			break;
+
+		case 124:
+			if (cursorNibblePos < 1)
+			{
+				cursorNibblePos = 1;
+			}
+			else if (cursorBytePos < maxPos)
+			{
+				cursorBytePos++;
+				cursorNibblePos = 0;
+			}
+			moved = true;
+			break;
+
+		case 126:
+			if (cursorBytePos >= 16)
+			{
+				cursorBytePos -= 16;
+				moved = true;
+			}
+			break;
+
+		case 125:
+			if (cursorBytePos + 16 <= maxPos)
+			{
+				cursorBytePos += 16;
+				moved = true;
+			}
+			break;
+		}
+
+		if (moved)
+		{
+			long long cursorLine = cursorBytePos / 16;
+			if (cursorLine < g_ScrollY)
+			{
+				g_ScrollY = (int)cursorLine;
+			}
+			else if (cursorLine >= g_ScrollY + g_LinesPerPage)
+			{
+				g_ScrollY = (int)(cursorLine - g_LinesPerPage + 1);
+			}
+
+			caretVisible = true;
+			[self setNeedsDisplay:YES] ;
+			return;
+		}
+	}
+
+	if (ch == 27)
+	{
+		if (g_ContextMenu.isVisible())
+		{
+			g_ContextMenu.hide();
+			[self setNeedsDisplay:YES] ;
+			return;
+		}
+		if (g_Selection.active)
+		{
+			g_Selection.clear();
+			[self setNeedsDisplay:YES] ;
+			return;
+		}
+	}
+}
+
+@end
+
+@interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+{
+	NSWindow* window;
+	HexView* hexView;
+}
+@end
+
+@implementation AppDelegate
+
+- (void)applicationDidFinishLaunching:(NSNotification*)notification
+{
+	NSRect frame = NSMakeRect(100, 100, 1200, 800);
+	NSWindowStyleMask style = NSWindowStyleMaskTitled |
+		NSWindowStyleMaskClosable |
+		NSWindowStyleMaskMiniaturizable |
+		NSWindowStyleMaskResizable;
+
+	window = [[NSWindow alloc]initWithContentRect:frame
+		styleMask : style
+		backing : NSBackingStoreBuffered
+		defer : NO];
+
+	[window setTitle:@"HexViewer"] ;
+	[window setDelegate:self] ;
+
+	hexView = [[HexView alloc]initWithFrame:[[window contentView]bounds] ];
+	[hexView setAutoresizingMask : NSViewWidthSizable | NSViewHeightSizable] ;
+	[window setContentView : hexView] ;
+
+	g_Hwnd = (__bridge void*)window;
+	g_nsWindow = window;
+
+	g_Renderer.initialize((__bridge NativeWindow)hexView);
+	g_Renderer.resize((int)frame.size.width, (int)frame.size.height);
+
+	g_LeftPanel.visible = true;
+	g_LeftPanel.width = 280;
+	g_LeftPanel.dockPosition = PanelDockPosition::Left;
+
+	g_BottomPanel.visible = true;
+	g_BottomPanel.height = 250;
+	g_BottomPanel.dockPosition = PanelDockPosition::Bottom;
+
+	int leftPanelWidth = g_LeftPanel.visible ? g_LeftPanel.width : 0;
+	g_Renderer.UpdateHexMetrics(leftPanelWidth, g_MenuBar.getHeight());
+
+	g_LinesPerPage = ((int)frame.size.height - g_MenuBar.getHeight() - 40) / 16;
+	if (g_LinesPerPage < 1)
+		g_LinesPerPage = 1;
+
+	char* filename = GetFileNameFromCmdLine();
+	if (filename)
+	{
+		if (g_HexData.loadFile(filename))
+		{
+			StrCopy(g_CurrentFilePath, filename);
+			ApplyEnabledPlugins();
+			g_TotalLines = (int)g_HexData.getHexLines().count;
+		}
+	}
+
+	[window makeKeyAndOrderFront : nil];
+	[window makeFirstResponder : hexView] ;
+
+	[hexView setNeedsDisplay : YES] ;
+}
+
+- (void)windowDidResize:(NSNotification*)notification
+{
+	NSRect frame = [[window contentView]bounds];
+	int w = (int)frame.size.width;
+	int h = (int)frame.size.height;
+
+	if (w < 800)
+		w = 800;
+	if (h < 600)
+		h = 600;
+
+	g_Renderer.resize(w, h);
+
+	g_LinesPerPage = (h - g_MenuBar.getHeight() - 40) / 16;
+	if (g_LinesPerPage < 1)
+		g_LinesPerPage = 1;
+
+	g_MenuBar.closeAllMenus();
+
+	[hexView setNeedsDisplay:YES] ;
+}
+
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender
+{
+	return YES;
+}
+
+- (void)applicationWillTerminate : (NSNotification*)notification
+{
+	SaveOptionsToFile(g_Options);
+	g_Renderer.cleanup();
+}
+
+@end
+
+int main(int argc, char** argv)
+{
+	@autoreleasepool
+	{
+		
+		DetectNative();
+		g_Options.enabledPluginCount = 0;
+		LoadOptionsFromFile(g_Options);
+
+		if (argc > 1)
+		{
+			SetCommandLineFile(argv[1]);
+		}
+
+		g_MenuBar.setPosition(0, 0);
+		g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, OnFileProcessOpen, RecentCallbacks));
+		g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnFindReplace, OnGoTo));
+		g_MenuBar.addMenu(MenuHelper::createToolsMenu(OnOptionsDialog, OnPluginsDialog));
+		g_MenuBar.addMenu(MenuHelper::createHelpMenu(OnAbout, OnDocumentation));
+
+		NSApplication* app = [NSApplication sharedApplication];
+		AppDelegate* delegate = [[AppDelegate alloc]init];
+		[app setDelegate:delegate] ;
+		[app setActivationPolicy:NSApplicationActivationPolicyRegular] ;
+		[app activateIgnoringOtherApps:YES] ;
+
+		[app run] ;
+
+		return 0;
+	}
 }
 
 #elif defined(__linux__)

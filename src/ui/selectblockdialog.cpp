@@ -631,6 +631,65 @@ void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
   g_selectBlockData = nullptr;
 }
 
+#elif defined(__APPLE__)
+
+void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
+  std::function<void(const std::string&, const std::string&, bool, int)> callback,
+  long long initialStart,
+  long long initialLength)
+{
+
+  SelectBlockDialogData data = {};
+  data.callback = callback;
+  data.selectedRadio = 0;
+
+  if (initialStart >= 0)
+  {
+    char hexStart[32];
+    ItoaHex(initialStart, hexStart, 32);
+    data.startOffsetText = hexStart;
+
+    if (initialLength > 0)
+    {
+      long long endOffset = initialStart + initialLength;
+
+      char hexEnd[32];
+      ItoaHex(endOffset, hexEnd, 32);
+      data.endOffsetText = hexEnd;
+
+      char hexLength[32];
+      ItoaHex(initialLength, hexLength, 32);
+      data.lengthText = hexLength;
+
+      data.selectedMode = 0;
+      data.activeTextBox = 1;
+    }
+    else
+    {
+      data.selectedMode = 1;
+      data.activeTextBox = 2;
+      data.lengthText = "1";
+      data.endOffsetText = "";
+    }
+  }
+  else
+  {
+    data.selectedMode = 0;
+    data.activeTextBox = 0;
+    data.startOffsetText = "";
+    data.endOffsetText = "";
+    data.lengthText = "1";
+  }
+
+  if (callback)
+  {
+    callback(data.startOffsetText,
+      data.selectedMode == 0 ? data.endOffsetText : data.lengthText,
+      data.selectedMode == 1,
+      data.selectedRadio);
+  }
+}
+
 #elif defined(__linux__)
 
 void ProcessSelectBlockEvent(SelectBlockDialogData* data, XEvent* event, int width, int height)
