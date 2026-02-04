@@ -47,9 +47,9 @@ void RenderSelectBlockDialog(SelectBlockDialogData* data, int windowWidth, int w
 
 #ifdef _WIN32
   char startDisplay[256];
-  StringCopy(startDisplay, data->startOffsetText, 256);
+  stringCopy(startDisplay, data->startOffsetText, 256);
   if (startActive && caretVisible)
-    StringAppend(startDisplay, '|', 256);
+    stringappend(startDisplay, '|', 256);
   data->renderer->drawText(startDisplay, startBox.x + 8, startBox.y + 8, Color(240, 240, 240));
 #else
   std::string startDisplay = data->startOffsetText;
@@ -80,9 +80,9 @@ void RenderSelectBlockDialog(SelectBlockDialogData* data, int windowWidth, int w
 
 #ifdef _WIN32
   char endDisplay[256];
-  StringCopy(endDisplay, data->endOffsetText, 256);
+  stringCopy(endDisplay, data->endOffsetText, 256);
   if (endActive && caretVisible)
-    StringAppend(endDisplay, '|', 256);
+    stringappend(endDisplay, '|', 256);
   data->renderer->drawText(endDisplay, endBox.x + 8, endBox.y + 8, endText);
 #else
   std::string endDisplay = data->endOffsetText;
@@ -113,9 +113,9 @@ void RenderSelectBlockDialog(SelectBlockDialogData* data, int windowWidth, int w
 
 #ifdef _WIN32
   char lengthDisplay[256];
-  StringCopy(lengthDisplay, data->lengthText, 256);
+  stringCopy(lengthDisplay, data->lengthText, 256);
   if (lengthActive && caretVisible)
-    StringAppend(lengthDisplay, '|', 256);
+    stringappend(lengthDisplay, '|', 256);
   data->renderer->drawText(lengthDisplay, lengthBox.x + 8, lengthBox.y + 8, lengthText);
 #else
   std::string lengthDisplay = data->lengthText;
@@ -289,17 +289,17 @@ void HandleSelectBlockChar(SelectBlockDialogData* data, char ch, int windowWidth
   if (ch == '\b' || ch == 8)
   {
 #ifdef _WIN32
-    if (data->activeTextBox == 0 && !StringIsEmpty(data->startOffsetText))
+    if (data->activeTextBox == 0 && !stringIsEmpty(data->startOffsetText))
     {
-      StringRemoveLast(data->startOffsetText);
+      stringRemoveLast(data->startOffsetText);
     }
-    else if (data->activeTextBox == 1 && data->selectedMode == 0 && !StringIsEmpty(data->endOffsetText))
+    else if (data->activeTextBox == 1 && data->selectedMode == 0 && !stringIsEmpty(data->endOffsetText))
     {
-      StringRemoveLast(data->endOffsetText);
+      stringRemoveLast(data->endOffsetText);
     }
-    else if (data->activeTextBox == 2 && data->selectedMode == 1 && !StringIsEmpty(data->lengthText))
+    else if (data->activeTextBox == 2 && data->selectedMode == 1 && !stringIsEmpty(data->lengthText))
     {
-      StringRemoveLast(data->lengthText);
+      stringRemoveLast(data->lengthText);
     }
 #else
     if (data->activeTextBox == 0 && !data->startOffsetText.empty())
@@ -334,15 +334,15 @@ void HandleSelectBlockChar(SelectBlockDialogData* data, char ch, int windowWidth
 #ifdef _WIN32
     if (data->activeTextBox == 0)
     {
-      StringAppend(data->startOffsetText, ch, 256);
+      stringappend(data->startOffsetText, ch, 256);
     }
     else if (data->activeTextBox == 1 && data->selectedMode == 0)
     {
-      StringAppend(data->endOffsetText, ch, 256);
+      stringappend(data->endOffsetText, ch, 256);
     }
     else if (data->activeTextBox == 2 && data->selectedMode == 1)
     {
-      StringAppend(data->lengthText, ch, 256);
+      stringappend(data->lengthText, ch, 256);
     }
 #else
     if (data->activeTextBox == 0)
@@ -518,20 +518,20 @@ void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
   if (initialStart >= 0)
   {
     char hexStart[32];
-    ItoaHex(initialStart, hexStart, 32);
-    StringCopy(data.startOffsetText, hexStart, 256);
+    itoaHex(initialStart, hexStart, 32);
+    stringCopy(data.startOffsetText, hexStart, 256);
 
     if (initialLength > 0)
     {
       long long endOffset = initialStart + initialLength;
 
       char hexEnd[32];
-      ItoaHex(endOffset, hexEnd, 32);
-      StringCopy(data.endOffsetText, hexEnd, 256);
+      itoaHex(endOffset, hexEnd, 32);
+      stringCopy(data.endOffsetText, hexEnd, 256);
 
       char hexLength[32];
-      ItoaHex(initialLength, hexLength, 32);
-      StringCopy(data.lengthText, hexLength, 256);
+      itoaHex(initialLength, hexLength, 32);
+      stringCopy(data.lengthText, hexLength, 256);
 
       data.selectedMode = 0;
       data.activeTextBox = 1;
@@ -541,8 +541,8 @@ void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
       long long endOffset = initialStart + 1;
 
       char hexEnd[32];
-      ItoaHex(endOffset, hexEnd, 32);
-      StringCopy(data.endOffsetText, hexEnd, 256);
+      itoaHex(endOffset, hexEnd, 32);
+      stringCopy(data.endOffsetText, hexEnd, 256);
 
       data.lengthText[0] = '1';
       data.lengthText[1] = 0;
@@ -646,7 +646,7 @@ void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
   if (initialStart >= 0)
   {
     char hexStart[32];
-    ItoaHex(initialStart, hexStart, 32);
+    itoaHex(initialStart, hexStart, 32);
     data.startOffsetText = hexStart;
 
     if (initialLength > 0)
@@ -654,11 +654,11 @@ void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
       long long endOffset = initialStart + initialLength;
 
       char hexEnd[32];
-      ItoaHex(endOffset, hexEnd, 32);
+      itoaHex(endOffset, hexEnd, 32);
       data.endOffsetText = hexEnd;
 
       char hexLength[32];
-      ItoaHex(initialLength, hexLength, 32);
+      itoaHex(initialLength, hexLength, 32);
       data.lengthText = hexLength;
 
       data.selectedMode = 0;
@@ -787,7 +787,7 @@ void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
   if (initialStart >= 0)
   {
     char hexStart[32];
-    ItoaHex(initialStart, hexStart, 32);
+    itoaHex(initialStart, hexStart, 32);
     data.startOffsetText = hexStart;
 
     if (initialLength > 0)
@@ -795,11 +795,11 @@ void ShowSelectBlockDialog(void* parentHandle, bool darkMode,
       long long endOffset = initialStart + initialLength;
 
       char hexEnd[32];
-      ItoaHex(endOffset, hexEnd, 32);
+      itoaHex(endOffset, hexEnd, 32);
       data.endOffsetText = hexEnd;
 
       char hexLength[32];
-      ItoaHex(initialLength, hexLength, 32);
+      itoaHex(initialLength, hexLength, 32);
       data.lengthText = hexLength;
 
       data.selectedMode = 0;

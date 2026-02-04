@@ -494,69 +494,31 @@ void HexData::generateHeader(int bytesPerLine)
 
 void HexData::convertDataToHex(int bytesPerLine)
 {
-    la_clear(&hexLines);
+  la_clear(&hexLines);
 
-    if (bb_empty(&fileData))
-    {
-        la_push_back_cstr(&hexLines, "No data to display");
-        ss_clear(&headerLine);
-        return;
-    }
+  if (bb_empty(&fileData))
+  {
+    la_push_back_cstr(&hexLines, "No data to display");
+    ss_clear(&headerLine);
+    return;
+  }
 
-    bytesPerLine = clamp_int(bytesPerLine, 8, 48);
-    currentBytesPerLine = bytesPerLine;
+  bytesPerLine = clamp_int(bytesPerLine, 8, 48);
+  currentBytesPerLine = bytesPerLine;
 
-    generateHeader(bytesPerLine);
-    generateDisassembly(bytesPerLine);
+  generateHeader(bytesPerLine);
+  generateDisassembly(bytesPerLine);
 
-    for (size_t i = 0; i < fileData.size; i += (size_t)bytesPerLine)
-    {
-        SimpleString line;
-        ss_init(&line);
+  size_t lineCount = (fileData.size + bytesPerLine - 1) / bytesPerLine;
 
-        ss_append_hex8(&line, (unsigned int)i);
-        ss_append_cstr(&line, "  ");
+  hexLines.count = lineCount;
+  hexLines.capacity = lineCount;
+  hexLines.lines = (SimpleString*)memAlloc(sizeof(SimpleString) * lineCount);
 
-        for (int j = 0; j < bytesPerLine; ++j)
-        {
-            size_t idx = i + (size_t)j;
-            if (idx < fileData.size)
-            {
-                unsigned int v = fileData.data[idx];
-                ss_append_hex2(&line, v);
-                ss_append_char(&line, ' ');
-            }
-            else
-            {
-                ss_append_cstr(&line, "   ");
-            }
-        }
-
-        ss_append_char(&line, ' ');
-
-        for (int j = 0; j < bytesPerLine; ++j)
-        {
-            size_t idx = i + (size_t)j;
-            if (idx >= fileData.size)
-                break;
-
-            uint8_t b = fileData.data[idx];
-
-            if (b >= 32 && b != 127)
-            {
-                ss_append_char(&line, (char)b);
-            }
-            else
-            {
-                ss_append_char(&line, '.');
-            }
-        }
-
-        ss_append_cstr(&line, "      ");
-
-        la_push_back(&hexLines, &line);
-        ss_free(&line);
-    }
+  for (size_t i = 0; i < lineCount; i++)
+  {
+    ss_init(&hexLines.lines[i]);
+  }
 }
 
 void HexData::executeBookmarkPlugins()
@@ -621,5 +583,92 @@ void HexData::clearPluginAnnotations()
   pba_init(&pluginAnnotations);
 }
 
+void HexData::getHexLine(size_t lineIndex, char* outBuffer, size_t bufferSize) const
+{
+  if (!outBuffer || bufferSize < 128)
+    return;
 
+  size_t byteOffset = lineIndex * currentBytesPerLine;
 
+  if (byteOffset >= fileData.size)
+  {
+    outBuffer[0] = 0;
+    return;
+  }
+
+  char* ptr = outBuffer;
+  size_t remaining = bufferSize;
+
+  if (remaining > 10)
+  {
+    char hex8[8];
+    uintToHex8((unsigned int)byteOffset, hex8);
+
+    for (int i = 0; i < 8 && remaining > 1; i++)
+    {
+      *ptr++ = hex8[i];
+      remaining--;
+    }
+
+    if (remaining > 2)
+    {
+      *ptr++ = ' ';
+      *ptr++ = ' ';
+      remaining -= 2;
+    }
+  }
+
+  for (int j = 0; j < currentBytesPerLine; ++j)
+  {
+    if (remaining < 3)
+      break;
+
+    size_t idx = byteOffset + j;
+
+    if (idx < fileData.size)
+    {
+      char hx[2];
+      byteToHex(fileData.data[idx], hx);
+
+      *ptr++ = hx[0];
+      *ptr++ = hx[1];
+      *ptr++ = ' ';
+      remaining -= 3;
+    }
+    else
+    {
+      *ptr++ = ' ';
+      *ptr++ = ' ';
+      *ptr++ = ' ';
+      remaining -= 3;
+    }
+  }
+
+  if (remaining > 1)
+  {
+    *ptr++ = ' ';
+    remaining--;
+  }
+
+  for (int j = 0; j < currentBytesPerLine; ++j)
+  {
+    if (remaining < 2)
+      break;
+
+    size_t idx = byteOffset + j;
+    if (idx >= fileData.size)
+      break;
+
+    uint8_t b = fileData.data[idx];
+    *ptr++ = (b >= 32 && b != 127) ? (char)b : '.';
+    remaining--;
+  }
+
+  while (remaining > 1 && (ptr - outBuffer) < 120)
+  {
+    *ptr++ = ' ';
+    remaining--;
+  }
+
+  *ptr = 0;
+}

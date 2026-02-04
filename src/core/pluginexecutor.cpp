@@ -12,11 +12,11 @@ static bool pythonInitialized = false;
 
 typedef void (*PyErrPrintFunc)();
 typedef void *(*PyErrOccurredFunc)();
-typedef void (*PyErrClearFunc)();
+typedef void (*PyErrclearFunc)();
 
 static PyErrPrintFunc PyErr_Print = nullptr;
 static PyErrOccurredFunc PyErr_Occurred = nullptr;
-static PyErrClearFunc PyErr_Clear = nullptr;
+static PyErrclearFunc PyErr_clear = nullptr;
 
 typedef void (*PyInitFunc)();
 typedef void (*PyFinalFunc)();
@@ -179,7 +179,7 @@ bool InitializePythonRuntime()
 
     PyErr_Print = (PyErrPrintFunc)GetProcAddress(pythonDLL, "PyErr_Print");
     PyErr_Occurred = (PyErrOccurredFunc)GetProcAddress(pythonDLL, "PyErr_Occurred");
-    PyErr_Clear = (PyErrClearFunc)GetProcAddress(pythonDLL, "PyErr_Clear");
+    PyErr_clear = (PyErrclearFunc)GetProcAddress(pythonDLL, "PyErr_clear");
 
 #else
     const char *libNames[] = {
@@ -215,7 +215,7 @@ bool InitializePythonRuntime()
 
     PyErr_Print = (PyErrPrintFunc)dlsym(pythonLib, "PyErr_Print");
     PyErr_Occurred = (PyErrOccurredFunc)dlsym(pythonLib, "PyErr_Occurred");
-    PyErr_Clear = (PyErrClearFunc)dlsym(pythonLib, "PyErr_Clear");
+    PyErr_clear = (PyErrclearFunc)dlsym(pythonLib, "PyErr_clear");
 #endif
 
     if (!Py_Initialize)
@@ -291,8 +291,8 @@ bool GetPythonPluginInfo(const char *pluginPath, PluginInfo *info)
     void *pModule = PyImport_ImportModule(moduleName);
     if (!pModule)
     {
-        if (PyErr_Clear)
-            PyErr_Clear();
+        if (PyErr_clear)
+            PyErr_clear();
         return false;
     }
 
@@ -316,28 +316,28 @@ bool GetPythonPluginInfo(const char *pluginPath, PluginInfo *info)
         {
             char *name = PyUnicode_AsUTF8(pName);
             if (name)
-                StrCopy(info->name, name);
+                strCopy(info->name, name);
         }
 
         if (pVersion && PyUnicode_AsUTF8)
         {
             char *version = PyUnicode_AsUTF8(pVersion);
             if (version)
-                StrCopy(info->version, version);
+                strCopy(info->version, version);
         }
 
         if (pAuthor && PyUnicode_AsUTF8)
         {
             char *author = PyUnicode_AsUTF8(pAuthor);
             if (author)
-                StrCopy(info->author, author);
+                strCopy(info->author, author);
         }
 
         if (pDesc && PyUnicode_AsUTF8)
         {
             char *desc = PyUnicode_AsUTF8(pDesc);
             if (desc)
-                StrCopy(info->description, desc);
+                strCopy(info->description, desc);
         }
 
         Py_DecRef(pResult);
@@ -385,8 +385,8 @@ bool CanPluginDisassemble(const char* pluginPath)
     {
       if (PyErr_Print)
         PyErr_Print();
-      if (PyErr_Clear)
-        PyErr_Clear();
+      if (PyErr_clear)
+        PyErr_clear();
     }
 
     return false;
@@ -395,9 +395,9 @@ bool CanPluginDisassemble(const char* pluginPath)
   void* pFunc = PyObject_GetAttrString(pModule, "disassemble");
   bool canDisasm = (pFunc != nullptr);
 
-  if (!pFunc && PyErr_Clear)
+  if (!pFunc && PyErr_clear)
   {
-    PyErr_Clear();
+    PyErr_clear();
   }
 
   if (pFunc)
@@ -421,17 +421,17 @@ bool CanPluginAnalyze(const char* pluginPath)
   void* pModule = PyImport_ImportModule(moduleName);
   if (!pModule)
   {
-    if (PyErr_Clear)
-      PyErr_Clear();
+    if (PyErr_clear)
+      PyErr_clear();
     return false;
   }
 
   void* pFunc = PyObject_GetAttrString(pModule, "analyze");
   bool canAnalyze = (pFunc != nullptr);
 
-  if (!pFunc && PyErr_Clear)
+  if (!pFunc && PyErr_clear)
   {
-    PyErr_Clear();
+    PyErr_clear();
   }
 
   if (pFunc)
@@ -455,17 +455,17 @@ bool CanPluginTransform(const char* pluginPath)
   void* pModule = PyImport_ImportModule(moduleName);
   if (!pModule)
   {
-    if (PyErr_Clear)
-      PyErr_Clear();
+    if (PyErr_clear)
+      PyErr_clear();
     return false;
   }
 
   void* pFunc = PyObject_GetAttrString(pModule, "transform");
   bool canTransform = (pFunc != nullptr);
 
-  if (!pFunc && PyErr_Clear)
+  if (!pFunc && PyErr_clear)
   {
-    PyErr_Clear();
+    PyErr_clear();
   }
 
   if (pFunc)
@@ -484,12 +484,12 @@ void pba_init(PluginBookmarkArray* arr) {
 void pba_push_back(PluginBookmarkArray* arr, const PluginBookmark* bookmark) {
   if (arr->count >= arr->capacity) {
     size_t newCapacity = arr->capacity == 0 ? 8 : arr->capacity * 2;
-    PluginBookmark* newBookmarks = (PluginBookmark*)PlatformAlloc(
+    PluginBookmark* newBookmarks = (PluginBookmark*)platformAlloc(
       newCapacity * sizeof(PluginBookmark));
 
     if (arr->bookmarks) {
       memcpy(newBookmarks, arr->bookmarks, arr->count * sizeof(PluginBookmark));
-      PlatformFree(arr->bookmarks);
+      platformFree(arr->bookmarks);
     }
 
     arr->bookmarks = newBookmarks;
@@ -502,7 +502,7 @@ void pba_push_back(PluginBookmarkArray* arr, const PluginBookmark* bookmark) {
 
 void pba_free(PluginBookmarkArray* arr) {
   if (arr->bookmarks) {
-    PlatformFree(arr->bookmarks);
+    platformFree(arr->bookmarks);
     arr->bookmarks = nullptr;
   }
   arr->count = 0;
@@ -576,17 +576,17 @@ bool CanPluginGenerateBookmarks(const char* pluginPath) {
 
   void* pModule = PyImport_ImportModule(moduleName);
   if (!pModule) {
-    if (PyErr_Clear)
-      PyErr_Clear();
+    if (PyErr_clear)
+      PyErr_clear();
     return false;
   }
 
   void* pFunc = PyObject_GetAttrString(pModule, "generate_bookmarks");
   bool canGenerate = (pFunc != nullptr);
 
-  if (!pFunc && PyErr_Clear)
+  if (!pFunc && PyErr_clear)
   {
-    PyErr_Clear();
+    PyErr_clear();
   }
 
   if (pFunc)
@@ -613,15 +613,15 @@ bool ExecutePluginBookmarks(
 
   void* pModule = PyImport_ImportModule(moduleName);
   if (!pModule) {
-    if (PyErr_Clear)
-      PyErr_Clear();
+    if (PyErr_clear)
+      PyErr_clear();
     return false;
   }
 
   void* pFunc = PyObject_GetAttrString(pModule, "generate_bookmarks");
   if (!pFunc) {
-    if (PyErr_Clear)
-      PyErr_Clear();
+    if (PyErr_clear)
+      PyErr_clear();
     Py_DecRef(pModule);
     return false;
   }
@@ -709,8 +709,8 @@ bool ExecutePluginBookmarks(
 
   if (!pResult)
   {
-    if (PyErr_Clear)
-      PyErr_Clear();
+    if (PyErr_clear)
+      PyErr_clear();
 
     Py_DecRef(pArgs);
     Py_DecRef(pFunc);
@@ -749,13 +749,13 @@ bool ExecutePluginBookmarks(
         if (PyUnicode_AsUTF8) {
           char* label = PyUnicode_AsUTF8(pLabel);
           if (label)
-            StrCopy(bookmark.label, label);
+            strCopy(bookmark.label, label);
         }
 
         if (pDesc && PyUnicode_AsUTF8) {
           char* desc = PyUnicode_AsUTF8(pDesc);
           if (desc)
-            StrCopy(bookmark.description, desc);
+            strCopy(bookmark.description, desc);
         }
 
         void* pColor = PyDict_GetItemString(pItem, "color");
@@ -771,7 +771,7 @@ bool ExecutePluginBookmarks(
           }
         }
 
-        StrCopy(bookmark.pluginSource, moduleName);
+        strCopy(bookmark.pluginSource, moduleName);
         pba_push_back(outBookmarks, &bookmark);
         success = true;
       }
@@ -825,7 +825,7 @@ bool ExecutePythonDisassembly(
             return false;
         }
 
-        StrCopy(cachedModuleName, moduleName);
+        strCopy(cachedModuleName, moduleName);
     }
 
     void *pArgs = PyTuple_New(4);

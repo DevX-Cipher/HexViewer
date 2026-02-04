@@ -113,8 +113,8 @@ Rect GetBookmarkRect(int bookmarkIndex, const Rect& panelBounds);
 void Bookmarks_UpdateValues();
 void PatternSearch_SetFocus();
 void PatternSearch_Run();
-void PatternSearch_FindNext();
-void PatternSearch_FindPrev();
+void PatternSearch_findNext();
+void PatternSearch_findPrev();
 static int ParseHexPattern(const char* text, uint8_t* out, int maxOut);
 
 void Checksum_ToggleMD5();
@@ -135,12 +135,12 @@ bool HandleLeftPanelContentClick(int x, int y, int windowWidth, int windowHeight
 void Bookmarks_Add(long long byteOffset, const char* name, Color color);
 void Bookmarks_Remove(int index);
 void Bookmarks_JumpTo(int index);
-void Bookmarks_Clear();
-int Bookmarks_FindAtOffset(long long byteOffset);
+void Bookmarks_clear();
+int Bookmarks_findAtOffset(long long byteOffset);
 const Bookmark* Bookmarks_GetAtOffset(long long byteOffset);
 
 void ByteStats_Compute(HexData& hexData);
-void ByteStats_Clear();
+void ByteStats_clear();
 
 void InitializeLeftPanelSections(Vector<PanelSection>& sections, HexData& hexData);
 void InitializeDataInspectorSection(Vector<PanelSection>& sections, HexData& hexData);

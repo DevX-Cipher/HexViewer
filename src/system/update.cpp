@@ -97,7 +97,7 @@ void WinSleep(int milliseconds)
 
 #else
 
-typedef std::string WinString;
+typedef std::string winString;
 typedef std::thread WinThread;
 
 void WinSleep(int ms)
@@ -125,8 +125,8 @@ Rect UpdateDialog::scrollThumbRect = {};
 
 static DownloadState downloadState = DownloadState::Idle;
 static float downloadProgress = 0.0f;
-static WinString downloadStatus;
-static WinString downloadedFilePath;
+static winString downloadStatus;
+static winString downloadedFilePath;
 static Rect progressBarRect = {};
 static WinThread* downloadThread = nullptr;
 static bool betaEnabled = false;
@@ -143,16 +143,16 @@ static bool windowShouldClose = false;
 #endif
 
 #ifdef _WIN32
-WinString GetTempDownloadPath()
+winString GetTempDownloadPath()
 {
   wchar_t tempPath[MAX_PATH];
   GetTempPathW(MAX_PATH, tempPath);
   char temp[MAX_PATH];
   WideCharToMultiByte(CP_UTF8, 0, tempPath, -1, temp, MAX_PATH, nullptr, nullptr);
 
-  WinString result;
-  result.Append(temp);
-  result.Append("update_download");
+  winString result;
+  result.append(temp);
+  result.append("update_download");
   return result;
 }
 #else
@@ -163,16 +163,16 @@ std::string GetTempDownloadPath()
 #endif
 
 #ifdef _WIN32
-WinString ExtractJsonValue(const WinString& json, const char* key)
+winString ExtractJsonValue(const winString& json, const char* key)
 {
-  WinString result;
+  winString result;
 
-  WinString searchKey;
-  searchKey.Append("\"");
-  searchKey.Append(key);
-  searchKey.Append("\"");
+  winString searchKey;
+  searchKey.append("\"");
+  searchKey.append(key);
+  searchKey.append("\"");
 
-  int pos = json.Find(searchKey.CStr());
+  int pos = json.find(searchKey.CStr());
   if (pos == -1)
     return result;
 
@@ -196,7 +196,7 @@ WinString ExtractJsonValue(const WinString& json, const char* key)
   if (endPos >= len)
     return result;
 
-  return json.Substr(quotePos + 1, endPos - quotePos - 1);
+  return json.substr(quotePos + 1, endPos - quotePos - 1);
 }
 #else
 std::string ExtractJsonValue(const std::string& json, const std::string& key)
@@ -223,14 +223,14 @@ std::string ExtractJsonValue(const std::string& json, const std::string& key)
 #endif
 
 #ifdef _WIN32
-bool ExtractJsonBool(const WinString& json, const char* key)
+bool ExtractJsonBool(const winString& json, const char* key)
 {
-  WinString searchKey;
-  searchKey.Append("\"");
-  searchKey.Append(key);
-  searchKey.Append("\"");
+  winString searchKey;
+  searchKey.append("\"");
+  searchKey.append(key);
+  searchKey.append("\"");
 
-  int pos = json.Find(searchKey.CStr());
+  int pos = json.find(searchKey.CStr());
   if (pos == -1)
     return false;
 
@@ -291,9 +291,9 @@ bool ExtractJsonBool(const std::string& json, const std::string& key)
 #endif
 
 #ifdef _WIN32
-WinString HttpGet(const char* url)
+winString HttpGet(const char* url)
 {
-  WinString result;
+  winString result;
 
   HINTERNET hInternet = InternetOpenA("UpdaterAgent/1.0",
     INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
@@ -319,7 +319,7 @@ WinString HttpGet(const char* url)
   {
     for (DWORD i = 0; i < bytesRead; i++)
     {
-      result.Append(buffer[i]);
+      result.append(buffer[i]);
     }
   }
 
@@ -392,14 +392,14 @@ bool DownloadFile(const char* url, const char* outputPath,
 
       char status[256];
       char totalKB[32], fileKB[32];
-      ItoaDec((long long)totalRead / 1024, totalKB, sizeof(totalKB));
-      ItoaDec((long long)fileSize / 1024, fileKB, sizeof(fileKB));
+      itoaDec((long long)totalRead / 1024, totalKB, sizeof(totalKB));
+      itoaDec((long long)fileSize / 1024, fileKB, sizeof(fileKB));
 
-      StringCopy(status, "Downloaded ", sizeof(status));
-      StrCat(status, totalKB);
-      StrCat(status, " KB / ");
-      StrCat(status, fileKB);
-      StrCat(status, " KB");
+      stringCopy(status, "Downloaded ", sizeof(status));
+      strCat(status, totalKB);
+      strCat(status, " KB / ");
+      strCat(status, fileKB);
+      strCat(status, " KB");
 
       progressCallback(progress, status);
     }
@@ -422,9 +422,9 @@ bool DownloadFile(const std::string& url, const std::string& outputPath,
 #endif
 
 #ifdef _WIN32
-WinString GetAssetDownloadUrl(const char* releaseApiUrl, bool includeBeta)
+winString GetAssetDownloadUrl(const char* releaseApiUrl, bool includeBeta)
 {
-  WinString result;
+  winString result;
   bool isMsix = IsMsixPackage();
 
   if (isMsix)
@@ -432,20 +432,20 @@ WinString GetAssetDownloadUrl(const char* releaseApiUrl, bool includeBeta)
     return result;
   }
 
-  WinString modifiedUrl;
-  modifiedUrl.Append(releaseApiUrl);
+  winString modifiedUrl;
+  modifiedUrl.append(releaseApiUrl);
 
   if (includeBeta)
   {
-    int pos = modifiedUrl.Find("/releases/latest");
+    int pos = modifiedUrl.find("/releases/latest");
     if (pos != -1)
     {
-      modifiedUrl = modifiedUrl.Substr(0, pos);
-      modifiedUrl.Append("/releases");
+      modifiedUrl = modifiedUrl.substr(0, pos);
+      modifiedUrl.append("/releases");
     }
   }
 
-  WinString response = HttpGet(modifiedUrl.CStr());
+  winString response = HttpGet(modifiedUrl.CStr());
   if (response.IsEmpty())
     return result;
 
@@ -456,43 +456,43 @@ WinString GetAssetDownloadUrl(const char* releaseApiUrl, bool includeBeta)
 
   if (includeBeta)
   {
-    int releaseStart = response.Find("{\"url\"");
+    int releaseStart = response.find("{\"url\"");
     if (releaseStart != -1)
     {
-      WinString firstRelease = response.Substr(releaseStart, response.Length() - releaseStart);
-      int releaseEnd = firstRelease.Find("},");
+      winString firstRelease = response.substr(releaseStart, response.Length() - releaseStart);
+      int releaseEnd = firstRelease.find("},");
       if (releaseEnd == -1)
       {
-        releaseEnd = firstRelease.Find("}]");
+        releaseEnd = firstRelease.find("}]");
       }
       if (releaseEnd != -1)
       {
-        response = firstRelease.Substr(0, releaseEnd + 1);
+        response = firstRelease.substr(0, releaseEnd + 1);
       }
     }
   }
 
-  int assetsPos = response.Find("\"assets\"");
+  int assetsPos = response.find("\"assets\"");
   if (assetsPos == -1)
     return result;
 
   int currentPos = assetsPos;
   while (true)
   {
-    WinString searchArea = response.Substr(currentPos, response.Length() - currentPos);
-    int namePos = searchArea.Find("\"name\"");
+    winString searchArea = response.substr(currentPos, response.Length() - currentPos);
+    int namePos = searchArea.find("\"name\"");
     if (namePos == -1)
       break;
 
-    WinString nameArea = searchArea.Substr(namePos, searchArea.Length() - namePos);
-    WinString assetName = ExtractJsonValue(nameArea, "name");
+    winString nameArea = searchArea.substr(namePos, searchArea.Length() - namePos);
+    winString assetName = ExtractJsonValue(nameArea, "name");
 
-    if (assetName.Find(targetExtension) != -1)
+    if (assetName.find(targetExtension) != -1)
     {
-      int urlPos = searchArea.Find("\"browser_download_url\"");
+      int urlPos = searchArea.find("\"browser_download_url\"");
       if (urlPos != -1 && urlPos > namePos)
       {
-        WinString urlArea = searchArea.Substr(urlPos, searchArea.Length() - urlPos);
+        winString urlArea = searchArea.substr(urlPos, searchArea.Length() - urlPos);
         return ExtractJsonValue(urlArea, "browser_download_url");
       }
     }
@@ -587,8 +587,8 @@ std::string GetAssetDownloadUrl(const std::string& releaseApiUrl, bool includeBe
 void ProgressCallbackWrapper(float progress, const char* status)
 {
   downloadProgress = progress;
-  downloadStatus.Clear();
-  downloadStatus.Append(status);
+  downloadStatus.clear();
+  downloadStatus.append(status);
 }
 
 void DownloadFromGitHub()
@@ -598,48 +598,48 @@ void DownloadFromGitHub()
   if (isMsix)
   {
     downloadState = DownloadState::Error;
-    downloadStatus.Clear();
-    downloadStatus.Append("MSIX packages update through Microsoft Store");
+    downloadStatus.clear();
+    downloadStatus.append("MSIX packages update through Microsoft Store");
     return;
   }
 
   downloadState = DownloadState::Connecting;
-  downloadStatus.Clear();
-  downloadStatus.Append("Connecting to GitHub...");
+  downloadStatus.clear();
+  downloadStatus.append("Connecting to GitHub...");
   downloadProgress = 0.0f;
 
-  WinString assetUrl = GetAssetDownloadUrl(UpdateDialog::currentInfo.releaseApiUrl, betaEnabled);
+  winString assetUrl = GetAssetDownloadUrl(UpdateDialog::currentInfo.releaseApiUrl, betaEnabled);
   if (assetUrl.IsEmpty())
   {
     downloadState = DownloadState::Error;
-    downloadStatus.Clear();
-    downloadStatus.Append("Failed to find download asset");
+    downloadStatus.clear();
+    downloadStatus.append("Failed to find download asset");
     return;
   }
 
   downloadState = DownloadState::Downloading;
-  downloadStatus.Clear();
-  downloadStatus.Append(betaEnabled ? "Downloading beta update..." : "Downloading update...");
+  downloadStatus.clear();
+  downloadStatus.append(betaEnabled ? "Downloading beta update..." : "Downloading update...");
 
   bool isNative = GetIsNativeFlag();
   const char* extension = isNative ? ".exe" : ".zip";
 
   downloadedFilePath = GetTempDownloadPath();
-  downloadedFilePath.Append(extension);
+  downloadedFilePath.append(extension);
 
   bool success = DownloadFile(assetUrl.CStr(), downloadedFilePath.CStr(), ProgressCallbackWrapper);
 
   if (!success)
   {
     downloadState = DownloadState::Error;
-    downloadStatus.Clear();
-    downloadStatus.Append("Download failed");
+    downloadStatus.clear();
+    downloadStatus.append("Download failed");
     return;
   }
 
   downloadState = DownloadState::Installing;
-  downloadStatus.Clear();
-  downloadStatus.Append("Installing update...");
+  downloadStatus.clear();
+  downloadStatus.append("Installing update...");
 
   if (isNative)
   {
@@ -654,16 +654,16 @@ void DownloadFromGitHub()
 
     wchar_t cmdLine[MAX_PATH * 2];
     cmdLine[0] = 0;
-    WcsCopy(cmdLine, L"/select,\"");
-    StrCat((char*)cmdLine, (char*)wPath);
-    StrCat((char*)cmdLine, (char*)L"\"");
+    wcsCopy(cmdLine, L"/select,\"");
+    strCat((char*)cmdLine, (char*)wPath);
+    strCat((char*)cmdLine, (char*)L"\"");
 
     ShellExecuteW(nullptr, L"open", L"explorer.exe", cmdLine, nullptr, SW_SHOWNORMAL);
   }
 
   downloadState = DownloadState::Complete;
-  downloadStatus.Clear();
-  downloadStatus.Append("Update installed successfully! Please restart.");
+  downloadStatus.clear();
+  downloadStatus.append("Update installed successfully! Please restart.");
   downloadProgress = 1.0f;
 }
 #else
@@ -783,7 +783,7 @@ bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info)
   downloadState = DownloadState::Idle;
   downloadProgress = 0.0f;
 #ifdef _WIN32
-  downloadStatus.Clear();
+  downloadStatus.clear();
 #else
   downloadStatus = "";
 #endif
@@ -952,7 +952,7 @@ bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info)
           {
             CGFloat deltaY = [event scrollingDeltaY];
             scrollOffset -= (int)(deltaY * 2);
-            scrollOffset = ClampInt(scrollOffset, 0, INT_MAX);
+            scrollOffset = clampInt(scrollOffset, 0, INT_MAX);
             OnPaint();
             break;
           }
@@ -1084,7 +1084,7 @@ bool UpdateDialog::Show(NativeWindow parent, const UpdateInfo& info)
         else if (event.xbutton.button == Button4)
         {
           scrollOffset -= 20;
-          scrollOffset = ClampInt(scrollOffset, 0, INT_MAX);
+          scrollOffset = clampInt(scrollOffset, 0, INT_MAX);
           OnPaint();
         }
         else if (event.xbutton.button == Button5)
@@ -1172,7 +1172,7 @@ LRESULT CALLBACK UpdateDialog::DialogProc(HWND hWnd, UINT message, WPARAM wParam
   {
     int delta = GET_WHEEL_DELTA_WPARAM(wParam);
     scrollOffset -= (delta > 0 ? 20 : -20);
-    scrollOffset = ClampInt(scrollOffset, 0, scrollOffset);
+    scrollOffset = clampInt(scrollOffset, 0, scrollOffset);
     InvalidateRect(hWnd, nullptr, FALSE);
     break;
   }
@@ -1574,22 +1574,22 @@ void UpdateDialog::RenderContent(int width, int height)
   renderer->drawText(title, 80, 25, theme.textColor);
 
   char versionText[512];
-  StringCopy(versionText, Translations::T("Current:"), sizeof(versionText));
-  StrCat(versionText, " ");
+  stringCopy(versionText, Translations::T("Current:"), sizeof(versionText));
+  strCat(versionText, " ");
 #ifdef _WIN32
-  StrCat(versionText, currentInfo.currentVersion);
+  strCat(versionText, currentInfo.currentVersion);
 #else
-  StrCat(versionText, currentInfo.currentVersion.c_str());
+  strCat(versionText, currentInfo.currentVersion.c_str());
 #endif
   if (currentInfo.updateAvailable)
   {
-    StrCat(versionText, " → ");
-    StrCat(versionText, Translations::T("Latest:"));
-    StrCat(versionText, " ");
+    strCat(versionText, " → ");
+    strCat(versionText, Translations::T("Latest:"));
+    strCat(versionText, " ");
 #ifdef _WIN32
-    StrCat(versionText, currentInfo.latestVersion);
+    strCat(versionText, currentInfo.latestVersion);
 #else
-    StrCat(versionText, currentInfo.latestVersion.c_str());
+    strCat(versionText, currentInfo.latestVersion.c_str());
 #endif
   }
   renderer->drawText(versionText, 80, 50, theme.disabledText);
@@ -1639,8 +1639,8 @@ void UpdateDialog::RenderContent(int width, int height)
     renderer->drawProgressBar(progressBarRect, downloadProgress, theme);
 
     char pctText[32];
-    ItoaDec((long long)(downloadProgress * 100), pctText, sizeof(pctText));
-    StrCat(pctText, "%");
+    itoaDec((long long)(downloadProgress * 100), pctText, sizeof(pctText));
+    strCat(pctText, "%");
     renderer->drawText(pctText, width / 2 - 15, progressY + 38, theme.textColor);
   }
   else if (currentInfo.updateAvailable && isMsix)
@@ -1758,18 +1758,18 @@ void UpdateDialog::RenderContent(int width, int height)
         visibleRatio = (float)viewHeight / (float)contentHeight;
       }
 
-      visibleRatio = Clamp(visibleRatio, 0.0f, 1.0f);
+      visibleRatio = clamp(visibleRatio, 0.0f, 1.0f);
       int thumbHeight = (int)(scrollbarRect.height * visibleRatio);
-      thumbHeight = ClampInt(thumbHeight, 30, scrollbarRect.height);
+      thumbHeight = clampInt(thumbHeight, 30, scrollbarRect.height);
 
       int maxScroll = contentHeight - viewHeight;
-      maxScroll = ClampInt(maxScroll, 0, INT_MAX);
+      maxScroll = clampInt(maxScroll, 0, INT_MAX);
       float scrollNorm = 0.0f;
       if (maxScroll > 0)
       {
         scrollNorm = (float)scrollOffset / (float)maxScroll;
       }
-      scrollNorm = Clamp(scrollNorm, 0.0f, 1.0f);
+      scrollNorm = clamp(scrollNorm, 0.0f, 1.0f);
       int thumbY =
         scrollbarRect.y +
         (int)((scrollbarRect.height - thumbHeight) * scrollNorm);

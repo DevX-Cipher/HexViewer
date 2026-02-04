@@ -38,7 +38,7 @@ struct LanguageMap {
     }
   }
   
-  static void SafeStrCopy(char* dest, const char* src, size_t destSize) {
+  static void SafestrCopy(char* dest, const char* src, size_t destSize) {
     size_t i = 0;
     while (src[i] && i < destSize - 1) {
       dest[i] = src[i];
@@ -66,8 +66,8 @@ struct LanguageMap {
     newEntry->key[0] = '\0';
     newEntry->value[0] = '\0';
     
-    SafeStrCopy(newEntry->key, k, sizeof(newEntry->key));
-    SafeStrCopy(newEntry->value, v, sizeof(newEntry->value));
+    SafestrCopy(newEntry->key, k, sizeof(newEntry->key));
+    SafestrCopy(newEntry->value, v, sizeof(newEntry->value));
     newEntry->next = entries;
     entries = newEntry;
   }
@@ -96,7 +96,7 @@ private:
     return &languages;
   }
   
-  static LanguageMap* FindLanguage(const char* lang) {
+  static LanguageMap* findLanguage(const char* lang) {
     LanguageMap* map = *GetLanguagesPtr();
     while (map) {
       if (LanguageMap::StrEqual(map->language, lang)) {
@@ -108,7 +108,7 @@ private:
   }
   
   static LanguageMap* GetOrCreateLanguage(const char* lang) {
-    LanguageMap* existing = FindLanguage(lang);
+    LanguageMap* existing = findLanguage(lang);
     if (existing) return existing;
     
 #ifdef _WIN32
@@ -120,7 +120,7 @@ private:
     newLang->next = nullptr;
     newLang->language[0] = '\0';
     
-    LanguageMap::SafeStrCopy(newLang->language, lang, sizeof(newLang->language));
+    LanguageMap::SafestrCopy(newLang->language, lang, sizeof(newLang->language));
     newLang->next = *GetLanguagesPtr();
     *GetLanguagesPtr() = newLang;
     return newLang;
@@ -172,13 +172,13 @@ public:
     AddTranslation("English", "View", "View");
     AddTranslation("English", "Disassembly", "Disassembly");
     AddTranslation("English", "Search", "Search");
-    AddTranslation("English", "Find and Replace...", "Find and Replace...");
+    AddTranslation("English", "find and Replace...", "find and Replace...");
     AddTranslation("English", "Go To...", "Go To...");
     AddTranslation("English", "Tools", "Tools");
     AddTranslation("English", "Options...", "Options...");
     AddTranslation("English", "Help", "Help");
     AddTranslation("English", "About HexViewer", "About HexViewer");
-    AddTranslation("English", "Find:", "Find:");
+    AddTranslation("English", "find:", "find:");
     AddTranslation("English", "Replace:", "Replace:");
     AddTranslation("English", "Replace", "Replace");
     AddTranslation("English", "Go", "Go");
@@ -218,13 +218,13 @@ public:
     AddTranslation("Spanish", "View", "Ver");
     AddTranslation("Spanish", "Disassembly", "Desensamblado");
     AddTranslation("Spanish", "Search", "Buscar");
-    AddTranslation("Spanish", "Find and Replace...", "Buscar y Reemplazar...");
+    AddTranslation("Spanish", "find and Replace...", "Buscar y Reemplazar...");
     AddTranslation("Spanish", "Go To...", "Ir a...");
     AddTranslation("Spanish", "Tools", "Herramientas");
     AddTranslation("Spanish", "Options...", "Opciones...");
     AddTranslation("Spanish", "Help", "Ayuda");
     AddTranslation("Spanish", "About HexViewer", "Acerca de HexViewer");
-    AddTranslation("Spanish", "Find:", "Buscar:");
+    AddTranslation("Spanish", "find:", "Buscar:");
     AddTranslation("Spanish", "Replace:", "Reemplazar:");
     AddTranslation("Spanish", "Replace", "Reemplazar");
     AddTranslation("Spanish", "Go", "Ir");
@@ -264,13 +264,13 @@ public:
     AddTranslation("French", "View", "Affichage");
     AddTranslation("French", "Disassembly", "D�sassemblage");
     AddTranslation("French", "Search", "Recherche");
-    AddTranslation("French", "Find and Replace...", "Rechercher et Remplacer...");
+    AddTranslation("French", "find and Replace...", "Rechercher et Remplacer...");
     AddTranslation("French", "Go To...", "Aller �...");
     AddTranslation("French", "Tools", "Outils");
     AddTranslation("French", "Options...", "Options...");
     AddTranslation("French", "Help", "Aide");
     AddTranslation("French", "About HexViewer", "� propos de HexViewer");
-    AddTranslation("French", "Find:", "Rechercher:");
+    AddTranslation("French", "find:", "Rechercher:");
     AddTranslation("French", "Replace:", "Remplacer:");
     AddTranslation("French", "Replace", "Remplacer");
     AddTranslation("French", "Go", "Aller");
@@ -310,13 +310,13 @@ public:
     AddTranslation("German", "View", "Ansicht");
     AddTranslation("German", "Disassembly", "Disassemblierung");
     AddTranslation("German", "Search", "Suchen");
-    AddTranslation("German", "Find and Replace...", "Suchen und Ersetzen...");
+    AddTranslation("German", "find and Replace...", "Suchen und Ersetzen...");
     AddTranslation("German", "Go To...", "Gehe zu...");
     AddTranslation("German", "Tools", "Werkzeuge");
     AddTranslation("German", "Options...", "Optionen...");
     AddTranslation("German", "Help", "Hilfe");
     AddTranslation("German", "About HexViewer", "Über HexViewer");
-    AddTranslation("German", "Find:", "Suchen:");
+    AddTranslation("German", "find:", "Suchen:");
     AddTranslation("German", "Replace:", "Ersetzen:");
     AddTranslation("German", "Replace", "Ersetzen");
     AddTranslation("German", "Go", "Gehe");
@@ -356,13 +356,13 @@ public:
     AddTranslation("Japanese", "View", "??");
     AddTranslation("Japanese", "Disassembly", "??????");
     AddTranslation("Japanese", "Search", "??");
-    AddTranslation("Japanese", "Find and Replace...", "?????...");
+    AddTranslation("Japanese", "find and Replace...", "?????...");
     AddTranslation("Japanese", "Go To...", "??...");
     AddTranslation("Japanese", "Tools", "???");
     AddTranslation("Japanese", "Options...", "?????...");
     AddTranslation("Japanese", "Help", "???");
     AddTranslation("Japanese", "About HexViewer", "HexViewer????");
-    AddTranslation("Japanese", "Find:", "??:");
+    AddTranslation("Japanese", "find:", "??:");
     AddTranslation("Japanese", "Replace:", "??:");
     AddTranslation("Japanese", "Replace", "??");
     AddTranslation("Japanese", "Go", "??");
@@ -402,13 +402,13 @@ public:
     AddTranslation("Russian", "View", "??");
     AddTranslation("Russian", "Disassembly", "???");
     AddTranslation("Russian", "Search", "??");
-    AddTranslation("Russian", "Find and Replace...", "?????...");
+    AddTranslation("Russian", "find and Replace...", "?????...");
     AddTranslation("Russian", "Go To...", "??...");
     AddTranslation("Russian", "Tools", "??");
     AddTranslation("Russian", "Options...", "??...");
     AddTranslation("Russian", "Help", "??");
     AddTranslation("Russian", "About HexViewer", "??HexViewer");
-    AddTranslation("Russian", "Find:", "??:");
+    AddTranslation("Russian", "find:", "??:");
     AddTranslation("Russian", "Replace:", "??:");
     AddTranslation("Russian", "Replace", "??");
     AddTranslation("Russian", "Go", "??");
@@ -448,13 +448,13 @@ public:
     AddTranslation("Chinese", "View", "??");
     AddTranslation("Chinese", "Disassembly", "???");
     AddTranslation("Chinese", "Search", "??");
-    AddTranslation("Chinese", "Find and Replace...", "?????...");
+    AddTranslation("Chinese", "find and Replace...", "?????...");
     AddTranslation("Chinese", "Go To...", "??...");
     AddTranslation("Chinese", "Tools", "??");
     AddTranslation("Chinese", "Options...", "??...");
     AddTranslation("Chinese", "Help", "??");
     AddTranslation("Chinese", "About HexViewer", "??HexViewer");
-    AddTranslation("Chinese", "Find:", "??:");
+    AddTranslation("Chinese", "find:", "??:");
     AddTranslation("Chinese", "Replace:", "??:");
     AddTranslation("Chinese", "Replace", "??");
     AddTranslation("Chinese", "Go", "??");
@@ -494,13 +494,13 @@ public:
     AddTranslation("Italian", "View", "Visualizza");
     AddTranslation("Italian", "Disassembly", "Disassemblaggio");
     AddTranslation("Italian", "Search", "Cerca");
-    AddTranslation("Italian", "Find and Replace...", "Trova e Sostituisci...");
+    AddTranslation("Italian", "find and Replace...", "Trova e Sostituisci...");
     AddTranslation("Italian", "Go To...", "Vai a...");
     AddTranslation("Italian", "Tools", "Strumenti");
     AddTranslation("Italian", "Options...", "Opzioni...");
     AddTranslation("Italian", "Help", "Aiuto");
     AddTranslation("Italian", "About HexViewer", "Informazioni su HexViewer");
-    AddTranslation("Italian", "Find:", "Trova:");
+    AddTranslation("Italian", "find:", "Trova:");
     AddTranslation("Italian", "Replace:", "Sostituisci:");
     AddTranslation("Italian", "Replace", "Sostituisci");
     AddTranslation("Italian", "Go", "Vai");
@@ -540,13 +540,13 @@ public:
     AddTranslation("Portuguese", "View", "Visualizar");
     AddTranslation("Portuguese", "Disassembly", "Desmontagem");
     AddTranslation("Portuguese", "Search", "Pesquisar");
-    AddTranslation("Portuguese", "Find and Replace...", "Localizar e Substituir...");
+    AddTranslation("Portuguese", "find and Replace...", "Localizar e Substituir...");
     AddTranslation("Portuguese", "Go To...", "Ir Para...");
     AddTranslation("Portuguese", "Tools", "Ferramentas");
     AddTranslation("Portuguese", "Options...", "Opções...");
     AddTranslation("Portuguese", "Help", "Ajuda");
     AddTranslation("Portuguese", "About HexViewer", "Sobre o HexViewer");
-    AddTranslation("Portuguese", "Find:", "Localizar:");
+    AddTranslation("Portuguese", "find:", "Localizar:");
     AddTranslation("Portuguese", "Replace:", "Substituir:");
     AddTranslation("Portuguese", "Replace", "Substituir");
     AddTranslation("Portuguese", "Go", "Ir");
@@ -586,13 +586,13 @@ public:
     AddTranslation("Korean", "View", "보기");
     AddTranslation("Korean", "Disassembly", "디스어셈블리");
     AddTranslation("Korean", "Search", "검색");
-    AddTranslation("Korean", "Find and Replace...", "찾기 및 바꾸기...");
+    AddTranslation("Korean", "find and Replace...", "찾기 및 바꾸기...");
     AddTranslation("Korean", "Go To...", "이동...");
     AddTranslation("Korean", "Tools", "도구");
     AddTranslation("Korean", "Options...", "옵션...");
     AddTranslation("Korean", "Help", "도움말");
     AddTranslation("Korean", "About HexViewer", "HexViewer 정보");
-    AddTranslation("Korean", "Find:", "찾기:");
+    AddTranslation("Korean", "find:", "찾기:");
     AddTranslation("Korean", "Replace:", "바꾸기:");
     AddTranslation("Korean", "Replace", "바꾸기");
     AddTranslation("Korean", "Go", "이동");
@@ -632,13 +632,13 @@ public:
     AddTranslation("Dutch", "View", "Weergave");
     AddTranslation("Dutch", "Disassembly", "Disassemblage");
     AddTranslation("Dutch", "Search", "Zoeken");
-    AddTranslation("Dutch", "Find and Replace...", "Zoeken en Vervangen...");
+    AddTranslation("Dutch", "find and Replace...", "Zoeken en Vervangen...");
     AddTranslation("Dutch", "Go To...", "Ga naar...");
     AddTranslation("Dutch", "Tools", "Hulpmiddelen");
     AddTranslation("Dutch", "Options...", "Opties...");
     AddTranslation("Dutch", "Help", "Help");
     AddTranslation("Dutch", "About HexViewer", "Over HexViewer");
-    AddTranslation("Dutch", "Find:", "Zoeken:");
+    AddTranslation("Dutch", "find:", "Zoeken:");
     AddTranslation("Dutch", "Replace:", "Vervangen:");
     AddTranslation("Dutch", "Replace", "Vervangen");
     AddTranslation("Dutch", "Go", "Ga");
@@ -678,13 +678,13 @@ public:
     AddTranslation("Polish", "View", "Widok");
     AddTranslation("Polish", "Disassembly", "Dezasemblacja");
     AddTranslation("Polish", "Search", "Szukaj");
-    AddTranslation("Polish", "Find and Replace...", "Znajdź i Zamień...");
+    AddTranslation("Polish", "find and Replace...", "Znajdź i Zamień...");
     AddTranslation("Polish", "Go To...", "Przejdź do...");
     AddTranslation("Polish", "Tools", "Narzędzia");
     AddTranslation("Polish", "Options...", "Opcje...");
     AddTranslation("Polish", "Help", "Pomoc");
     AddTranslation("Polish", "About HexViewer", "O programie HexViewer");
-    AddTranslation("Polish", "Find:", "Znajdź:");
+    AddTranslation("Polish", "find:", "Znajdź:");
     AddTranslation("Polish", "Replace:", "Zamień:");
     AddTranslation("Polish", "Replace", "Zamień");
     AddTranslation("Polish", "Go", "Przejdź");
@@ -724,13 +724,13 @@ public:
     AddTranslation("Turkish", "View", "Görünüm");
     AddTranslation("Turkish", "Disassembly", "Ayrıştırma");
     AddTranslation("Turkish", "Search", "Ara");
-    AddTranslation("Turkish", "Find and Replace...", "Bul ve Değiştir...");
+    AddTranslation("Turkish", "find and Replace...", "Bul ve Değiştir...");
     AddTranslation("Turkish", "Go To...", "Git...");
     AddTranslation("Turkish", "Tools", "Araçlar");
     AddTranslation("Turkish", "Options...", "Seçenekler...");
     AddTranslation("Turkish", "Help", "Yardım");
     AddTranslation("Turkish", "About HexViewer", "HexViewer Hakkında");
-    AddTranslation("Turkish", "Find:", "Bul:");
+    AddTranslation("Turkish", "find:", "Bul:");
     AddTranslation("Turkish", "Replace:", "Değiştir:");
     AddTranslation("Turkish", "Replace", "Değiştir");
     AddTranslation("Turkish", "Go", "Git");
@@ -770,13 +770,13 @@ public:
     AddTranslation("Swedish", "View", "Visa");
     AddTranslation("Swedish", "Disassembly", "Disassemblering");
     AddTranslation("Swedish", "Search", "Sök");
-    AddTranslation("Swedish", "Find and Replace...", "Sök och Ersätt...");
+    AddTranslation("Swedish", "find and Replace...", "Sök och Ersätt...");
     AddTranslation("Swedish", "Go To...", "Gå till...");
     AddTranslation("Swedish", "Tools", "Verktyg");
     AddTranslation("Swedish", "Options...", "Alternativ...");
     AddTranslation("Swedish", "Help", "Hjälp");
     AddTranslation("Swedish", "About HexViewer", "Om HexViewer");
-    AddTranslation("Swedish", "Find:", "Sök:");
+    AddTranslation("Swedish", "find:", "Sök:");
     AddTranslation("Swedish", "Replace:", "Ersätt:");
     AddTranslation("Swedish", "Replace", "Ersätt");
     AddTranslation("Swedish", "Go", "Gå");
@@ -816,13 +816,13 @@ public:
     AddTranslation("Arabic", "View", "عرض");
     AddTranslation("Arabic", "Disassembly", "فك التجميع");
     AddTranslation("Arabic", "Search", "بحث");
-    AddTranslation("Arabic", "Find and Replace...", "بحث واستبدال...");
+    AddTranslation("Arabic", "find and Replace...", "بحث واستبدال...");
     AddTranslation("Arabic", "Go To...", "الذهاب إلى...");
     AddTranslation("Arabic", "Tools", "أدوات");
     AddTranslation("Arabic", "Options...", "خيارات...");
     AddTranslation("Arabic", "Help", "مساعدة");
     AddTranslation("Arabic", "About HexViewer", "حول HexViewer");
-    AddTranslation("Arabic", "Find:", "بحث:");
+    AddTranslation("Arabic", "find:", "بحث:");
     AddTranslation("Arabic", "Replace:", "استبدال:");
     AddTranslation("Arabic", "Replace", "استبدال");
     AddTranslation("Arabic", "Go", "اذهب");
@@ -862,13 +862,13 @@ public:
     AddTranslation("Hindi", "View", "देखें");
     AddTranslation("Hindi", "Disassembly", "डिसअसेंबली");
     AddTranslation("Hindi", "Search", "खोजें");
-    AddTranslation("Hindi", "Find and Replace...", "खोजें और बदलें...");
+    AddTranslation("Hindi", "find and Replace...", "खोजें और बदलें...");
     AddTranslation("Hindi", "Go To...", "इस पर जाएं...");
     AddTranslation("Hindi", "Tools", "उपकरण");
     AddTranslation("Hindi", "Options...", "विकल्प...");
     AddTranslation("Hindi", "Help", "सहायता");
     AddTranslation("Hindi", "About HexViewer", "HexViewer के बारे में");
-    AddTranslation("Hindi", "Find:", "खोजें:");
+    AddTranslation("Hindi", "find:", "खोजें:");
     AddTranslation("Hindi", "Replace:", "बदलें:");
     AddTranslation("Hindi", "Replace", "बदलें");
     AddTranslation("Hindi", "Go", "जाएं");
@@ -908,13 +908,13 @@ public:
     AddTranslation("Czech", "View", "Zobrazit");
     AddTranslation("Czech", "Disassembly", "Disassemblace");
     AddTranslation("Czech", "Search", "Hledat");
-    AddTranslation("Czech", "Find and Replace...", "Najít a Nahradit...");
+    AddTranslation("Czech", "find and Replace...", "Najít a Nahradit...");
     AddTranslation("Czech", "Go To...", "Přejít na...");
     AddTranslation("Czech", "Tools", "Nástroje");
     AddTranslation("Czech", "Options...", "Možnosti...");
     AddTranslation("Czech", "Help", "Nápověda");
     AddTranslation("Czech", "About HexViewer", "O programu HexViewer");
-    AddTranslation("Czech", "Find:", "Najít:");
+    AddTranslation("Czech", "find:", "Najít:");
     AddTranslation("Czech", "Replace:", "Nahradit:");
     AddTranslation("Czech", "Replace", "Nahradit");
     AddTranslation("Czech", "Go", "Přejít");
@@ -954,13 +954,13 @@ public:
     AddTranslation("Greek", "View", "Προβολή");
     AddTranslation("Greek", "Disassembly", "Αποσυναρμολόγηση");
     AddTranslation("Greek", "Search", "Αναζήτηση");
-    AddTranslation("Greek", "Find and Replace...", "Εύρεση και Αντικατάσταση...");
+    AddTranslation("Greek", "find and Replace...", "Εύρεση και Αντικατάσταση...");
     AddTranslation("Greek", "Go To...", "Μετάβαση σε...");
     AddTranslation("Greek", "Tools", "Εργαλεία");
     AddTranslation("Greek", "Options...", "Επιλογές...");
     AddTranslation("Greek", "Help", "Βοήθεια");
     AddTranslation("Greek", "About HexViewer", "Σχετικά με το HexViewer");
-    AddTranslation("Greek", "Find:", "Εύρεση:");
+    AddTranslation("Greek", "find:", "Εύρεση:");
     AddTranslation("Greek", "Replace:", "Αντικατάσταση:");
     AddTranslation("Greek", "Replace", "Αντικατάσταση");
     AddTranslation("Greek", "Go", "Μετάβαση");
@@ -1000,13 +1000,13 @@ public:
     AddTranslation("Danish", "View", "Vis");
     AddTranslation("Danish", "Disassembly", "Disassemblering");
     AddTranslation("Danish", "Search", "Søg");
-    AddTranslation("Danish", "Find and Replace...", "Find og Erstat...");
+    AddTranslation("Danish", "find and Replace...", "find og Erstat...");
     AddTranslation("Danish", "Go To...", "Gå til...");
     AddTranslation("Danish", "Tools", "Værktøjer");
     AddTranslation("Danish", "Options...", "Indstillinger...");
     AddTranslation("Danish", "Help", "Hjælp");
     AddTranslation("Danish", "About HexViewer", "Om HexViewer");
-    AddTranslation("Danish", "Find:", "Find:");
+    AddTranslation("Danish", "find:", "find:");
     AddTranslation("Danish", "Replace:", "Erstat:");
     AddTranslation("Danish", "Replace", "Erstat");
     AddTranslation("Danish", "Go", "Gå");
@@ -1046,13 +1046,13 @@ public:
     AddTranslation("Norwegian", "View", "Vis");
     AddTranslation("Norwegian", "Disassembly", "Disassemblering");
     AddTranslation("Norwegian", "Search", "Søk");
-    AddTranslation("Norwegian", "Find and Replace...", "Finn og Erstatt...");
+    AddTranslation("Norwegian", "find and Replace...", "Finn og Erstatt...");
     AddTranslation("Norwegian", "Go To...", "Gå til...");
     AddTranslation("Norwegian", "Tools", "Verktøy");
     AddTranslation("Norwegian", "Options...", "Alternativer...");
     AddTranslation("Norwegian", "Help", "Hjelp");
     AddTranslation("Norwegian", "About HexViewer", "Om HexViewer");
-    AddTranslation("Norwegian", "Find:", "Finn:");
+    AddTranslation("Norwegian", "find:", "Finn:");
     AddTranslation("Norwegian", "Replace:", "Erstatt:");
     AddTranslation("Norwegian", "Replace", "Erstatt");
     AddTranslation("Norwegian", "Go", "Gå");
@@ -1092,13 +1092,13 @@ public:
     AddTranslation("Finnish", "View", "Näytä");
     AddTranslation("Finnish", "Disassembly", "Disassembly");
     AddTranslation("Finnish", "Search", "Hae");
-    AddTranslation("Finnish", "Find and Replace...", "Etsi ja Korvaa...");
+    AddTranslation("Finnish", "find and Replace...", "Etsi ja Korvaa...");
     AddTranslation("Finnish", "Go To...", "Siirry...");
     AddTranslation("Finnish", "Tools", "Työkalut");
     AddTranslation("Finnish", "Options...", "Asetukset...");
     AddTranslation("Finnish", "Help", "Ohje");
     AddTranslation("Finnish", "About HexViewer", "Tietoja HexViewer");
-    AddTranslation("Finnish", "Find:", "Etsi:");
+    AddTranslation("Finnish", "find:", "Etsi:");
     AddTranslation("Finnish", "Replace:", "Korvaa:");
     AddTranslation("Finnish", "Replace", "Korvaa");
     AddTranslation("Finnish", "Go", "Siirry");
@@ -1138,13 +1138,13 @@ public:
     AddTranslation("Vietnamese", "View", "Xem");
     AddTranslation("Vietnamese", "Disassembly", "Phân tích");
     AddTranslation("Vietnamese", "Search", "Tìm kiếm");
-    AddTranslation("Vietnamese", "Find and Replace...", "Tìm và Thay thế...");
+    AddTranslation("Vietnamese", "find and Replace...", "Tìm và Thay thế...");
     AddTranslation("Vietnamese", "Go To...", "Đi tới...");
     AddTranslation("Vietnamese", "Tools", "Công cụ");
     AddTranslation("Vietnamese", "Options...", "Tùy chọn...");
     AddTranslation("Vietnamese", "Help", "Trợ giúp");
     AddTranslation("Vietnamese", "About HexViewer", "Giới thiệu về HexViewer");
-    AddTranslation("Vietnamese", "Find:", "Tìm:");
+    AddTranslation("Vietnamese", "find:", "Tìm:");
     AddTranslation("Vietnamese", "Replace:", "Thay thế:");
     AddTranslation("Vietnamese", "Replace", "Thay thế");
     AddTranslation("Vietnamese", "Go", "Đi");
@@ -1168,23 +1168,23 @@ public:
     AddTranslation("Vietnamese", "Check for Updates", "Kiểm tra Cập nhật");
 
 
-     LanguageMap::SafeStrCopy(GetDefaultLanguagePtr(), "English", 32);
+     LanguageMap::SafestrCopy(GetDefaultLanguagePtr(), "English", 32);
   }
   
   static void SetLanguage(const char* language) {
-    if (FindLanguage(language)) {
-      LanguageMap::SafeStrCopy(GetDefaultLanguagePtr(), language, 32);
+    if (findLanguage(language)) {
+      LanguageMap::SafestrCopy(GetDefaultLanguagePtr(), language, 32);
     }
   }
   
   static const char* Get(const char* key) {
-    LanguageMap* langMap = FindLanguage(GetDefaultLanguagePtr());
+    LanguageMap* langMap = findLanguage(GetDefaultLanguagePtr());
     if (langMap) {
       const char* result = langMap->Get(key);
       if (result) return result;
     }
     
-    LanguageMap* englishMap = FindLanguage("English");
+    LanguageMap* englishMap = findLanguage("English");
     if (englishMap) {
       const char* result = englishMap->Get(key);
       if (result) return result;

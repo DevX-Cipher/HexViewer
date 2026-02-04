@@ -18,7 +18,7 @@ typedef Window NativeWindow;
 extern bool g_isNative;
 
 #ifdef _WIN32
-class WinString;
+class winString;
 #endif
 
 struct UpdateInfo {
@@ -49,11 +49,11 @@ enum class DownloadState {
 };
 
 #ifdef _WIN32
-class WinString;
-WinString ExtractJsonValue(const WinString& json, const char* key);
-bool ExtractJsonBool(const WinString& json, const char* key);
-WinString HttpGet(const char* url);
-WinString GetAssetDownloadUrl(const char* releaseApiUrl, bool includeBeta);
+class winString;
+winString ExtractJsonValue(const winString& json, const char* key);
+bool ExtractJsonBool(const winString& json, const char* key);
+winString HttpGet(const char* url);
+winString GetAssetDownloadUrl(const char* releaseApiUrl, bool includeBeta);
 #else
 std::string ExtractJsonValue(const std::string& json, const std::string& key);
 bool ExtractJsonBool(const std::string& json, const std::string& key);

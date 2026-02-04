@@ -218,11 +218,11 @@ struct PanelSection
   ~PanelSection()
   {
     if (title)
-      PlatformFree(title, StrLen(title) + 1);
+      platformFree(title, strLen(title) + 1);
     for (size_t i = 0; i < items.size(); i++)
     {
       if (items[i])
-        PlatformFree(items[i], StrLen(items[i]) + 1);
+        platformFree(items[i], strLen(items[i]) + 1);
     }
   }
 };
@@ -295,7 +295,7 @@ struct BottomPanelState
   ~BottomPanelState()
   {
     if (searchPattern)
-      PlatformFree(searchPattern, StrLen(searchPattern) + 1);
+      platformFree(searchPattern, strLen(searchPattern) + 1);
   }
 };
 
@@ -378,11 +378,11 @@ struct ContextMenuItem
   {
     if (other.text)
     {
-      text = AllocString(other.text);
+      text = allocString(other.text);
     }
     if (other.shortcut)
     {
-      shortcut = AllocString(other.shortcut);
+      shortcut = allocString(other.shortcut);
     }
   }
 
@@ -392,22 +392,22 @@ struct ContextMenuItem
     {
       if (text)
       {
-        PlatformFree(text, StrLen(text) + 1);
+        platformFree(text, strLen(text) + 1);
         text = nullptr;
       }
       if (shortcut)
       {
-        PlatformFree(shortcut, StrLen(shortcut) + 1);
+        platformFree(shortcut, strLen(shortcut) + 1);
         shortcut = nullptr;
       }
 
       if (other.text)
       {
-        text = AllocString(other.text);
+        text = allocString(other.text);
       }
       if (other.shortcut)
       {
-        shortcut = AllocString(other.shortcut);
+        shortcut = allocString(other.shortcut);
       }
 
       enabled = other.enabled;
@@ -423,12 +423,12 @@ struct ContextMenuItem
   {
     if (text)
     {
-      PlatformFree(text, StrLen(text) + 1);
+      platformFree(text, strLen(text) + 1);
       text = nullptr;
     }
     if (shortcut)
     {
-      PlatformFree(shortcut, StrLen(shortcut) + 1);
+      platformFree(shortcut, strLen(shortcut) + 1);
       shortcut = nullptr;
     }
   }
@@ -465,13 +465,13 @@ struct ChecksumResults
   ~ChecksumResults()
   {
     if (md5)
-      PlatformFree(md5, StrLen(md5) + 1);
+      platformFree(md5, strLen(md5) + 1);
     if (sha1)
-      PlatformFree(sha1, StrLen(sha1) + 1);
+      platformFree(sha1, strLen(sha1) + 1);
     if (sha256)
-      PlatformFree(sha256, StrLen(sha256) + 1);
+      platformFree(sha256, strLen(sha256) + 1);
     if (crc32)
-      PlatformFree(crc32, StrLen(crc32) + 1);
+      platformFree(crc32, strLen(crc32) + 1);
   }
 };
 
@@ -538,7 +538,6 @@ public:
 
   RenderManager();
   ~RenderManager();
-
   bool initialize(NativeWindow window);
   void cleanup();
   void resize(int width, int height);
@@ -616,6 +615,8 @@ public:
   void setDisasmColumnWidth(int width) { _disasmColumnWidth = width; }
   bool isResizingDisasmColumn() const { return _resizingDisasmColumn; }
 
+
+
 #ifdef _WIN32
   void drawBitmap(void* hBitmap, int width, int height, int x, int y);
 #elif __APPLE__
@@ -657,6 +658,24 @@ private:
   bool _resizingDisasmColumn;
   int _resizeStartX;
   int _resizeStartWidth;
+
+    int flipY(int y) const
+    {
+#ifdef __APPLE__
+      return windowHeight - y;
+#else
+      return y;
+#endif
+    }
+
+    int flipY(int y, int height) const
+    {
+#ifdef __APPLE__
+      return windowHeight - y - height;
+#else
+      return y;
+#endif
+    }
 
 #ifdef _WIN32
   HDC hdc;

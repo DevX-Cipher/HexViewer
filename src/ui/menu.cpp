@@ -20,32 +20,32 @@ MenuItem::MenuItem(const char *lbl, MenuItemType t)
       submenu(nullptr), submenuCount(0)
 {
   if (lbl)
-    label = StrDup(lbl);
+    label = allocString(lbl);
 }
 
 MenuItem::~MenuItem()
 {
   if (label)
-    memFree(label, StrLen(label) + 1);
+    memFree(label, strLen(label) + 1);
   if (shortcut)
-    memFree(shortcut, StrLen(shortcut) + 1);
+    memFree(shortcut, strLen(shortcut) + 1);
 
   if (submenu)
   {
     for (int i = 0; i < submenuCount; i++)
     {
       if (submenu[i].label)
-        memFree(submenu[i].label, StrLen(submenu[i].label) + 1);
+        memFree(submenu[i].label, strLen(submenu[i].label) + 1);
       if (submenu[i].shortcut)
-        memFree(submenu[i].shortcut, StrLen(submenu[i].shortcut) + 1);
+        memFree(submenu[i].shortcut, strLen(submenu[i].shortcut) + 1);
       if (submenu[i].submenu)
       {
         for (int j = 0; j < submenu[i].submenuCount; j++)
         {
           if (submenu[i].submenu[j].label)
-            memFree(submenu[i].submenu[j].label, StrLen(submenu[i].submenu[j].label) + 1);
+            memFree(submenu[i].submenu[j].label, strLen(submenu[i].submenu[j].label) + 1);
           if (submenu[i].submenu[j].shortcut)
-            memFree(submenu[i].submenu[j].shortcut, StrLen(submenu[i].submenu[j].shortcut) + 1);
+            memFree(submenu[i].submenu[j].shortcut, strLen(submenu[i].submenu[j].shortcut) + 1);
         }
         memFree(submenu[i].submenu, submenu[i].submenuCount * sizeof(MenuItem));
       }
@@ -60,19 +60,19 @@ MenuItem::MenuItem(const MenuItem &other)
       callback(other.callback), submenu(nullptr), submenuCount(0)
 {
   if (other.label)
-    label = StrDup(other.label);
+    label = allocString(other.label);
   if (other.shortcut)
-    shortcut = StrDup(other.shortcut);
+    shortcut = allocString(other.shortcut);
 
   if (other.submenu && other.submenuCount > 0)
   {
     submenuCount = other.submenuCount;
-    submenu = (MenuItem *)PlatformAlloc(submenuCount * sizeof(MenuItem));
+    submenu = (MenuItem *)platformAlloc(submenuCount * sizeof(MenuItem));
 
     for (int i = 0; i < submenuCount; i++)
     {
-      submenu[i].label = other.submenu[i].label ? StrDup(other.submenu[i].label) : nullptr;
-      submenu[i].shortcut = other.submenu[i].shortcut ? StrDup(other.submenu[i].shortcut) : nullptr;
+      submenu[i].label = other.submenu[i].label ? allocString(other.submenu[i].label) : nullptr;
+      submenu[i].shortcut = other.submenu[i].shortcut ? allocString(other.submenu[i].shortcut) : nullptr;
       submenu[i].type = other.submenu[i].type;
       submenu[i].enabled = other.submenu[i].enabled;
       submenu[i].checked = other.submenu[i].checked;
@@ -88,23 +88,23 @@ MenuItem &MenuItem::operator=(const MenuItem &other)
   if (this != &other)
   {
     if (label)
-      PlatformFree(label, StrLen(label) + 1);
+      platformFree(label, strLen(label) + 1);
     if (shortcut)
-      PlatformFree(shortcut, StrLen(shortcut) + 1);
+      platformFree(shortcut, strLen(shortcut) + 1);
     if (submenu)
     {
       for (int i = 0; i < submenuCount; i++)
       {
         if (submenu[i].label)
-          PlatformFree(submenu[i].label, StrLen(submenu[i].label) + 1);
+          platformFree(submenu[i].label, strLen(submenu[i].label) + 1);
         if (submenu[i].shortcut)
-          PlatformFree(submenu[i].shortcut, StrLen(submenu[i].shortcut) + 1);
+          platformFree(submenu[i].shortcut, strLen(submenu[i].shortcut) + 1);
       }
-      PlatformFree(submenu, submenuCount * sizeof(MenuItem));
+      platformFree(submenu, submenuCount * sizeof(MenuItem));
     }
 
-    label = other.label ? StrDup(other.label) : nullptr;
-    shortcut = other.shortcut ? StrDup(other.shortcut) : nullptr;
+    label = other.label ? allocString(other.label) : nullptr;
+    shortcut = other.shortcut ? allocString(other.shortcut) : nullptr;
     type = other.type;
     enabled = other.enabled;
     checked = other.checked;
@@ -113,12 +113,12 @@ MenuItem &MenuItem::operator=(const MenuItem &other)
 
     if (other.submenu && other.submenuCount > 0)
     {
-      submenu = (MenuItem *)PlatformAlloc(submenuCount * sizeof(MenuItem));
+      submenu = (MenuItem *)platformAlloc(submenuCount * sizeof(MenuItem));
 
       for (int i = 0; i < submenuCount; i++)
       {
-        submenu[i].label = other.submenu[i].label ? StrDup(other.submenu[i].label) : nullptr;
-        submenu[i].shortcut = other.submenu[i].shortcut ? StrDup(other.submenu[i].shortcut) : nullptr;
+        submenu[i].label = other.submenu[i].label ? allocString(other.submenu[i].label) : nullptr;
+        submenu[i].shortcut = other.submenu[i].shortcut ? allocString(other.submenu[i].shortcut) : nullptr;
         submenu[i].type = other.submenu[i].type;
         submenu[i].enabled = other.submenu[i].enabled;
         submenu[i].checked = other.submenu[i].checked;
@@ -144,7 +144,7 @@ Menu::Menu()
 Menu::~Menu()
 {
   if (title)
-    memFree(title, StrLen(title) + 1);
+    memFree(title, strLen(title) + 1);
   if (items)
   {
     for (int i = 0; i < itemCount; i++)
@@ -160,18 +160,18 @@ Menu::Menu(const Menu &other)
       visible(other.visible), bounds(other.bounds), selectedIndex(other.selectedIndex)
 {
   if (other.title)
-    title = StrDup(other.title);
+    title = allocString(other.title);
 
   if (other.items && other.itemCount > 0)
   {
     itemCount = other.itemCount;
     itemCapacity = other.itemCapacity;
-    items = (MenuItem *)PlatformAlloc(itemCapacity * sizeof(MenuItem));
+    items = (MenuItem *)platformAlloc(itemCapacity * sizeof(MenuItem));
 
     for (int i = 0; i < itemCount; i++)
     {
-      items[i].label = other.items[i].label ? StrDup(other.items[i].label) : nullptr;
-      items[i].shortcut = other.items[i].shortcut ? StrDup(other.items[i].shortcut) : nullptr;
+      items[i].label = other.items[i].label ? allocString(other.items[i].label) : nullptr;
+      items[i].shortcut = other.items[i].shortcut ? allocString(other.items[i].shortcut) : nullptr;
       items[i].type = other.items[i].type;
       items[i].enabled = other.items[i].enabled;
       items[i].checked = other.items[i].checked;
@@ -187,20 +187,20 @@ Menu &Menu::operator=(const Menu &other)
   if (this != &other)
   {
     if (title)
-      PlatformFree(title, StrLen(title) + 1);
+      platformFree(title, strLen(title) + 1);
     if (items)
     {
       for (int i = 0; i < itemCount; i++)
       {
         if (items[i].label)
-          PlatformFree(items[i].label, StrLen(items[i].label) + 1);
+          platformFree(items[i].label, strLen(items[i].label) + 1);
         if (items[i].shortcut)
-          PlatformFree(items[i].shortcut, StrLen(items[i].shortcut) + 1);
+          platformFree(items[i].shortcut, strLen(items[i].shortcut) + 1);
       }
-      PlatformFree(items, itemCapacity * sizeof(MenuItem));
+      platformFree(items, itemCapacity * sizeof(MenuItem));
     }
 
-    title = other.title ? StrDup(other.title) : nullptr;
+    title = other.title ? allocString(other.title) : nullptr;
     visible = other.visible;
     bounds = other.bounds;
     selectedIndex = other.selectedIndex;
@@ -209,12 +209,12 @@ Menu &Menu::operator=(const Menu &other)
 
     if (other.items && other.itemCount > 0)
     {
-      items = (MenuItem *)PlatformAlloc(itemCapacity * sizeof(MenuItem));
+      items = (MenuItem *)platformAlloc(itemCapacity * sizeof(MenuItem));
 
       for (int i = 0; i < itemCount; i++)
       {
-        items[i].label = other.items[i].label ? StrDup(other.items[i].label) : nullptr;
-        items[i].shortcut = other.items[i].shortcut ? StrDup(other.items[i].shortcut) : nullptr;
+        items[i].label = other.items[i].label ? allocString(other.items[i].label) : nullptr;
+        items[i].shortcut = other.items[i].shortcut ? allocString(other.items[i].shortcut) : nullptr;
         items[i].type = other.items[i].type;
         items[i].enabled = other.items[i].enabled;
         items[i].checked = other.items[i].checked;
@@ -236,7 +236,7 @@ void Menu::addItem(const MenuItem &item)
   if (itemCount >= itemCapacity)
   {
     int newCapacity = itemCapacity == 0 ? 4 : itemCapacity * 2;
-    MenuItem *newItems = (MenuItem *)PlatformAlloc(newCapacity * sizeof(MenuItem));
+    MenuItem *newItems = (MenuItem *)platformAlloc(newCapacity * sizeof(MenuItem));
 
     for (int i = 0; i < newCapacity; i++)
     {
@@ -267,13 +267,13 @@ void Menu::addItem(const MenuItem &item)
     }
 
     if (items)
-      PlatformFree(items, itemCapacity * sizeof(MenuItem));
+      platformFree(items, itemCapacity * sizeof(MenuItem));
     items = newItems;
     itemCapacity = newCapacity;
   }
 
-  items[itemCount].label = item.label ? StrDup(item.label) : nullptr;
-  items[itemCount].shortcut = item.shortcut ? StrDup(item.shortcut) : nullptr;
+  items[itemCount].label = item.label ? allocString(item.label) : nullptr;
+  items[itemCount].shortcut = item.shortcut ? allocString(item.shortcut) : nullptr;
   items[itemCount].type = item.type;
   items[itemCount].enabled = item.enabled;
   items[itemCount].checked = item.checked;
@@ -282,11 +282,11 @@ void Menu::addItem(const MenuItem &item)
 
   if (item.submenu && item.submenuCount > 0)
   {
-    items[itemCount].submenu = (MenuItem *)PlatformAlloc(item.submenuCount * sizeof(MenuItem));
+    items[itemCount].submenu = (MenuItem *)platformAlloc(item.submenuCount * sizeof(MenuItem));
     for (int i = 0; i < item.submenuCount; i++)
     {
-      items[itemCount].submenu[i].label = item.submenu[i].label ? StrDup(item.submenu[i].label) : nullptr;
-      items[itemCount].submenu[i].shortcut = item.submenu[i].shortcut ? StrDup(item.submenu[i].shortcut) : nullptr;
+      items[itemCount].submenu[i].label = item.submenu[i].label ? allocString(item.submenu[i].label) : nullptr;
+      items[itemCount].submenu[i].shortcut = item.submenu[i].shortcut ? allocString(item.submenu[i].shortcut) : nullptr;
       items[itemCount].submenu[i].type = item.submenu[i].type;
       items[itemCount].submenu[i].enabled = item.submenu[i].enabled;
       items[itemCount].submenu[i].checked = item.submenu[i].checked;
@@ -345,7 +345,7 @@ void MenuBar::addMenu(const Menu &menu)
   if (menuCount >= menuCapacity)
   {
     int newCapacity = menuCapacity == 0 ? 4 : menuCapacity * 2;
-    Menu *newMenus = (Menu *)PlatformAlloc(newCapacity * sizeof(Menu));
+    Menu *newMenus = (Menu *)platformAlloc(newCapacity * sizeof(Menu));
 
     for (int i = 0; i < newCapacity; i++)
     {
@@ -373,12 +373,12 @@ void MenuBar::addMenu(const Menu &menu)
     }
 
     if (menus)
-      PlatformFree(menus, menuCapacity * sizeof(Menu));
+      platformFree(menus, menuCapacity * sizeof(Menu));
     menus = newMenus;
     menuCapacity = newCapacity;
   }
 
-  menus[menuCount].title = menu.title ? StrDup(menu.title) : nullptr;
+  menus[menuCount].title = menu.title ? allocString(menu.title) : nullptr;
   menus[menuCount].visible = menu.visible;
   menus[menuCount].bounds = menu.bounds;
   menus[menuCount].selectedIndex = menu.selectedIndex;
@@ -388,7 +388,7 @@ void MenuBar::addMenu(const Menu &menu)
   if (menu.items && menu.itemCount > 0)
   {
     menus[menuCount].itemCapacity = menu.itemCapacity;
-    menus[menuCount].items = (MenuItem *)PlatformAlloc(menu.itemCapacity * sizeof(MenuItem));
+    menus[menuCount].items = (MenuItem *)platformAlloc(menu.itemCapacity * sizeof(MenuItem));
 
     for (int i = 0; i < menu.itemCapacity; i++)
     {
@@ -404,8 +404,8 @@ void MenuBar::addMenu(const Menu &menu)
 
     for (int i = 0; i < menu.itemCount; i++)
     {
-      menus[menuCount].items[i].label = menu.items[i].label ? StrDup(menu.items[i].label) : nullptr;
-      menus[menuCount].items[i].shortcut = menu.items[i].shortcut ? StrDup(menu.items[i].shortcut) : nullptr;
+      menus[menuCount].items[i].label = menu.items[i].label ? allocString(menu.items[i].label) : nullptr;
+      menus[menuCount].items[i].shortcut = menu.items[i].shortcut ? allocString(menu.items[i].shortcut) : nullptr;
       menus[menuCount].items[i].type = menu.items[i].type;
       menus[menuCount].items[i].enabled = menu.items[i].enabled;
       menus[menuCount].items[i].checked = menu.items[i].checked;
@@ -414,11 +414,11 @@ void MenuBar::addMenu(const Menu &menu)
 
       if (menu.items[i].submenu && menu.items[i].submenuCount > 0)
       {
-        menus[menuCount].items[i].submenu = (MenuItem *)PlatformAlloc(menu.items[i].submenuCount * sizeof(MenuItem));
+        menus[menuCount].items[i].submenu = (MenuItem *)platformAlloc(menu.items[i].submenuCount * sizeof(MenuItem));
         for (int j = 0; j < menu.items[i].submenuCount; j++)
         {
-          menus[menuCount].items[i].submenu[j].label = menu.items[i].submenu[j].label ? StrDup(menu.items[i].submenu[j].label) : nullptr;
-          menus[menuCount].items[i].submenu[j].shortcut = menu.items[i].submenu[j].shortcut ? StrDup(menu.items[i].submenu[j].shortcut) : nullptr;
+          menus[menuCount].items[i].submenu[j].label = menu.items[i].submenu[j].label ? allocString(menu.items[i].submenu[j].label) : nullptr;
+          menus[menuCount].items[i].submenu[j].shortcut = menu.items[i].submenu[j].shortcut ? allocString(menu.items[i].submenu[j].shortcut) : nullptr;
           menus[menuCount].items[i].submenu[j].type = menu.items[i].submenu[j].type;
           menus[menuCount].items[i].submenu[j].enabled = menu.items[i].submenu[j].enabled;
           menus[menuCount].items[i].submenu[j].checked = menu.items[i].submenu[j].checked;
@@ -489,7 +489,7 @@ void MenuBar::render(RenderManager *renderer, int windowWidth)
   {
     Menu &menu = menus[i];
 
-    int titleLen = menu.title ? StrLen(menu.title) : 0;
+    int titleLen = menu.title ? strLen(menu.title) : 0;
     int menuWidth = titleLen * charWidth + 30;
     menu.bounds = Rect(currentX, y, menuWidth, height);
 
@@ -571,7 +571,7 @@ void MenuBar::render(RenderManager *renderer, int windowWidth)
 
         if (item.shortcut)
         {
-          int shortcutLen = StrLen(item.shortcut);
+          int shortcutLen = strLen(item.shortcut);
           int shortcutX = dropdownX + maxWidth - (shortcutLen * charWidth) - 15;
           int shortcutY = itemY + (32 - charHeight) / 2;
           renderer->drawText(item.shortcut, shortcutX, shortcutY, theme.disabledText);
@@ -607,7 +607,7 @@ void MenuBar::render(RenderManager *renderer, int windowWidth)
         {
           if (parentItem.submenu[i].label)
           {
-            int labelLen = StrLen(parentItem.submenu[i].label);
+            int labelLen = strLen(parentItem.submenu[i].label);
             int itemWidth = labelLen * charWidth + 50;
             if (itemWidth > submenuWidth)
             {
@@ -674,7 +674,7 @@ void MenuBar::render(RenderManager *renderer, int windowWidth)
 
             if (subItem.shortcut)
             {
-              int shortcutLen = StrLen(subItem.shortcut);
+              int shortcutLen = strLen(subItem.shortcut);
               int shortcutX = submenuX + submenuWidth - (shortcutLen * charWidth) - 15;
               int shortcutY = subItemY + (32 - charHeight) / 2;
               renderer->drawText(subItem.shortcut, shortcutX, shortcutY, theme.disabledText);
@@ -984,7 +984,7 @@ void MenuBar::openMenu(int menuIndex)
 
     char debugMsg[64];
     const char *prefix = "Opening menu: ";
-    StrCopy(debugMsg, prefix);
+    strCopy(debugMsg, prefix);
 
     int num = menuIndex;
     char numStr[16];
@@ -1083,7 +1083,7 @@ void MenuBar::calculateMenuBounds()
   for (int i = 0; i < menuCount; i++)
   {
     Menu &menu = menus[i];
-    int titleLen = menu.title ? StrLen(menu.title) : 0;
+    int titleLen = menu.title ? strLen(menu.title) : 0;
     int menuWidth = titleLen * 9 + 30;
     menu.bounds = Rect(currentX, y, menuWidth, height);
     currentX += menuWidth;
@@ -1126,25 +1126,25 @@ namespace MenuHelper
                       MenuCallback recentCallbacks[10])
   {
     Menu menu;
-    menu.title = StrDup("File");
+    menu.title = allocString("File");
 
     MenuItem newItem;
-    newItem.label = StrDup("New");
-    newItem.shortcut = StrDup("Ctrl+N");
+    newItem.label = allocString("New");
+    newItem.shortcut = allocString("Ctrl+N");
     newItem.type = MenuItemType::Normal;
     newItem.callback = onNew;
     menu.addItem(newItem);
 
     MenuItem openItem;
-    openItem.label = StrDup("Open...");
-    openItem.shortcut = StrDup("Ctrl+O");
+    openItem.label = allocString("Open...");
+    openItem.shortcut = allocString("Ctrl+O");
     openItem.type = MenuItemType::Normal;
     openItem.callback = onOpen;
     menu.addItem(openItem);
 
     MenuItem openProcItem;
-    openProcItem.label = StrDup("Open Process...");
-    openProcItem.shortcut = StrDup("Ctrl+P");
+    openProcItem.label = allocString("Open Process...");
+    openProcItem.shortcut = allocString("Ctrl+P");
     openProcItem.type = MenuItemType::Normal;
     openProcItem.callback = onOpenProcess;
     openProcItem.enabled = true;
@@ -1154,14 +1154,14 @@ namespace MenuHelper
     menu.addItem(openProcItem);
 
     MenuItem saveItem;
-    saveItem.label = StrDup("Save");
-    saveItem.shortcut = StrDup("Ctrl+S");
+    saveItem.label = allocString("Save");
+    saveItem.shortcut = allocString("Ctrl+S");
     saveItem.type = MenuItemType::Normal;
     saveItem.callback = onSave;
     menu.addItem(saveItem);
 
     MenuItem recentHeader;
-    recentHeader.label = StrDup("Recent Files");
+    recentHeader.label = allocString("Recent Files");
     recentHeader.type = MenuItemType::Submenu;
     recentHeader.enabled = true;
     recentHeader.callback = nullptr;
@@ -1169,9 +1169,9 @@ namespace MenuHelper
     if (g_RecentFileCount == 0)
     {
       recentHeader.submenuCount = 1;
-      recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem));
+      recentHeader.submenu = (MenuItem *)platformAlloc(sizeof(MenuItem));
 
-      recentHeader.submenu[0].label = StrDup("No recent files");
+      recentHeader.submenu[0].label = allocString("No recent files");
       recentHeader.submenu[0].shortcut = nullptr;
       recentHeader.submenu[0].type = MenuItemType::Normal;
       recentHeader.submenu[0].enabled = false;
@@ -1183,11 +1183,11 @@ namespace MenuHelper
     else
     {
       recentHeader.submenuCount = g_RecentFileCount;
-      recentHeader.submenu = (MenuItem *)PlatformAlloc(sizeof(MenuItem) * g_RecentFileCount);
+      recentHeader.submenu = (MenuItem *)platformAlloc(sizeof(MenuItem) * g_RecentFileCount);
 
       for (int i = 0; i < g_RecentFileCount; i++)
       {
-        recentHeader.submenu[i].label = StrDup(g_RecentFiles[i]);
+        recentHeader.submenu[i].label = allocString(g_RecentFiles[i]);
         recentHeader.submenu[i].shortcut = nullptr;
         recentHeader.submenu[i].type = MenuItemType::Normal;
         recentHeader.submenu[i].enabled = true;
@@ -1205,8 +1205,8 @@ namespace MenuHelper
     menu.addItem(sepItem);
 
     MenuItem exitItem;
-    exitItem.label = StrDup("Exit");
-    exitItem.shortcut = StrDup("Alt+F4");
+    exitItem.label = allocString("Exit");
+    exitItem.shortcut = allocString("Alt+F4");
     exitItem.type = MenuItemType::Normal;
     exitItem.callback = onExit;
     menu.addItem(exitItem);
@@ -1214,21 +1214,21 @@ namespace MenuHelper
     return menu;
   }
 
-  Menu createSearchMenu(MenuCallback onFindReplace, MenuCallback onGoTo)
+  Menu createSearchMenu(MenuCallback onfindReplace, MenuCallback onGoTo)
   {
     Menu menu;
-    menu.title = StrDup("Search");
+    menu.title = allocString("Search");
 
     MenuItem findReplaceItem;
-    findReplaceItem.label = StrDup("Find and Replace...");
-    findReplaceItem.shortcut = StrDup("Ctrl+F");
+    findReplaceItem.label = allocString("find and Replace...");
+    findReplaceItem.shortcut = allocString("Ctrl+F");
     findReplaceItem.type = MenuItemType::Normal;
-    findReplaceItem.callback = onFindReplace;
+    findReplaceItem.callback = onfindReplace;
     menu.addItem(findReplaceItem);
 
     MenuItem goToItem;
-    goToItem.label = StrDup("Go To...");
-    goToItem.shortcut = StrDup("Ctrl+G");
+    goToItem.label = allocString("Go To...");
+    goToItem.shortcut = allocString("Ctrl+G");
     goToItem.type = MenuItemType::Normal;
     goToItem.callback = onGoTo;
     menu.addItem(goToItem);
@@ -1239,16 +1239,16 @@ namespace MenuHelper
   Menu createToolsMenu(MenuCallback onOptions, MenuCallback onPlugins)
   {
     Menu toolsMenu;
-    toolsMenu.title = StrDup("Tools");
+    toolsMenu.title = allocString("Tools");
 
     MenuItem optionsItem;
-    optionsItem.label = StrDup("Options");
+    optionsItem.label = allocString("Options");
     optionsItem.type = MenuItemType::Normal;
     optionsItem.callback = onOptions;
     toolsMenu.addItem(optionsItem);
 
     MenuItem pluginsItem;
-    pluginsItem.label = StrDup("Plugins...");
+    pluginsItem.label = allocString("Plugins...");
     pluginsItem.type = MenuItemType::Normal;
     pluginsItem.callback = onPlugins;
     toolsMenu.addItem(pluginsItem);
@@ -1259,11 +1259,11 @@ namespace MenuHelper
   Menu createHelpMenu(MenuCallback onAbout, MenuCallback onDocumentation)
   {
     Menu menu;
-    menu.title = StrDup("Help");
+    menu.title = allocString("Help");
 
     MenuItem docItem;
-    docItem.label = StrDup("Documentation");
-    docItem.shortcut = StrDup("F1");
+    docItem.label = allocString("Documentation");
+    docItem.shortcut = allocString("F1");
     docItem.type = MenuItemType::Normal;
     docItem.callback = onDocumentation;
     menu.addItem(docItem);
@@ -1273,7 +1273,7 @@ namespace MenuHelper
     menu.addItem(sepItem);
 
     MenuItem aboutItem;
-    aboutItem.label = StrDup("About");
+    aboutItem.label = allocString("About");
     aboutItem.type = MenuItemType::Normal;
     aboutItem.callback = onAbout;
     menu.addItem(aboutItem);

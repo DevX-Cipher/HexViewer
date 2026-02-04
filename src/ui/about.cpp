@@ -167,10 +167,10 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
 {
   UpdateCheckParams *params = (UpdateCheckParams *)lpParam;
 
-  UpdateInfo *info = (UpdateInfo *)PlatformAlloc(sizeof(UpdateInfo));
+  UpdateInfo *info = (UpdateInfo *)platformAlloc(sizeof(UpdateInfo));
   if (!info)
   {
-    PlatformFree(params);
+    platformFree(params);
     return 0;
   }
 
@@ -180,7 +180,7 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
   info->latestVersion = "Checking...";
   info->releaseNotes = "Please wait while we check for updates...";
 
-  WinString response = HttpGet(info->releaseApiUrl);
+  winString response = HttpGet(info->releaseApiUrl);
 
   if (!response.IsEmpty())
   {
@@ -188,7 +188,7 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
 
     if (params->checkBeta)
     {
-      int urlPos = response.Find("{\"url\"");
+      int urlPos = response.find("{\"url\"");
       if (urlPos >= 0)
       {
         const char *releaseStart = response.CStr() + urlPos;
@@ -211,28 +211,28 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
         }
 
         int len = (int)(releaseEnd - releaseStart);
-        char *firstRelease = (char *)PlatformAlloc(len + 1);
+        char *firstRelease = (char *)platformAlloc(len + 1);
         if (firstRelease)
         {
-          MemCopy(firstRelease, releaseStart, len);
+          memCopy(firstRelease, releaseStart, len);
           firstRelease[len] = '\0';
 
-          WinString tempStr;
-          tempStr.Append(firstRelease);
+          winString tempStr;
+          tempStr.append(firstRelease);
 
-          WinString nameResult = ExtractJsonValue(tempStr, "name");
+          winString nameResult = ExtractJsonValue(tempStr, "name");
           if (!nameResult.IsEmpty())
           {
             size_t nameLen = nameResult.Length();
-            releaseNameStr = (char *)PlatformAlloc(nameLen + 1);
+            releaseNameStr = (char *)platformAlloc(nameLen + 1);
             if (releaseNameStr)
             {
-              MemCopy(releaseNameStr, nameResult.CStr(), nameLen);
+              memCopy(releaseNameStr, nameResult.CStr(), nameLen);
               releaseNameStr[nameLen] = '\0';
             }
           }
 
-          PlatformFree(firstRelease);
+          platformFree(firstRelease);
         }
       }
     }
@@ -253,20 +253,20 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
         int versionLen = (int)(spacePos - vPos);
         if (versionLen > 0)
         {
-          char *version = (char *)PlatformAlloc(versionLen + 1);
+          char *version = (char *)platformAlloc(versionLen + 1);
           if (version)
           {
-            MemCopy(version, vPos, versionLen);
+            memCopy(version, vPos, versionLen);
             version[versionLen] = '\0';
             info->latestVersion = version;
           }
         }
       }
-      PlatformFree(releaseNameStr);
+      platformFree(releaseNameStr);
     }
     else
     {
-      WinString tagName = ExtractJsonValue(response, "tag_name");
+      winString tagName = ExtractJsonValue(response, "tag_name");
       if (!tagName.IsEmpty())
       {
         const char *tagStr = tagName.CStr();
@@ -274,20 +274,20 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
 
         if (tagStr[0] == 'v' && tagLen > 1)
         {
-          char *version = (char *)PlatformAlloc(tagLen);
+          char *version = (char *)platformAlloc(tagLen);
           if (version)
           {
-            MemCopy(version, tagStr + 1, tagLen - 1);
+            memCopy(version, tagStr + 1, tagLen - 1);
             version[tagLen - 1] = '\0';
             info->latestVersion = version;
           }
         }
         else
         {
-          char *version = (char *)PlatformAlloc(tagLen + 1);
+          char *version = (char *)platformAlloc(tagLen + 1);
           if (version)
           {
-            MemCopy(version, tagStr, tagLen);
+            memCopy(version, tagStr, tagLen);
             version[tagLen] = '\0';
             info->latestVersion = version;
           }
@@ -295,16 +295,16 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
       }
     }
 
-    WinString releaseNotes = ExtractJsonValue(response, "body");
+    winString releaseNotes = ExtractJsonValue(response, "body");
 
     if (!releaseNotes.IsEmpty())
     {
       size_t len = releaseNotes.Length();
-      char *notesCopy = (char *)PlatformAlloc(len + 1);
+      char *notesCopy = (char *)platformAlloc(len + 1);
 
       if (notesCopy)
       {
-        MemCopy(notesCopy, releaseNotes.CStr(), len);
+        memCopy(notesCopy, releaseNotes.CStr(), len);
         notesCopy[len] = '\0';
 
         CleanReleaseNotes(notesCopy);
@@ -314,7 +314,7 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
 
       info->updateAvailable =
           !strEquals(info->latestVersion, info->currentVersion) &&
-          !StringIsEmpty(info->latestVersion);
+          !stringIsEmpty(info->latestVersion);
     }
     else
     {
@@ -326,8 +326,8 @@ static DWORD WINAPI UpdateCheckThread(LPVOID lpParam)
 
     UpdateDialog::Show(params->parentWnd, *info);
 
-    PlatformFree(info);
-    PlatformFree(params);
+    platformFree(info);
+    platformFree(params);
     return 0;
   }
 }
@@ -690,8 +690,8 @@ void AboutDialog::RenderContent(int width, int height)
   renderer->drawText(appName, contentX, contentY, theme.textColor);
 
   char version[64];
-  StringCopy(version, Translations::T("Version"), sizeof(version));
-  StrCat(version, " 1.0.0");
+  stringCopy(version, Translations::T("Version"), sizeof(version));
+  strCat(version, " 1.0.0");
   renderer->drawText(version, contentX, contentY + 25, theme.disabledText);
 
   renderer->drawText(Translations::T("A modern cross-platform hex editor"), contentX, contentY + 50, theme.disabledText);
@@ -700,18 +700,18 @@ void AboutDialog::RenderContent(int width, int height)
   renderer->drawText(Translations::T("Features:"), 40, featuresY, theme.textColor);
 
   char feature1[128];
-  StringCopy(feature1, "- ", sizeof(feature1));
-  StrCat(feature1, Translations::T("Cross-platform support"));
+  stringCopy(feature1, "- ", sizeof(feature1));
+  strCat(feature1, Translations::T("Cross-platform support"));
   renderer->drawText(feature1, 50, featuresY + 30, theme.disabledText);
 
   char feature2[128];
-  StringCopy(feature2, "- ", sizeof(feature2));
-  StrCat(feature2, Translations::T("Real-time hex editing"));
+  stringCopy(feature2, "- ", sizeof(feature2));
+  strCat(feature2, Translations::T("Real-time hex editing"));
   renderer->drawText(feature2, 50, featuresY + 55, theme.disabledText);
 
   char feature3[128];
-  StringCopy(feature3, "- ", sizeof(feature3));
-  StrCat(feature3, Translations::T("Dark mode support"));
+  stringCopy(feature3, "- ", sizeof(feature3));
+  strCat(feature3, Translations::T("Dark mode support"));
   renderer->drawText(feature3, 50, featuresY + 80, theme.disabledText);
 
   renderer->drawLine(0, height - 120, width, height - 120, theme.separator);
@@ -746,7 +746,7 @@ void AboutDialog::RenderContent(int width, int height)
   updateState.pressed = (pressedButton == 1);
 
   char copyright[] = "(c) 2025 DiE team!";
-  int copyrightX = (width - (StrLen(copyright) * 8)) / 2;
+  int copyrightX = (width - (strLen(copyright) * 8)) / 2;
   renderer->drawText(copyright, copyrightX, height - 20, theme.disabledText);
 }
 
@@ -831,20 +831,20 @@ bool AboutDialog::OnMouseUp(HWND hWnd, int x, int y)
   {
     ShowWindow(hWnd, SW_HIDE);
 
-    UpdateCheckParams *params = (UpdateCheckParams *)PlatformAlloc(sizeof(UpdateCheckParams));
+    UpdateCheckParams *params = (UpdateCheckParams *)platformAlloc(sizeof(UpdateCheckParams));
     if (params)
     {
       params->parentWnd = parentWindow;
       params->checkBeta = betaEnabled;
-      StringCopy(params->currentVersion, "1.0.0", sizeof(params->currentVersion));
+      stringCopy(params->currentVersion, "1.0.0", sizeof(params->currentVersion));
 
       if (betaEnabled)
       {
-        StringCopy(params->releaseApiUrl, "https://api.github.com/repos/horsicq/HexViewer/releases", sizeof(params->releaseApiUrl));
+        stringCopy(params->releaseApiUrl, "https://api.github.com/repos/horsicq/HexViewer/releases", sizeof(params->releaseApiUrl));
       }
       else
       {
-        StringCopy(params->releaseApiUrl, "https://api.github.com/repos/horsicq/HexViewer/releases/latest", sizeof(params->releaseApiUrl));
+        stringCopy(params->releaseApiUrl, "https://api.github.com/repos/horsicq/HexViewer/releases/latest", sizeof(params->releaseApiUrl));
       }
 
       HANDLE hThread = CreateThread(nullptr, 0, UpdateCheckThread, params, 0, nullptr);
@@ -854,7 +854,7 @@ bool AboutDialog::OnMouseUp(HWND hWnd, int x, int y)
       }
       else
       {
-        PlatformFree(params);
+        platformFree(params);
       }
     }
 

@@ -105,7 +105,7 @@ public:
         return true;
     }
 
-    static void MemCopy(void *dst, const void *src, unsigned int size)
+    static void memCopy(void *dst, const void *src, unsigned int size)
     {
         unsigned char *d = (unsigned char *)dst;
         const unsigned char *s = (const unsigned char *)src;
@@ -181,7 +181,7 @@ public:
         if (!buf)
             return false;
 
-        MemCopy(buf->data, ptr, size);
+        memCopy(buf->data, ptr, size);
         buf->size = size;
 
         *outBuffer = buf;
@@ -219,7 +219,7 @@ public:
             return nullptr;
         }
 
-        MemCopy(pMem, pngData->data, pngData->size);
+        memCopy(pMem, pngData->data, pngData->size);
         GlobalUnlock(hMem);
         BufferFree(pngData);
 
@@ -356,7 +356,7 @@ public:
             if (!buf)
                 return false;
 
-            MemCopy(buf->data, [data bytes], [data length]);
+            memCopy(buf->data, [data bytes], [data length]);
             buf->size = [data length];
 
             *outBuffer = buf;
@@ -396,7 +396,7 @@ public:
         if (!buf)
             return false;
 
-        MemCopy(buf->data, _binary_about_png_start, size);
+        memCopy(buf->data, _binary_about_png_start, size);
         buf->size = size;
 
         *outBuffer = buf;

@@ -27,7 +27,7 @@ struct PlatformWindow {
 #endif
 };
 
-struct FindReplaceDialogData {
+struct findReplaceDialogData {
 #ifdef _WIN32
   char findText[256];
   char replaceText[256];
@@ -106,7 +106,7 @@ struct InputDialogData
 namespace SearchDialogs {
 
 #ifdef _WIN32
-  void ShowFindReplaceDialog(
+  void ShowfindReplaceDialog(
     void* parentHandle,
     bool darkMode,
     void (*callback)(const char*, const char*),
@@ -119,7 +119,7 @@ namespace SearchDialogs {
     void* userData = nullptr
   );
 #else
-  void ShowFindReplaceDialog(void* parentHandle, bool darkMode,
+  void ShowfindReplaceDialog(void* parentHandle, bool darkMode,
     std::function<void(const std::string&, const std::string&)> callback);
   void ShowGoToDialog(void* parentHandle, bool darkMode,
     std::function<void(int)> callback);

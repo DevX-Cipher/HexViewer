@@ -25,7 +25,7 @@ typedef void *SEL;
 namespace SearchDialogs
 {
 
-    static FindReplaceDialogData *g_findReplaceData = nullptr;
+    static findReplaceDialogData *g_findReplaceData = nullptr;
     static GoToDialogData *g_goToData = nullptr;
     static InputDialogData* g_inputData = nullptr;
 
@@ -35,7 +35,7 @@ namespace SearchDialogs
                y >= rect.y && y <= rect.y + rect.height;
     }
 
-    void RenderFindReplaceDialog(FindReplaceDialogData *data, int windowWidth, int windowHeight)
+    void RenderfindReplaceDialog(findReplaceDialogData *data, int windowWidth, int windowHeight)
     {
         if (!data || !data->renderer)
             return;
@@ -51,7 +51,7 @@ namespace SearchDialogs
         int margin = 20;
         int y = margin + 10;
 
-        data->renderer->drawText(Translations::T("Find:"), margin, y, theme.textColor);
+        data->renderer->drawText(Translations::T("find:"), margin, y, theme.textColor);
         y += 28;
 
         Rect findBox(margin, y, windowWidth - margin * 2, 30);
@@ -63,7 +63,7 @@ namespace SearchDialogs
 
 #ifdef _WIN32
         char findDisplay[512];
-        StringCopy(findDisplay, data->findText, 512);
+        stringCopy(findDisplay, data->findText, 512);
 
         data->renderer->drawText(findDisplay,
           findBox.x + 8,
@@ -99,7 +99,7 @@ namespace SearchDialogs
 
 #ifdef _WIN32
         char replaceDisplay[512];
-        StringCopy(replaceDisplay, data->replaceText, 512);
+        stringCopy(replaceDisplay, data->replaceText, 512);
 
         data->renderer->drawText(replaceDisplay,
           replaceBox.x + 8,
@@ -182,7 +182,7 @@ namespace SearchDialogs
 
 #ifdef _WIN32
       char offsetDisplay[256];
-      StringCopy(offsetDisplay, data->lineNumberText, 256);
+      stringCopy(offsetDisplay, data->lineNumberText, 256);
 
       data->renderer->drawText(offsetDisplay,
         offsetBox.x + 8,
@@ -234,7 +234,7 @@ namespace SearchDialogs
 #endif
     }
 
-    void UpdateFindReplaceHover(FindReplaceDialogData *data, int x, int y, int windowWidth, int windowHeight)
+    void UpdatefindReplaceHover(findReplaceDialogData *data, int x, int y, int windowWidth, int windowHeight)
     {
         int margin = 20;
         int buttonY = windowHeight - margin - 45;
@@ -250,7 +250,7 @@ namespace SearchDialogs
             data->hoveredWidget = 1;
     }
 
-    void HandleFindReplaceClick(FindReplaceDialogData *data, int x, int y, int windowWidth, int windowHeight)
+    void HandlefindReplaceClick(findReplaceDialogData *data, int x, int y, int windowWidth, int windowHeight)
     {
         int margin = 20;
         int yStart = margin + 10 + 28;
@@ -371,12 +371,12 @@ namespace SearchDialogs
 			}
 			else
 			{
-        offset = StrToInt(data->lineNumberText);
+        offset = strToInt(data->lineNumberText);
       }
 			
 			data->callback(offset);
 #else
-			int offset = StrToInt(data->lineNumberText.c_str());
+			int offset = strToInt(data->lineNumberText.c_str());
 			data->callback(offset);
 #endif
 		}
@@ -388,18 +388,18 @@ namespace SearchDialogs
 	}
 }
 
-    void HandleFindReplaceChar(FindReplaceDialogData *data, char ch, int windowWidth, int windowHeight)
+    void HandlefindReplaceChar(findReplaceDialogData *data, char ch, int windowWidth, int windowHeight)
     {
         if (ch == '\b' || ch == 8)
         {
 #ifdef _WIN32
-            if (data->activeTextBox == 0 && !StringIsEmpty(data->findText))
+            if (data->activeTextBox == 0 && !stringIsEmpty(data->findText))
             {
-                StringRemoveLast(data->findText);
+                stringRemoveLast(data->findText);
             }
-            else if (data->activeTextBox == 1 && !StringIsEmpty(data->replaceText))
+            else if (data->activeTextBox == 1 && !stringIsEmpty(data->replaceText))
             {
-                StringRemoveLast(data->replaceText);
+                stringRemoveLast(data->replaceText);
             }
 #else
             if (data->activeTextBox == 0 && !data->findText.empty())
@@ -415,7 +415,7 @@ namespace SearchDialogs
         else if (ch == '\r' || ch == '\n')
         {
             data->hoveredWidget = 0;
-            HandleFindReplaceClick(data, 0, 0, windowWidth, windowHeight);
+            HandlefindReplaceClick(data, 0, 0, windowWidth, windowHeight);
         }
         else if (ch == 27)
         {
@@ -427,11 +427,11 @@ namespace SearchDialogs
 #ifdef _WIN32
             if (data->activeTextBox == 0)
             {
-                StringAppend(data->findText, ch, 256);
+                stringappend(data->findText, ch, 256);
             }
             else if (data->activeTextBox == 1)
             {
-                StringAppend(data->replaceText, ch, 256);
+                stringappend(data->replaceText, ch, 256);
             }
 #else
             if (data->activeTextBox == 0)
@@ -451,9 +451,9 @@ namespace SearchDialogs
         if (ch == '\b' || ch == 8)
         {
 #ifdef _WIN32
-            if (!StringIsEmpty(data->lineNumberText))
+            if (!stringIsEmpty(data->lineNumberText))
             {
-                StringRemoveLast(data->lineNumberText);
+                stringRemoveLast(data->lineNumberText);
             }
 #else
             if (!data->lineNumberText.empty())
@@ -478,7 +478,7 @@ namespace SearchDialogs
                  (ch == 'x' || ch == 'X'))
         {
 #ifdef _WIN32
-            StringAppend(data->lineNumberText, ch, 256);
+            stringappend(data->lineNumberText, ch, 256);
 #else
             data->lineNumberText += ch;
 #endif
@@ -487,9 +487,9 @@ namespace SearchDialogs
 
 #ifdef _WIN32
 
-    LRESULT CALLBACK FindReplaceWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    LRESULT CALLBACK findReplaceWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        FindReplaceDialogData *data = g_findReplaceData;
+        findReplaceDialogData *data = g_findReplaceData;
 
         switch (msg)
         {
@@ -521,7 +521,7 @@ namespace SearchDialogs
             {
                 RECT rect;
                 GetClientRect(hwnd, &rect);
-                RenderFindReplaceDialog(data, rect.right, rect.bottom);
+                RenderfindReplaceDialog(data, rect.right, rect.bottom);
             }
             EndPaint(hwnd, &ps);
             return 0;
@@ -533,7 +533,7 @@ namespace SearchDialogs
             {
                 RECT rect;
                 GetClientRect(hwnd, &rect);
-                HandleFindReplaceChar(data, (char)wParam, rect.right, rect.bottom);
+                HandlefindReplaceChar(data, (char)wParam, rect.right, rect.bottom);
                 InvalidateRect(hwnd, NULL, FALSE);
             }
             return 0;
@@ -558,7 +558,7 @@ namespace SearchDialogs
                 GetClientRect(hwnd, &rect);
                 int x = LOWORD(lParam);
                 int y = HIWORD(lParam);
-                UpdateFindReplaceHover(data, x, y, rect.right, rect.bottom);
+                UpdatefindReplaceHover(data, x, y, rect.right, rect.bottom);
                 InvalidateRect(hwnd, NULL, FALSE);
             }
             return 0;
@@ -601,7 +601,7 @@ namespace SearchDialogs
 
                 if (data->pressedWidget == data->hoveredWidget && data->hoveredWidget != -1)
                 {
-                    HandleFindReplaceClick(data, x, y, rect.right, rect.bottom);
+                    HandlefindReplaceClick(data, x, y, rect.right, rect.bottom);
                 }
 
                 data->pressedWidget = -1;
@@ -761,12 +761,12 @@ namespace SearchDialogs
 
 #elif defined(__linux__)
 
-    void ProcessFindReplaceEvent(FindReplaceDialogData *data, XEvent *event, int width, int height)
+    void ProcessfindReplaceEvent(findReplaceDialogData *data, XEvent *event, int width, int height)
     {
         switch (event->type)
         {
         case Expose:
-            RenderFindReplaceDialog(data, width, height);
+            RenderfindReplaceDialog(data, width, height);
             break;
 
         case KeyPress:
@@ -778,20 +778,20 @@ namespace SearchDialogs
             if (keysym == XK_Tab)
             {
                 data->activeTextBox = (data->activeTextBox + 1) % 2;
-                RenderFindReplaceDialog(data, width, height);
+                RenderfindReplaceDialog(data, width, height);
             }
             else if (len > 0)
             {
-                HandleFindReplaceChar(data, buf[0], width, height);
-                RenderFindReplaceDialog(data, width, height);
+                HandlefindReplaceChar(data, buf[0], width, height);
+                RenderfindReplaceDialog(data, width, height);
             }
             break;
         }
 
         case MotionNotify:
         {
-            UpdateFindReplaceHover(data, event->xmotion.x, event->xmotion.y, width, height);
-            RenderFindReplaceDialog(data, width, height);
+            UpdatefindReplaceHover(data, event->xmotion.x, event->xmotion.y, width, height);
+            RenderfindReplaceDialog(data, width, height);
             break;
         }
 
@@ -811,7 +811,7 @@ namespace SearchDialogs
                 else if (IsPointInRect(event->xbutton.x, event->xbutton.y, replaceBox))
                     data->activeTextBox = 1;
 
-                RenderFindReplaceDialog(data, width, height);
+                RenderfindReplaceDialog(data, width, height);
             }
             break;
 
@@ -820,10 +820,10 @@ namespace SearchDialogs
             {
                 if (data->pressedWidget == data->hoveredWidget && data->hoveredWidget != -1)
                 {
-                    HandleFindReplaceClick(data, event->xbutton.x, event->xbutton.y, width, height);
+                    HandlefindReplaceClick(data, event->xbutton.x, event->xbutton.y, width, height);
                 }
                 data->pressedWidget = -1;
-                RenderFindReplaceDialog(data, width, height);
+                RenderfindReplaceDialog(data, width, height);
             }
             break;
 
@@ -839,7 +839,7 @@ namespace SearchDialogs
             if (event->xconfigure.width != width || event->xconfigure.height != height)
             {
                 data->renderer->resize(event->xconfigure.width, event->xconfigure.height);
-                RenderFindReplaceDialog(data, event->xconfigure.width, event->xconfigure.height);
+                RenderfindReplaceDialog(data, event->xconfigure.width, event->xconfigure.height);
             }
             break;
         }
@@ -918,9 +918,9 @@ namespace SearchDialogs
   typedef struct { double width, height; } NSSize_compat;
   typedef struct { NSPoint_compat origin; NSSize_compat size; } NSRect_compat;
 
-  void FindReplaceDrawRect(id self, SEL _cmd, void* dirtyRect)
+  void findReplaceDrawRect(id self, SEL _cmd, void* dirtyRect)
   {
-    FindReplaceDialogData* data = g_findReplaceData;
+    findReplaceDialogData* data = g_findReplaceData;
     if (!data || !data->renderer)
       return;
 
@@ -929,12 +929,12 @@ namespace SearchDialogs
 
     NSRect_compat bounds = ((NSRect_compat(*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds"));
 
-    RenderFindReplaceDialog(data, (int)bounds.size.width, (int)bounds.size.height);
+    RenderfindReplaceDialog(data, (int)bounds.size.width, (int)bounds.size.height);
   }
 
-  void FindReplaceMouseMoved(id self, SEL _cmd, id event)
+  void findReplaceMouseMoved(id self, SEL _cmd, id event)
   {
-    FindReplaceDialogData* data = g_findReplaceData;
+    findReplaceDialogData* data = g_findReplaceData;
     if (!data)
       return;
 
@@ -944,14 +944,14 @@ namespace SearchDialogs
     NSRect_compat bounds = ((NSRect_compat(*)(id, SEL))objc_msgSend)(contentView, sel_registerName("bounds"));
     NSPoint_compat location = ((NSPoint_compat(*)(id, SEL))objc_msgSend)(event, sel_registerName("locationInWindow"));
 
-    UpdateFindReplaceHover(data, (int)location.x, (int)(bounds.size.height - location.y),
+    UpdatefindReplaceHover(data, (int)location.x, (int)(bounds.size.height - location.y),
       (int)bounds.size.width, (int)bounds.size.height);
     ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
   }
 
-  void FindReplaceMouseDown(id self, SEL _cmd, id event)
+  void findReplaceMouseDown(id self, SEL _cmd, id event)
   {
-    FindReplaceDialogData* data = g_findReplaceData;
+    findReplaceDialogData* data = g_findReplaceData;
     if (!data)
       return;
 
@@ -959,9 +959,9 @@ namespace SearchDialogs
     ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
   }
 
-  void FindReplaceMouseUp(id self, SEL _cmd, id event)
+  void findReplaceMouseUp(id self, SEL _cmd, id event)
   {
-    FindReplaceDialogData* data = g_findReplaceData;
+    findReplaceDialogData* data = g_findReplaceData;
     if (!data)
       return;
 
@@ -973,7 +973,7 @@ namespace SearchDialogs
 
     if (data->pressedWidget == data->hoveredWidget && data->hoveredWidget != -1)
     {
-      HandleFindReplaceClick(data, (int)location.x, (int)(bounds.size.height - location.y),
+      HandlefindReplaceClick(data, (int)location.x, (int)(bounds.size.height - location.y),
         (int)bounds.size.width, (int)bounds.size.height);
     }
 
@@ -981,9 +981,9 @@ namespace SearchDialogs
     ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
   }
 
-  void FindReplaceKeyDown(id self, SEL _cmd, id event)
+  void findReplaceKeyDown(id self, SEL _cmd, id event)
   {
-    FindReplaceDialogData* data = g_findReplaceData;
+    findReplaceDialogData* data = g_findReplaceData;
     if (!data)
       return;
 
@@ -997,7 +997,7 @@ namespace SearchDialogs
 
     if (str && str[0])
     {
-      HandleFindReplaceChar(data, str[0], (int)bounds.size.width, (int)bounds.size.height);
+      HandlefindReplaceChar(data, str[0], (int)bounds.size.width, (int)bounds.size.height);
       ((void (*)(id, SEL, bool))objc_msgSend)(self, sel_registerName("setNeedsDisplay:"), true);
     }
   }
@@ -1005,22 +1005,22 @@ namespace SearchDialogs
 #endif
 
 #ifdef _WIN32
-    void ShowFindReplaceDialog(void *parentHandle, bool darkMode,
+    void ShowfindReplaceDialog(void *parentHandle, bool darkMode,
                                void (*callback)(const char *, const char *), void *userData)
     {
 #else
-    void ShowFindReplaceDialog(void *parentHandle, bool darkMode,
+    void ShowfindReplaceDialog(void *parentHandle, bool darkMode,
                                std::function<void(const std::string &, const std::string &)> callback)
     {
 #endif
 
 #ifdef _WIN32
         HWND parent = (HWND)parentHandle;
-        const wchar_t *className = L"FindReplaceDialogClass";
+        const wchar_t *className = L"findReplaceDialogClass";
 
         WNDCLASSEXW wc = {};
         wc.cbSize = sizeof(WNDCLASSEXW);
-        wc.lpfnWndProc = FindReplaceWindowProc;
+        wc.lpfnWndProc = findReplaceWindowProc;
         wc.hInstance = GetModuleHandleW(NULL);
         wc.lpszClassName = className;
         wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -1029,7 +1029,7 @@ namespace SearchDialogs
         UnregisterClassW(className, wc.hInstance);
         RegisterClassExW(&wc);
 
-        FindReplaceDialogData data = {};
+        findReplaceDialogData data = {};
         data.running = true;
         data.activeTextBox = 0;
         data.findText[0] = 0;
@@ -1048,7 +1048,7 @@ namespace SearchDialogs
 
         HWND hwnd = CreateWindowExW(
             WS_EX_DLGMODALFRAME | WS_EX_TOPMOST,
-            className, L"Find and Replace",
+            className, L"find and Replace",
             WS_POPUP | WS_CAPTION | WS_SYSMENU,
             x, y, width, height,
             parent, nullptr, GetModuleHandleW(NULL), nullptr);
@@ -1113,7 +1113,7 @@ namespace SearchDialogs
         int screen = DefaultScreen(parentDisplay);
         Window rootWindow = RootWindow(parentDisplay, screen);
 
-        FindReplaceDialogData data = {};
+        findReplaceDialogData data = {};
         data.callback = callback;
         g_findReplaceData = &data;
 
@@ -1144,7 +1144,7 @@ namespace SearchDialogs
 
         Atom wmDelete = XInternAtom(parentDisplay, "WM_DELETE_WINDOW", False);
         XSetWMProtocols(parentDisplay, window, &wmDelete, 1);
-        XStoreName(parentDisplay, window, "Find and Replace");
+        XStoreName(parentDisplay, window, "find and Replace");
 
         if (parentWindow != 0)
         {
@@ -1176,7 +1176,7 @@ namespace SearchDialogs
             while (XPending(parentDisplay))
             {
                 XNextEvent(parentDisplay, &event);
-                ProcessFindReplaceEvent(&data, &event, width, height);
+                ProcessfindReplaceEvent(&data, &event, width, height);
             }
             usleep(1000);
         }
@@ -1409,7 +1409,7 @@ namespace SearchDialogs
 
 #ifdef _WIN32
       char inputDisplay[512];
-      StringCopy(inputDisplay, data->inputText, 512);
+      stringCopy(inputDisplay, data->inputText, 512);
 
       data->renderer->drawText(inputDisplay,
         inputBox.x + 8,
@@ -1504,9 +1504,9 @@ namespace SearchDialogs
       if (ch == '\b' || ch == 8)
       {
 #ifdef _WIN32
-        if (!StringIsEmpty(data->inputText))
+        if (!stringIsEmpty(data->inputText))
         {
-          StringRemoveLast(data->inputText);
+          stringRemoveLast(data->inputText);
         }
 #else
         if (!data->inputText.empty())
@@ -1528,7 +1528,7 @@ namespace SearchDialogs
       else if (ch >= 32 && ch < 127)
       {
 #ifdef _WIN32
-        StringAppend(data->inputText, ch, 256);
+        stringappend(data->inputText, ch, 256);
 #else
         data->inputText += ch;
 #endif
@@ -1683,7 +1683,7 @@ namespace SearchDialogs
       InputDialogData data = {};
       data.running = true;
       data.activeTextBox = 0;
-      StringCopy(data.inputText, defaultText, 256);
+      stringCopy(data.inputText, defaultText, 256);
       data.callback = callback;
       data.callbackUserData = userData;
       SearchDialogs::g_inputData = &data;

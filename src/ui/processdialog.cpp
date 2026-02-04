@@ -102,7 +102,7 @@ void RenderProcessDialog(ProcessDialogData* data, int windowWidth, int windowHei
     }
 
     char pidBuf[32];
-    ItoaDec((long long)e->pid, pidBuf, sizeof(pidBuf));
+    itoaDec((long long)e->pid, pidBuf, sizeof(pidBuf));
     Color textColor = (i == data->selectedIndex) ? theme.controlCheck : theme.textColor;
     data->renderer->drawText(pidBuf, margin, rowY + 8, textColor);
 
@@ -346,8 +346,8 @@ bool EnumerateProcesses(ProcessList* list)
     return false;
   }
 
-  ProcessEntry* tempEntries = (ProcessEntry*)PlatformAlloc(sizeof(ProcessEntry) * 512);
-  ProcessPriority* priorities = (ProcessPriority*)PlatformAlloc(sizeof(ProcessPriority) * 512);
+  ProcessEntry* tempEntries = (ProcessEntry*)platformAlloc(sizeof(ProcessEntry) * 512);
+  ProcessPriority* priorities = (ProcessPriority*)platformAlloc(sizeof(ProcessPriority) * 512);
   int tempCount = 0;
 
   FILETIME currentTime;
@@ -455,8 +455,8 @@ bool EnumerateProcesses(ProcessList* list)
     list->count++;
   }
 
-  PlatformFree(tempEntries, sizeof(ProcessEntry) * 512);
-  PlatformFree(priorities, sizeof(ProcessPriority) * 512);
+  platformFree(tempEntries, sizeof(ProcessEntry) * 512);
+  platformFree(priorities, sizeof(ProcessPriority) * 512);
 
   return true;
 }
@@ -722,7 +722,7 @@ bool ShowProcessDialog(HWND parent, AppOptions& options)
 
   data.processes.capacity = 512;
   data.processes.count = 0;
-  data.processes.entries = (ProcessEntry*)PlatformAlloc(sizeof(ProcessEntry) * 512);
+  data.processes.entries = (ProcessEntry*)platformAlloc(sizeof(ProcessEntry) * 512);
 
   if (!data.processes.entries)
   {
@@ -739,7 +739,7 @@ bool ShowProcessDialog(HWND parent, AppOptions& options)
 
   if (!EnumerateProcesses(&data.processes))
   {
-    PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+    platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
     g_processDialogData = nullptr;
     return false;
   }
@@ -765,7 +765,7 @@ bool ShowProcessDialog(HWND parent, AppOptions& options)
 
   if (!hwnd)
   {
-    PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+    platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
     g_processDialogData = nullptr;
     return false;
   }
@@ -785,7 +785,7 @@ bool ShowProcessDialog(HWND parent, AppOptions& options)
     if (data.renderer)
       delete data.renderer;
     DestroyWindow(hwnd);
-    PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+    platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
     g_processDialogData = nullptr;
     return false;
   }
@@ -825,7 +825,7 @@ bool ShowProcessDialog(HWND parent, AppOptions& options)
   DestroyWindow(hwnd);
   UnregisterClassW(className, GetModuleHandleW(NULL));
 
-  PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+  platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
   g_processDialogData = nullptr;
 
   if (selectedPid > 0)
@@ -833,11 +833,11 @@ bool ShowProcessDialog(HWND parent, AppOptions& options)
     
     if (ReadProcessMemoryData(selectedPid, &g_HexData))
     {
-      StrCopy(g_CurrentFilePath, "[Process Memory - PID ");
+      strCopy(g_CurrentFilePath, "[Process Memory - PID ");
       char pidBuf[32];
-      ItoaDec((long long)selectedPid, pidBuf, sizeof(pidBuf));
-      StrCat(g_CurrentFilePath, pidBuf);
-      StrCat(g_CurrentFilePath, "]");
+      itoaDec((long long)selectedPid, pidBuf, sizeof(pidBuf));
+      strCat(g_CurrentFilePath, pidBuf);
+      strCat(g_CurrentFilePath, "]");
 
       g_TotalLines = (int)g_HexData.getHexLines().count;
       g_ScrollY = 0;
@@ -987,14 +987,14 @@ bool EnumerateProcesses(ProcessList* list)
     return false;
   }
 
-  ProcessEntry* tempEntries = (ProcessEntry*)PlatformAlloc(sizeof(ProcessEntry) * 512);
-  ProcessPriority* priorities = (ProcessPriority*)PlatformAlloc(sizeof(ProcessPriority) * 512);
+  ProcessEntry* tempEntries = (ProcessEntry*)platformAlloc(sizeof(ProcessEntry) * 512);
+  ProcessPriority* priorities = (ProcessPriority*)platformAlloc(sizeof(ProcessPriority) * 512);
 
   if (!tempEntries || !priorities)
   {
 
-    if (tempEntries) PlatformFree(tempEntries, sizeof(ProcessEntry) * 512);
-    if (priorities) PlatformFree(priorities, sizeof(ProcessPriority) * 512);
+    if (tempEntries) platformFree(tempEntries, sizeof(ProcessEntry) * 512);
+    if (priorities) platformFree(priorities, sizeof(ProcessPriority) * 512);
     closedir(procDir);
     return false;
   }
@@ -1106,8 +1106,8 @@ bool EnumerateProcesses(ProcessList* list)
   }
 
 
-  PlatformFree(tempEntries, sizeof(ProcessEntry) * 512);
-  PlatformFree(priorities, sizeof(ProcessPriority) * 512);
+  platformFree(tempEntries, sizeof(ProcessEntry) * 512);
+  platformFree(priorities, sizeof(ProcessPriority) * 512);
 
 
   return true;
@@ -1218,7 +1218,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
 
   data.processes.capacity = 512;
   data.processes.count = 0;
-  data.processes.entries = (ProcessEntry*)PlatformAlloc(sizeof(ProcessEntry) * 512);
+  data.processes.entries = (ProcessEntry*)platformAlloc(sizeof(ProcessEntry) * 512);
 
   if (!data.processes.entries)
   {
@@ -1235,7 +1235,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
 
   if (!EnumerateProcesses(&data.processes))
   {
-    PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+    platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
     g_processDialogData = nullptr;
     return false;
   }
@@ -1277,7 +1277,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
 
   if (!dialog)
   {
-    PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+    platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
     g_processDialogData = nullptr;
     return false;
   }
@@ -1324,7 +1324,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
       delete data.renderer;
 
     XDestroyWindow(g_display, dialog);
-    PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+    platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
     g_processDialogData = nullptr;
     return false;
   }
@@ -1459,7 +1459,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
   XDestroyWindow(g_display, dialog);
   XFlush(g_display);
 
-  PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+  platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
   g_processDialogData = nullptr;
 
   if (selectedPid > 0)
@@ -1467,11 +1467,11 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
    
     if (ReadProcessMemoryData(selectedPid, &g_HexData))
     {
-      StrCopy(g_CurrentFilePath, "[Process Memory - PID ");
+      strCopy(g_CurrentFilePath, "[Process Memory - PID ");
       char pidBuf[32];
-      ItoaDec((long long)selectedPid, pidBuf, sizeof(pidBuf));
-      StrCat(g_CurrentFilePath, pidBuf);
-      StrCat(g_CurrentFilePath, "]");
+      itoaDec((long long)selectedPid, pidBuf, sizeof(pidBuf));
+      strCat(g_CurrentFilePath, pidBuf);
+      strCat(g_CurrentFilePath, "]");
 
       g_TotalLines = (int)g_HexData.getHexLines().count;
       g_ScrollY = 0;
@@ -1516,9 +1516,9 @@ bool ProcessHasVisibleWindow(int pid)
     return false;
 
   bool hasWindow = false;
-  CFIndex count = CFArrayGetCount(windowList);
+  Cfindex count = CFArrayGetCount(windowList);
 
-  for (CFIndex i = 0; i < count; i++)
+  for (Cfindex i = 0; i < count; i++)
   {
     CFDictionaryRef windowInfo = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
 
@@ -1586,8 +1586,8 @@ bool EnumerateProcesses(ProcessList* list)
 
   int procCount = (int)(size / sizeof(struct kinfo_proc));
 
-  ProcessEntry* tempEntries = (ProcessEntry*)PlatformAlloc(sizeof(ProcessEntry) * 512);
-  ProcessPriority* priorities = (ProcessPriority*)PlatformAlloc(sizeof(ProcessPriority) * 512);
+  ProcessEntry* tempEntries = (ProcessEntry*)platformAlloc(sizeof(ProcessEntry) * 512);
+  ProcessPriority* priorities = (ProcessPriority*)platformAlloc(sizeof(ProcessPriority) * 512);
   int tempCount = 0;
 
   time_t currentTime = time(NULL);
@@ -1683,8 +1683,8 @@ bool EnumerateProcesses(ProcessList* list)
     list->count++;
   }
 
-  PlatformFree(tempEntries, sizeof(ProcessEntry) * 512);
-  PlatformFree(priorities, sizeof(ProcessPriority) * 512);
+  platformFree(tempEntries, sizeof(ProcessEntry) * 512);
+  platformFree(priorities, sizeof(ProcessPriority) * 512);
 
   return true;
 }
@@ -1789,7 +1789,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
 
     data.processes.capacity = 512;
     data.processes.count = 0;
-    data.processes.entries = (ProcessEntry*)PlatformAlloc(sizeof(ProcessEntry) * 512);
+    data.processes.entries = (ProcessEntry*)platformAlloc(sizeof(ProcessEntry) * 512);
 
     if (!data.processes.entries)
     {
@@ -1806,7 +1806,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
 
     if (!EnumerateProcesses(&data.processes))
     {
-      PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+      platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
       g_processDialogData = nullptr;
       return false;
     }
@@ -1842,7 +1842,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
       if (data.renderer)
         delete data.renderer;
       [dialog close] ;
-      PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+      platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
       g_processDialogData = nullptr;
       return false;
     }
@@ -1896,7 +1896,7 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
     [parentWindow removeChildWindow:dialog];
     [dialog close] ;
 
-    PlatformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
+    platformFree(data.processes.entries, sizeof(ProcessEntry) * 512);
     g_processDialogData = nullptr;
 
     if (selectedPid > 0)
@@ -1904,11 +1904,11 @@ bool ShowProcessDialog(NativeWindow parent, AppOptions& options)
 
       if (ReadProcessMemoryData(selectedPid, &g_HexData))
       {
-        StrCopy(g_CurrentFilePath, "[Process Memory - PID ");
+        strCopy(g_CurrentFilePath, "[Process Memory - PID ");
         char pidBuf[32];
-        ItoaDec((long long)selectedPid, pidBuf, sizeof(pidBuf));
-        StrCat(g_CurrentFilePath, pidBuf);
-        StrCat(g_CurrentFilePath, "]");
+        itoaDec((long long)selectedPid, pidBuf, sizeof(pidBuf));
+        strCat(g_CurrentFilePath, pidBuf);
+        strCat(g_CurrentFilePath, "]");
 
         g_TotalLines = (int)g_HexData.getHexLines().count;
         g_ScrollY = 0;

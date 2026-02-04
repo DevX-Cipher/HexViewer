@@ -11,7 +11,7 @@ static bool g_DIEPathDebug = false;
 #include <stdlib.h>
 #endif
 
-inline bool FindDIEPath(char* outPath, int outSize)
+inline bool findDIEPath(char* outPath, int outSize)
 {
 #ifdef _WIN32
 
@@ -73,13 +73,13 @@ inline bool FindDIEPath(char* outPath, int outSize)
         len = sizeof(name);
         idx++;
 
-        if (StartsWith(name, "Die_") ||
-          StartsWith(name, "DevX-Cipher.Detect-It-Easy_"))
+        if (startsWith(name, "Die_") ||
+          startsWith(name, "DevX-Cipher.Detect-It-Easy_"))
         {
           char path[512];
-          StrCopy(path, "C:\\Program Files\\WindowsApps\\");
-          StrCat(path, name);
-          StrCat(path, "\\Die\\Die.exe");
+          strCopy(path, "C:\\Program Files\\WindowsApps\\");
+          strCat(path, name);
+          strCat(path, "\\Die\\Die.exe");
 
           HANDLE f = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
             NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);

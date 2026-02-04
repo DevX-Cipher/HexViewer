@@ -2,6 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <commdlg.h>
+#include <shellapi.h>
 #elif defined(__APPLE__)
 #include <TargetConditionals.h>
 #elif defined(__linux__)
@@ -24,6 +25,9 @@
 #include "pluginmanager.h"
 #include "processdialog.h"
 #include "resource.h"
+#include "platform_die.h"
+#include "die_database.h"
+#include "die_downloaddialog.h"
 
 typedef unsigned long long size_t_custom;
 
@@ -158,6 +162,7 @@ BottomPanelState g_BottomPanel;
 ChecksumResults g_Checksums;
 size_t editingOffset = (size_t)-1;
 
+extern char g_DIEExecutablePath[260];
 const int PANEL_TITLE_HEIGHT = 28;
 int g_SearchCaretX = 0;
 int g_SearchCaretY = 0;
@@ -251,7 +256,7 @@ void AddToRecentFiles(const char *filepath)
 	int existingIndex = -1;
 	for (int i = 0; i < g_RecentFileCount; i++)
 	{
-		if (StrCompare(g_RecentFiles[i], filepath) == 0)
+		if (strCompare(g_RecentFiles[i], filepath) == 0)
 		{
 			existingIndex = i;
 			break;
@@ -261,14 +266,14 @@ void AddToRecentFiles(const char *filepath)
 	if (existingIndex >= 0)
 	{
 		char temp[MAX_PATH_LEN];
-		StrCopy(temp, g_RecentFiles[existingIndex]);
+		strCopy(temp, g_RecentFiles[existingIndex]);
 
 		for (int i = existingIndex; i > 0; i--)
 		{
-			StrCopy(g_RecentFiles[i], g_RecentFiles[i - 1]);
+			strCopy(g_RecentFiles[i], g_RecentFiles[i - 1]);
 		}
 
-		StrCopy(g_RecentFiles[0], temp);
+		strCopy(g_RecentFiles[0], temp);
 	}
 	else
 	{
@@ -277,10 +282,10 @@ void AddToRecentFiles(const char *filepath)
 
 		for (int i = g_RecentFileCount - 1; i > 0; i--)
 		{
-			StrCopy(g_RecentFiles[i], g_RecentFiles[i - 1]);
+			strCopy(g_RecentFiles[i], g_RecentFiles[i - 1]);
 		}
 
-		StrCopy(g_RecentFiles[0], filepath);
+		strCopy(g_RecentFiles[0], filepath);
 	}
 }
 
@@ -308,13 +313,13 @@ void ApplyEnabledPlugins()
 		{
 			char fullPath[512];
 			GetPluginDirectory(fullPath, 512);
-			int len = (int)StrLen(fullPath);
+			int len = (int)strLen(fullPath);
 #ifdef _WIN32
 			fullPath[len] = '\\';
 #else
 			fullPath[len] = '/';
 #endif
-			StrCopy(fullPath + len + 1, g_Options.enabledPlugins[i]);
+			strCopy(fullPath + len + 1, g_Options.enabledPlugins[i]);
 
 			g_HexData.addPlugin(fullPath);
 		}
@@ -378,7 +383,7 @@ void OnFileOpen()
 	{
 		if (g_HexData.loadFile(ofn.lpstrFile))
 		{
-			StrCopy(g_CurrentFilePath, ofn.lpstrFile);
+			strCopy(g_CurrentFilePath, ofn.lpstrFile);
 			AddToRecentFiles(ofn.lpstrFile);
 			SaveOptionsToFile(g_Options);
 			RebuildFileMenu();
@@ -387,6 +392,7 @@ void OnFileOpen()
 
 			g_TotalLines = (int)g_HexData.getHexLines().count;
 			g_ScrollY = 0;
+
 			RECT rc;
 			GetClientRect(g_Hwnd, &rc);
 			int w = rc.right - rc.left;
@@ -418,7 +424,7 @@ void OnFileOpen()
 
 		if (g_HexData.loadFile(path))
 		{
-			StrCopy(g_CurrentFilePath, path);
+			strCopy(g_CurrentFilePath, path);
 			AddToRecentFiles(path);
 			SaveOptionsToFile(g_Options);
 			RebuildFileMenu();
@@ -459,13 +465,13 @@ void OnFileOpen()
 	}
 	pclose(fp);
 
-	size_t len = StrLen(path);
+	size_t len = strLen(path);
 	if (len > 0 && path[len - 1] == '\n')
 		path[len - 1] = 0;
 
 	if (g_HexData.loadFile(path))
 	{
-		StrCopy(g_CurrentFilePath, path);
+		strCopy(g_CurrentFilePath, path);
 		AddToRecentFiles(path);
 		SaveOptionsToFile(g_Options);
 		RebuildFileMenu();
@@ -652,22 +658,22 @@ void RebuildFileMenu()
 	fileMenu->clear();
 
 	MenuItem newItem;
-	newItem.label = StrDup("New");
-	newItem.shortcut = StrDup("Ctrl+N");
+	newItem.label = allocString("New");
+	newItem.shortcut = allocString("Ctrl+N");
 	newItem.type = MenuItemType::Normal;
 	newItem.callback = OnNew;
 	fileMenu->addItem(newItem);
 
 	MenuItem openItem;
-	openItem.label = StrDup("Open...");
-	openItem.shortcut = StrDup("Ctrl+O");
+	openItem.label = allocString("Open...");
+	openItem.shortcut = allocString("Ctrl+O");
 	openItem.type = MenuItemType::Normal;
 	openItem.callback = OnFileOpen;
 	fileMenu->addItem(openItem);
 
 	MenuItem openProcItem;
-	openProcItem.label = StrDup("Open Process...");
-	openProcItem.shortcut = StrDup("Ctrl+P");
+	openProcItem.label = allocString("Open Process...");
+	openProcItem.shortcut = allocString("Ctrl+P");
 	openProcItem.type = MenuItemType::Normal;
 	openProcItem.callback = OnFileProcessOpen;
 	openProcItem.enabled = true;
@@ -677,14 +683,14 @@ void RebuildFileMenu()
 	fileMenu->addItem(openProcItem);
 
 	MenuItem saveItem;
-	saveItem.label = StrDup("Save");
-	saveItem.shortcut = StrDup("Ctrl+S");
+	saveItem.label = allocString("Save");
+	saveItem.shortcut = allocString("Ctrl+S");
 	saveItem.type = MenuItemType::Normal;
 	saveItem.callback = OnFileSave;
 	fileMenu->addItem(saveItem);
 
 	MenuItem recentHeader;
-	recentHeader.label = StrDup("Recent Files");
+	recentHeader.label = allocString("Recent Files");
 	recentHeader.type = MenuItemType::Submenu;
 	recentHeader.enabled = true;
 	recentHeader.callback = nullptr;
@@ -692,9 +698,9 @@ void RebuildFileMenu()
 	if (g_RecentFileCount == 0)
 	{
 		recentHeader.submenuCount = 1;
-		recentHeader.submenu = (MenuItem*)PlatformAlloc(sizeof(MenuItem));
+		recentHeader.submenu = (MenuItem*)platformAlloc(sizeof(MenuItem));
 
-		recentHeader.submenu[0].label = StrDup("No recent files");
+		recentHeader.submenu[0].label = allocString("No recent files");
 		recentHeader.submenu[0].shortcut = nullptr;
 		recentHeader.submenu[0].type = MenuItemType::Normal;
 		recentHeader.submenu[0].enabled = false;
@@ -706,11 +712,11 @@ void RebuildFileMenu()
 	else
 	{
 		recentHeader.submenuCount = g_RecentFileCount;
-		recentHeader.submenu = (MenuItem*)PlatformAlloc(sizeof(MenuItem) * g_RecentFileCount);
+		recentHeader.submenu = (MenuItem*)platformAlloc(sizeof(MenuItem) * g_RecentFileCount);
 
 		for (int i = 0; i < g_RecentFileCount; i++)
 		{
-			recentHeader.submenu[i].label = StrDup(g_RecentFiles[i]);
+			recentHeader.submenu[i].label = allocString(g_RecentFiles[i]);
 			recentHeader.submenu[i].shortcut = nullptr;
 			recentHeader.submenu[i].type = MenuItemType::Normal;
 			recentHeader.submenu[i].enabled = true;
@@ -728,8 +734,8 @@ void RebuildFileMenu()
 	fileMenu->addItem(sepItem);
 
 	MenuItem exitItem;
-	exitItem.label = StrDup("Exit");
-	exitItem.shortcut = StrDup("Alt+F4");
+	exitItem.label = allocString("Exit");
+	exitItem.shortcut = allocString("Alt+F4");
 	exitItem.type = MenuItemType::Normal;
 	exitItem.callback = OnFileExit;
 	fileMenu->addItem(exitItem);
@@ -742,7 +748,7 @@ void OpenRecentFile(int index)
 
 	if (g_HexData.loadFile(g_RecentFiles[index]))
 	{
-		StrCopy(g_CurrentFilePath, g_RecentFiles[index]);
+		strCopy(g_CurrentFilePath, g_RecentFiles[index]);
 		AddToRecentFiles(g_RecentFiles[index]);
 		SaveOptionsToFile(g_Options);
 		RebuildFileMenu();
@@ -765,10 +771,10 @@ void OpenRecentFile(int index)
 	}
 }
 
-void OnFindReplace()
+void OnfindReplace()
 {
 #if defined(_WIN32)
-	SearchDialogs::ShowFindReplaceDialog(
+	SearchDialogs::ShowfindReplaceDialog(
 		g_Hwnd,
 		g_Options.darkMode,
 		[](const char* find, const char* replace)
@@ -776,39 +782,39 @@ void OnFindReplace()
 			char buf[512];
 			buf[0] = '\0';
 
-			CopyString(buf, "Find: ", sizeof(buf));
-			int len = StrLen(buf);
+			CopyString(buf, "find: ", sizeof(buf));
+			int len = strLen(buf);
 
 			CopyString(buf + len, find, sizeof(buf) - len);
-			len = StrLen(buf);
+			len = strLen(buf);
 
 			CopyString(buf + len, "\nReplace: ", sizeof(buf) - len);
-			len = StrLen(buf);
+			len = strLen(buf);
 
 			CopyString(buf + len, replace, sizeof(buf) - len);
 
-			MessageBoxA(g_Hwnd, buf, "Find & Replace", MB_OK);
+			MessageBoxA(g_Hwnd, buf, "find & Replace", MB_OK);
 		},
 		nullptr);
 #elif defined(__APPLE__)
-	SearchDialogs::ShowFindReplaceDialog(
+	SearchDialogs::ShowfindReplaceDialog(
 		g_Hwnd,
 		g_Options.darkMode,
 		[](const std::string& find, const std::string& replace)
 		{
-			printf("Find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
+			printf("find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
 		});
 	if (g_Hwnd) {
 		NSWindow* window = (__bridge NSWindow*)g_Hwnd;
 		[[window contentView]setNeedsDisplay:YES];
 	}
 #else
-	SearchDialogs::ShowFindReplaceDialog(
+	SearchDialogs::ShowfindReplaceDialog(
 		g_Hwnd,
 		g_Options.darkMode,
 		[](const std::string& find, const std::string& replace)
 		{
-			printf("Find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
+			printf("find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
 		});
 	LinuxRedraw();
 #endif
@@ -1060,6 +1066,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		cursorBytePos = -1;
 		caretVisible = true;
 		InvalidateRect(hwnd, NULL, FALSE);
+		DragAcceptFiles(hwnd, TRUE);
 
 		g_LeftPanel.visible = true;
 		g_LeftPanel.width = 280;
@@ -1085,6 +1092,31 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		g_Renderer.UpdateHexMetrics(leftPanelWidth, g_MenuBar.getHeight());
 		return 0;
 	}
+
+	case WM_DROPFILES:
+	{
+		HDROP hDrop = (HDROP)wParam;
+		char path[MAX_PATH];
+		if (DragQueryFileA(hDrop, 0, path, MAX_PATH))
+		{
+			if (g_HexData.loadFile(path))
+			{
+				strCopy(g_CurrentFilePath, path);
+				AddToRecentFiles(path);
+				SaveOptionsToFile(g_Options);
+				RebuildFileMenu();
+				ApplyEnabledPlugins();
+
+				g_TotalLines = (int)g_HexData.getHexLines().count;
+				g_ScrollY = 0;
+
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+		}
+		DragFinish(hDrop);
+		return 0;
+	}
+
 
 	case WM_SIZE:
 	{
@@ -1659,7 +1691,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 					for (int i = 0; i < 4; i++)
 					{
-						int tabWidth = StrLen(tabLabels[i]) * 8 + 20;
+						int tabWidth = strLen(tabLabels[i]) * 8 + 20;
 
 						if (x >= tabX && x <= tabX + tabWidth)
 						{
@@ -1822,7 +1854,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			if (c == 8)
 			{
-				size_t len = StrLen(g_PatternSearch.searchPattern);
+				size_t len = strLen(g_PatternSearch.searchPattern);
 				if (len > 0)
 				{
 					g_PatternSearch.searchPattern[len - 1] = 0;
@@ -1843,7 +1875,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				(c >= 'A' && c <= 'F') ||
 				c == ' ')
 			{
-				size_t len = StrLen(g_PatternSearch.searchPattern);
+				size_t len = strLen(g_PatternSearch.searchPattern);
 				if (len < (sizeof(g_PatternSearch.searchPattern) - 1))
 				{
 					g_PatternSearch.searchPattern[len] = c;
@@ -2036,7 +2068,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				return 0;
 
 			case 'F':
-				OnFindReplace();
+				OnfindReplace();
 				return 0;
 
 			case 'G':
@@ -2353,8 +2385,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		g_Renderer.beginFrame();
 		g_Renderer.clear(
 			g_Options.darkMode
-				? Theme::Dark().windowBackground
-				: Theme::Light().windowBackground);
+			? Theme::Dark().windowBackground
+			: Theme::Light().windowBackground);
 		RECT rect;
 		GetClientRect(hwnd, &rect);
 		int windowWidth = rect.right;
@@ -2372,9 +2404,23 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			effectiveWindowHeight -= g_BottomPanel.height;
 		}
 
-		g_LinesPerPage = (effectiveWindowHeight - menuBarHeight - 40) / 16;
+		int leftPanelWidth = g_LeftPanel.visible ? g_LeftPanel.width : 0;
+		g_Renderer.UpdateHexMetrics(leftPanelWidth, menuBarHeight);
+
+		int charHeight = g_Renderer.getCharHeight();
+		if (charHeight <= 0)
+			charHeight = 16;
+
+		int hexAreaY = g_Renderer.getHexAreaY();
+		int bottomMargin = 10;
+		int availableHeight = effectiveWindowHeight - hexAreaY - bottomMargin;
+
+		g_LinesPerPage = availableHeight / charHeight;
 		if (g_LinesPerPage < 1)
 			g_LinesPerPage = 1;
+
+		const LineArray& allLines = g_HexData.getHexLines();
+		g_TotalLines = (int)allLines.count;
 
 		if (g_HexData.hasDisassemblyPlugin() && g_HexData.getFileSize() > 0)
 		{
@@ -2395,26 +2441,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 		}
 
-		Vector<char *> hexLines;
-		const LineArray &lines = g_HexData.getHexLines();
+		Vector<char*> hexLines;
+		const LineArray& lines = g_HexData.getHexLines();
+
 		if (lines.count > 0)
 		{
-			for (int i = 0; i < (int)lines.count; i++)
+			size_t startLine = (size_t)g_ScrollY;
+			size_t endLine = startLine + g_LinesPerPage + 2;
+			if (endLine > lines.count)
+				endLine = lines.count;
+
+			if (startLine >= lines.count)
+				startLine = 0;
+
+			for (size_t i = startLine; i < endLine; i++)
 			{
-				const SimpleString *line = &lines.lines[i];
-				char *buf = (char *)HeapAlloc(GetProcessHeap(), 0, line->length + 1);
-				for (size_t j = 0; j < line->length; j++)
-					buf[j] = line->data[j];
-				buf[line->length] = '\0';
+				char* buf = (char*)HeapAlloc(GetProcessHeap(), 0, 256);
+
+				g_HexData.getHexLine(i, buf, 256);
+
 				hexLines.push_back(buf);
 			}
 		}
-		const SimpleString &header = g_HexData.getHeaderLine();
-		const char *headerStr = header.data ? header.data : "No File Loaded";
+
+		const SimpleString& header = g_HexData.getHeaderLine();
+		const char* headerStr = header.data ? header.data : "No File Loaded";
 
 		int maxScrollPos = g_TotalLines - g_LinesPerPage;
 		if (maxScrollPos < 0)
 			maxScrollPos = 0;
+
 		g_Renderer.renderHexViewer(
 			hexLines,
 			headerStr,
@@ -2431,10 +2487,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			cursorBytePos,
 			cursorNibblePos,
 			(long long)g_HexData.getFileSize(),
-			g_LeftPanel.visible ? g_LeftPanel.width : 0,
+			leftPanelWidth,
 			effectiveWindowHeight);
+
 		for (size_t i = 0; i < hexLines.size(); i++)
 			HeapFree(GetProcessHeap(), 0, hexLines[i]);
+
 		if (g_LeftPanel.visible)
 		{
 			g_Renderer.drawLeftPanel(
@@ -2461,7 +2519,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				g_ContextMenu.getState(),
 				g_Options.darkMode ? Theme::Dark() : Theme::Light());
 		}
-		
+
 		g_Renderer.endFrame(hdc);
 		EndPaint(hwnd, &ps);
 		return 0;
@@ -2497,15 +2555,113 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProcA(hwnd, msg, wParam, lParam);
 }
 
+void InitializeDIESystem()
+{
+	char diePath[260];
+	bool dieFound = findDIEPath(diePath, sizeof(diePath));
+
+	if (dieFound)
+	{
+		strCopy(g_DIEExecutablePath, diePath);
+
+		if (!InitializeDIEDatabase(diePath))
+		{
+			return;
+		}
+
+		if (g_DIEDatabase.AreDatabasesDownloaded())
+		{
+			g_DIEDatabase.LoadDatabases();
+		}
+		else
+		{
+			g_DIEDatabase.GetDatabaseDirectory();
+		}
+
+		return;
+	}
+
+
+	if (!InitializeDIEDatabase(nullptr))
+	{
+		return;
+	}
+
+	if (g_DIEDatabase.AreDatabasesDownloaded())
+	{
+
+		if (g_DIEDatabase.LoadDatabases())
+		{
+		}
+		else
+		{
+		}
+	}
+	else
+	{
+
+#ifdef _WIN32
+		int result = MessageBoxA(
+			g_Hwnd,
+			"DIE (Detect It Easy) is not installed.\n\n"
+			"Would you like to download the DIE signature databases?\n"
+			"This enables file type detection and analysis.\n\n"
+			"Download size: ~10MB\n"
+			"Location: LocalAppData\\HexViewer\\DIE_DB\n"
+			"(Automatically uses sandboxed location in MSIX)",
+			"Download DIE Databases?",
+			MB_YESNO | MB_ICONQUESTION);
+
+		if (result == IDYES)
+		{
+			if (DIEDownloadDialog::Show(g_Hwnd, g_Options.darkMode))
+			{
+				g_DIEDatabase.LoadDatabases();
+			}
+		}
+#elif defined(__APPLE__)
+		NSAlert* alert = [[NSAlert alloc]init];
+		[alert setMessageText:@"Download DIE Databases?"] ;
+		[alert setInformativeText:@"DIE is not installed. Would you like to download signature databases for file detection? (~10MB)"] ;
+		[alert addButtonWithTitle:@"Download"] ;
+		[alert addButtonWithTitle:@"Skip"] ;
+		[alert setAlertStyle:NSAlertStyleInformational] ;
+
+		NSModalResponse response = [alert runModal];
+
+		if (response == NSAlertFirstButtonReturn)
+		{
+			if (DIEDownloadDialog::Show(g_Hwnd, g_Options.darkMode))
+			{
+				g_DIEDatabase.LoadDatabases();
+			}
+		}
+#else
+		printf("Would you like to download DIE databases? [y/n]: ");
+		char response;
+		scanf(" %c", &response);
+
+		if (response == 'y' || response == 'Y')
+		{
+			if (DIEDownloadDialog::Show(g_Hwnd, g_Options.darkMode))
+			{
+				g_DIEDatabase.LoadDatabases();
+			}
+		}
+#endif
+	}
+}
+
 extern "C" void entry()
 {
 	RunConstructors();
 	DetectNative();
 	g_Options.enabledPluginCount = 0;
 	LoadOptionsFromFile(g_Options);
+	InitializeDIESystem();
 	g_MenuBar.setPosition(0, 0);
 	g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, OnFileProcessOpen, RecentCallbacks));
-	g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnFindReplace, OnGoTo));
+	g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnfindReplace, OnGoTo));
 	g_MenuBar.addMenu(MenuHelper::createToolsMenu(OnOptionsDialog, OnPluginsDialog));
 	g_MenuBar.addMenu(MenuHelper::createHelpMenu(OnAbout, OnDocumentation));
 
@@ -2637,11 +2793,6 @@ extern "C" void entry()
 	return YES;
 }
 
-- (BOOL)isFlipped
-{
-	return YES;
-}
-
 - (void)drawRect:(NSRect)dirtyRect
 {
 	NSGraphicsContext* nsContext = [NSGraphicsContext currentContext];
@@ -2651,7 +2802,6 @@ extern "C" void entry()
 	int windowWidth = (int)bounds.size.width;
 	int windowHeight = (int)bounds.size.height;
 	int menuBarHeight = g_MenuBar.getHeight();
-
 
 	g_Renderer.setContext(ctx);
 	g_Renderer.beginFrame();
@@ -2869,7 +3019,7 @@ extern "C" void entry()
 
 				for (int i = 0; i < 4; i++)
 				{
-					int tabWidth = StrLen(tabLabels[i]) * 8 + 20;
+					int tabWidth = strLen(tabLabels[i]) * 8 + 20;
 
 					if (x >= tabX && x <= tabX + tabWidth)
 					{
@@ -3408,7 +3558,7 @@ extern "C" void entry()
 				OnFileSave();
 			return;
 		case 'f':
-			OnFindReplace();
+			OnfindReplace();
 			return;
 		case 'g':
 			OnGoTo();
@@ -3573,7 +3723,7 @@ extern "C" void entry()
 	{
 		if (g_HexData.loadFile(filename))
 		{
-			StrCopy(g_CurrentFilePath, filename);
+			strCopy(g_CurrentFilePath, filename);
 			ApplyEnabledPlugins();
 			g_TotalLines = (int)g_HexData.getHexLines().count;
 		}
@@ -3636,7 +3786,7 @@ int main(int argc, char** argv)
 
 		g_MenuBar.setPosition(0, 0);
 		g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, OnFileProcessOpen, RecentCallbacks));
-		g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnFindReplace, OnGoTo));
+		g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnfindReplace, OnGoTo));
 		g_MenuBar.addMenu(MenuHelper::createToolsMenu(OnOptionsDialog, OnPluginsDialog));
 		g_MenuBar.addMenu(MenuHelper::createHelpMenu(OnAbout, OnDocumentation));
 
@@ -3688,7 +3838,7 @@ void HandleLinuxKeyPress(XKeyEvent* event)
 			return;
 
 		case XK_f:
-			OnFindReplace();
+			OnfindReplace();
 			return;
 
 		case XK_g:
@@ -3890,7 +4040,7 @@ void HandleLinuxKeyPress(XKeyEvent* event)
 
 			if (ch == 8 || ch == 127)
 			{
-				int L = StrLen(g_PatternSearch.searchPattern);
+				int L = strLen(g_PatternSearch.searchPattern);
 				if (L > 0)
 					g_PatternSearch.searchPattern[L - 1] = '\0';
 
@@ -3900,14 +4050,14 @@ void HandleLinuxKeyPress(XKeyEvent* event)
 
 			if (ch == '\r' || ch == '\n')
 			{
-				PatternSearch_FindNext();
+				PatternSearch_findNext();
 				LinuxRedraw();
 				return;
 			}
 
 			if (ch >= 32 && ch < 127)
 			{
-				int L = StrLen(g_PatternSearch.searchPattern);
+				int L = strLen(g_PatternSearch.searchPattern);
 				if (L < 255)
 				{
 					g_PatternSearch.searchPattern[L] = ch;
@@ -4019,7 +4169,7 @@ void HandleLinuxMouseButton(XButtonEvent* event, bool pressed)
 
 						for (int i = 0; i < 4; i++)
 						{
-							int tabWidth = StrLen(tabLabels[i]) * 8 + 20;
+							int tabWidth = strLen(tabLabels[i]) * 8 + 20;
 
 							if (x >= tabX && x <= tabX + tabWidth)
 							{
@@ -4459,7 +4609,7 @@ int main(int argc, char** argv)
 	g_MenuBar.setPosition(0, 0);
 
 	g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, OnFileProcessOpen, RecentCallbacks));
-	g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnFindReplace, OnGoTo));
+	g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnfindReplace, OnGoTo));
 	g_MenuBar.addMenu(MenuHelper::createToolsMenu(OnOptionsDialog, OnPluginsDialog));
 	g_MenuBar.addMenu(MenuHelper::createHelpMenu(OnAbout, OnDocumentation));
 

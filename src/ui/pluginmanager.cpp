@@ -54,8 +54,8 @@ void GetPluginDirectory(char* outPath, int maxLen)
     if (len > 0 && len < MAX_PATH)
     {
       WideCharToMultiByte(CP_UTF8, 0, localAppData, -1, outPath, maxLen - 50, nullptr, nullptr);
-      int slen = (int)StrLen(outPath);
-      StrCopy(outPath + slen, "\\HexViewer\\plugins");
+      int slen = (int)strLen(outPath);
+      strCopy(outPath + slen, "\\HexViewer\\plugins");
       return;
     }
   }
@@ -72,8 +72,8 @@ void GetPluginDirectory(char* outPath, int maxLen)
   exePath[lastSlash] = 0;
 
   WideCharToMultiByte(CP_UTF8, 0, exePath, -1, outPath, maxLen - 20, nullptr, nullptr);
-  int len = (int)StrLen(outPath);
-  StrCopy(outPath + len, "\\plugins");
+  int len = (int)strLen(outPath);
+  strCopy(outPath + len, "\\plugins");
 #else
 #endif
 }
@@ -95,7 +95,7 @@ bool CheckPluginCapabilities(const char *pluginPath, PluginInfo *info)
 
     if (!InitializePythonRuntime())
     {
-        StrCopy(info->description, "Python not installed");
+        strCopy(info->description, "Python not installed");
         return false;
     }
 
@@ -108,7 +108,7 @@ bool CheckPluginCapabilities(const char *pluginPath, PluginInfo *info)
 
     if (!hasCapability)
     {
-        StrCopy(info->description, "No valid plugin functions");
+        strCopy(info->description, "No valid plugin functions");
     }
 
     return hasCapability;
@@ -182,15 +182,15 @@ bool PluginManager::ParsePluginManifest(const char *manifestPath, PluginInfo *in
                 char *val = line + eq + 1;
 
                 if (strEquals(key, "name"))
-                    StrCopy(info->name, val);
+                    strCopy(info->name, val);
                 else if (strEquals(key, "version"))
-                    StrCopy(info->version, val);
+                    strCopy(info->version, val);
                 else if (strEquals(key, "author"))
-                    StrCopy(info->author, val);
+                    strCopy(info->author, val);
                 else if (strEquals(key, "description"))
-                    StrCopy(info->description, val);
+                    strCopy(info->description, val);
                 else if (strEquals(key, "language"))
-                    StrCopy(info->language, val);
+                    strCopy(info->language, val);
             }
 
             lineStart = i + 1;
@@ -216,7 +216,7 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
     searchPath[len + 1] = L'*';
     searchPath[len + 2] = 0;
 
-    WIN32_FIND_DATAW findData;
+    WIN32_FIND_DATAW  findData;
     HANDLE hFind = FindFirstFileW(searchPath, &findData);
 
     if (hFind == INVALID_HANDLE_VALUE)
@@ -257,25 +257,25 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
         if (!isPython && !isJavaScript)
             continue;
 
-        PluginInfo *info = (PluginInfo *)PlatformAlloc(sizeof(PluginInfo));
+        PluginInfo *info = (PluginInfo *)platformAlloc(sizeof(PluginInfo));
         memSet(info, 0, sizeof(PluginInfo));
 
         WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, info->name, 128, nullptr, nullptr);
 
         if (isPython)
         {
-            StrCopy(info->language, "python");
+            strCopy(info->language, "python");
         }
         else
         {
-            StrCopy(info->language, "javascript");
+            strCopy(info->language, "javascript");
         }
 
-        StrCopy(info->version, "1.0");
-        StrCopy(info->author, "Unknown");
+        strCopy(info->version, "1.0");
+        strCopy(info->author, "Unknown");
 
         WideCharToMultiByte(CP_UTF8, 0, wpath, -1, info->path, 512, nullptr, nullptr);
-        int pathLen = (int)StrLen(info->path);
+        int pathLen = (int)strLen(info->path);
         info->path[pathLen] = '\\';
         WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1,
                             info->path + pathLen + 1, 512 - pathLen - 1, nullptr, nullptr);
@@ -294,37 +294,37 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
             {
                 if (info->canDisassemble && info->canAnalyze)
                 {
-                    StrCopy(info->description, "Disassembler & Analyzer");
+                    strCopy(info->description, "Disassembler & Analyzer");
                 }
                 else if (info->canDisassemble)
                 {
-                    StrCopy(info->description, "Disassembler Plugin");
+                    strCopy(info->description, "Disassembler Plugin");
                 }
                 else if (info->canAnalyze)
                 {
-                    StrCopy(info->description, "Analysis Plugin");
+                    strCopy(info->description, "Analysis Plugin");
                 }
                 else if (info->canTransform)
                 {
-                    StrCopy(info->description, "Data Transform Plugin");
+                    strCopy(info->description, "Data Transform Plugin");
                 }
                 else if (info->canGenerateBookmarks)
                 {
-                    StrCopy(info->description, "Bookmark Generator Plugin");
+                    strCopy(info->description, "Bookmark Generator Plugin");
 								}
                 else
                 {
-                    StrCopy(info->description, "Python Plugin");
+                    strCopy(info->description, "Python Plugin");
                 }
             }
             else
             {
-                StrCopy(info->description, "Python Plugin (error loading)");
+                strCopy(info->description, "Python Plugin (error loading)");
             }
         }
         else
         {
-            StrCopy(info->description, "JavaScript Plugin (not supported)");
+            strCopy(info->description, "JavaScript Plugin (not supported)");
         }
 
         data->plugins.push_back(info);
@@ -345,10 +345,10 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
             continue;
 
         char fullPath[512];
-        StrCopy(fullPath, path);
-        int len = (int)StrLen(fullPath);
+        strCopy(fullPath, path);
+        int len = (int)strLen(fullPath);
         fullPath[len] = '/';
-        StrCopy(fullPath + len + 1, entry->d_name);
+        strCopy(fullPath + len + 1, entry->d_name);
 
         struct stat st;
         if (stat(fullPath, &st) != 0 || !S_ISREG(st.st_mode))
@@ -384,24 +384,24 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
         if (!isPython && !isJavaScript)
             continue;
 
-        PluginInfo *info = (PluginInfo *)PlatformAlloc(sizeof(PluginInfo));
+        PluginInfo *info = (PluginInfo *)platformAlloc(sizeof(PluginInfo));
         memSet(info, 0, sizeof(PluginInfo));
 
-        StrCopy(info->name, entry->d_name);
+        strCopy(info->name, entry->d_name);
 
         if (isPython)
         {
-            StrCopy(info->language, "python");
+            strCopy(info->language, "python");
         }
         else
         {
-            StrCopy(info->language, "javascript");
+            strCopy(info->language, "javascript");
         }
 
-        StrCopy(info->version, "1.0");
-        StrCopy(info->author, "Unknown");
+        strCopy(info->version, "1.0");
+        strCopy(info->author, "Unknown");
 
-        StrCopy(info->path, fullPath);
+        strCopy(info->path, fullPath);
 
         info->enabled = false;
         info->loaded = false;
@@ -416,33 +416,33 @@ void PluginManager::ScanDirectory(const char *path, PluginManagerData *data)
             {
                 if (info->canDisassemble && info->canAnalyze)
                 {
-                    StrCopy(info->description, "Disassembler & Analyzer");
+                    strCopy(info->description, "Disassembler & Analyzer");
                 }
                 else if (info->canDisassemble)
                 {
-                    StrCopy(info->description, "Disassembler Plugin");
+                    strCopy(info->description, "Disassembler Plugin");
                 }
                 else if (info->canAnalyze)
                 {
-                    StrCopy(info->description, "Analysis Plugin");
+                    strCopy(info->description, "Analysis Plugin");
                 }
                 else if (info->canTransform)
                 {
-                    StrCopy(info->description, "Data Transform Plugin");
+                    strCopy(info->description, "Data Transform Plugin");
                 }
                 else
                 {
-                    StrCopy(info->description, "Python Plugin");
+                    strCopy(info->description, "Python Plugin");
                 }
             }
             else
             {
-                StrCopy(info->description, "Python Plugin (error loading)");
+                strCopy(info->description, "Python Plugin (error loading)");
             }
         }
         else
         {
-            StrCopy(info->description, "JavaScript Plugin (not supported)");
+            strCopy(info->description, "JavaScript Plugin (not supported)");
         }
 
         data->plugins.push_back(info);
@@ -482,7 +482,7 @@ void PluginManager::SavePluginStates(PluginManagerData *data)
 
             const char *filename = (lastSlash >= 0) ? (fullPath + lastSlash + 1) : fullPath;
 
-            StrCopy(g_Options.enabledPlugins[g_Options.enabledPluginCount], filename);
+            strCopy(g_Options.enabledPlugins[g_Options.enabledPluginCount], filename);
             g_Options.enabledPluginCount++;
         }
     }
@@ -547,7 +547,7 @@ void RenderPluginManager(PluginManagerData* data, int windowWidth, int windowHei
   int maxVisibleItems = (listHeight - 20) / itemHeight;
 
   int startIndex = data->scrollOffset;
-  int endIndex = Clamp(startIndex + maxVisibleItems, 0, (int)data->plugins.size());
+  int endIndex = clamp(startIndex + maxVisibleItems, 0, (int)data->plugins.size());
 
   for (int i = startIndex; i < endIndex; i++)
   {
@@ -580,10 +580,10 @@ void RenderPluginManager(PluginManagerData* data, int windowWidth, int windowHei
     textY += 18;
 
     char versionAuthor[128];
-    StrCopy(versionAuthor, "v");
-    StrCat(versionAuthor, plugin->version);
-    StrCat(versionAuthor, " by ");
-    StrCat(versionAuthor, plugin->author);
+    strCopy(versionAuthor, "v");
+    strCat(versionAuthor, plugin->version);
+    strCat(versionAuthor, " by ");
+    strCat(versionAuthor, plugin->author);
 
     Color subColor(150, 150, 150);
     data->renderer->drawText(versionAuthor, textX, textY, subColor);
@@ -655,7 +655,7 @@ void UpdatePluginHoverState(PluginManagerData* data, int x, int y, int windowWid
   int maxVisibleItems = (listHeight - 20) / itemHeight;
 
   int startIndex = data->scrollOffset;
-  int endIndex = Clamp(startIndex + maxVisibleItems, 0, (int)data->plugins.size());
+  int endIndex = clamp(startIndex + maxVisibleItems, 0, (int)data->plugins.size());
 
   for (int i = startIndex; i < endIndex; i++)
   {
@@ -744,7 +744,7 @@ void HandlePluginClick(PluginManagerData* data, int x, int y, int windowWidth, i
   {
   case 0:
     for (size_t i = 0; i < data->plugins.size(); i++)
-      PlatformFree(data->plugins[i]);
+      platformFree(data->plugins[i]);
     data->plugins.clear();
     PluginManager::LoadPluginsFromDirectory(data);
     data->selectedPlugin = -1;
@@ -764,12 +764,12 @@ void HandlePluginClick(PluginManagerData* data, int x, int y, int windowWidth, i
     GetPluginDirectory(pluginDir, 512);
     char command[600];
 #ifdef __APPLE__
-    StrCopy(command, "open \"");
+    strCopy(command, "open \"");
 #else
-    StrCopy(command, "xdg-open \"");
+    strCopy(command, "xdg-open \"");
 #endif
-    StrCat(command, pluginDir);
-    StrCat(command, "\"");
+    strCat(command, pluginDir);
+    strCat(command, "\"");
     system(command);
 #endif
     break;
@@ -1012,7 +1012,7 @@ bool PluginManager::Show(NativeWindow parent)
 
     for (size_t i = 0; i < data.plugins.size(); i++)
     {
-        PlatformFree(data.plugins[i]);
+        platformFree(data.plugins[i]);
     }
 
     EnableWindow((HWND)parent, TRUE);
@@ -1164,7 +1164,7 @@ bool PluginManager::Show(NativeWindow parent)
 
     for (size_t i = 0; i < data.plugins.size(); i++)
     {
-        PlatformFree(data.plugins[i]);
+        platformFree(data.plugins[i]);
     }
 
     XDestroyWindow(display, window);

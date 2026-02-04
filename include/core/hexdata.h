@@ -94,6 +94,8 @@ public:
   void executeBookmarkPlugins();
   void convertDataToHex(int bytesPerLine);
 
+  void getHexLine(size_t lineIndex, char* outBuffer, size_t bufferSize) const;
+
 private:
   char pluginPaths[MAX_PLUGINS][512];
   int pluginCount;

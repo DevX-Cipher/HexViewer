@@ -167,9 +167,9 @@ struct OptionsDialogData {
       "Turkish", "Swedish", "Arabic", "Hindi", "Czech", "Greek", "Danish",
       "Norwegian", "Finnish", "Vietnamese" };
     for (int i = 0; i < 22; i++) {
-      size_t len = StrLen(langList[i]);
-      char* s = (char*)PlatformAlloc(len + 1);
-      StrCopy(s, langList[i]);
+      size_t len = strLen(langList[i]);
+      char* s = (char*)platformAlloc(len + 1);
+      strCopy(s, langList[i]);
       languages.Add(s);
     }
 
@@ -178,9 +178,9 @@ struct OptionsDialogData {
       "14pt", "15pt", "16pt", "18pt", "20pt", "22pt", "24pt"
     };
     for (int i = 0; i < 13; i++) {
-      size_t len = StrLen(fontList[i]);
-      char* s = (char*)PlatformAlloc(len + 1);
-      StrCopy(s, fontList[i]);
+      size_t len = strLen(fontList[i]);
+      char* s = (char*)platformAlloc(len + 1);
+      strCopy(s, fontList[i]);
       fontSizes.Add(s);
     }
   }
@@ -188,12 +188,12 @@ struct OptionsDialogData {
   ~OptionsDialogData() {
     for (size_t i = 0; i < languages.size(); i++) {
       if (languages[i]) {
-        PlatformFree(languages[i], StrLen(languages[i]) + 1);
+        platformFree(languages[i], strLen(languages[i]) + 1);
       }
     }
     for (size_t i = 0; i < fontSizes.size(); i++) {
       if (fontSizes[i]) {
-        PlatformFree(fontSizes[i], StrLen(fontSizes[i]) + 1);
+        platformFree(fontSizes[i], strLen(fontSizes[i]) + 1);
       }
     }
   }

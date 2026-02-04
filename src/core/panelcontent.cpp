@@ -1,5 +1,6 @@
 #include "panelcontent.h"
 #include "platform_die.h"
+#include "die_database.h"
 #include "global.h"
 
 #ifdef _WIN32
@@ -10,6 +11,7 @@ extern LeftPanelState g_LeftPanel;
 extern BottomPanelState g_BottomPanel;
 extern ChecksumResults g_Checksums;
 extern MenuBar g_MenuBar;
+extern DIEDatabaseManager  g_DIEDatabase;
 extern long long cursorBytePos;
 extern int cursorNibblePos;
 extern int g_ScrollY;
@@ -37,7 +39,7 @@ void PatternSearch_Run()
     g_PatternSearch.lastMatch = -1;
 }
 
-void PatternSearch_FindNext()
+void PatternSearch_findNext()
 {
     uint8_t pattern[128];
     int patLen = ParseHexPattern(g_PatternSearch.searchPattern, pattern, 128);
@@ -89,7 +91,7 @@ void PatternSearch_FindNext()
     g_PatternSearch.lastMatch = -1;
 }
 
-void PatternSearch_FindPrev()
+void PatternSearch_findPrev()
 {
     uint8_t pattern[128];
     int patLen = ParseHexPattern(g_PatternSearch.searchPattern, pattern, 128);
@@ -230,14 +232,14 @@ static int ParseHexPattern(const char *text, uint8_t *out, int maxOut)
 
 void Bookmarks_Add(long long byteOffset, const char* name, Color color)
 {
-  if (Bookmarks_FindAtOffset(byteOffset) >= 0)
+  if (Bookmarks_findAtOffset(byteOffset) >= 0)
   {
     return;
   }
 
   Bookmark bm;
   bm.byteOffset = byteOffset;
-  StrCopy(bm.name, name);
+  strCopy(bm.name, name);
   bm.color = color;
   bm.description[0] = '\0';
 
@@ -295,7 +297,7 @@ void Bookmarks_JumpTo(int index)
     }
 }
 
-void Bookmarks_Clear()
+void Bookmarks_clear()
 {
     g_Bookmarks.bookmarks.clear();
     g_Bookmarks.selectedIndex = -1;
@@ -314,7 +316,7 @@ void Bookmarks_UpdateValues()
   }
 }
 
-int Bookmarks_FindAtOffset(long long byteOffset)
+int Bookmarks_findAtOffset(long long byteOffset)
 {
     for (int i = 0; i < (int)g_Bookmarks.bookmarks.size(); i++)
     {
@@ -392,7 +394,7 @@ void ByteStats_Compute(HexData &hexData)
     InvalidateWindow();
 }
 
-void ByteStats_Clear()
+void ByteStats_clear()
 {
     memSet(&g_ByteStats, 0, sizeof(ByteStatistics));
     g_ByteStats.computed = false;
@@ -481,7 +483,7 @@ Rect GetPluginAnnotationRect(int annotationIndex, const Rect& panelBounds)
   currentY += (rowHeight + itemSpacing) * 3;
 
   char diePath[260];
-  bool dieFound = FindDIEPath(diePath, sizeof(diePath));
+  bool dieFound = findDIEPath(diePath, sizeof(diePath));
   if (dieFound)
   {
     currentY += 4;
@@ -543,11 +545,54 @@ Rect GetBookmarkRect(int bookmarkIndex, const Rect& panelBounds)
 
 void DIE_Analyze()
 {
+  if (g_DIEExecutablePath[0] != '\0')
+  {
     g_DIEState.analyzed = true;
-    StrCopy(g_DIEState.fileType, "Coming Soon");
-    StrCopy(g_DIEState.compiler, "Coming Soon");
-    StrCopy(g_DIEState.architecture, "Coming Soon");
+    strCopy(g_DIEState.fileType, "Coming Soon");
+    strCopy(g_DIEState.compiler, "Coming Soon");
+    strCopy(g_DIEState.architecture, "Coming Soon");
     InvalidateWindow();
+    return;
+  }
+
+  if (g_HexData.getFileSize() == 0)
+    return;
+
+  size_t dataSize = g_HexData.getFileSize();
+  if (dataSize > 1024 * 1024)
+    dataSize = 1024 * 1024;
+
+  uint8_t* data = (uint8_t*)platformAlloc(dataSize);
+  if (!data)
+    return;
+
+  for (size_t i = 0; i < dataSize; i++)
+  {
+    data[i] = g_HexData.getByte(i);
+  }
+
+  char fileType[256] = { 0 };
+  char compiler[256] = { 0 };
+  char arch[256] = { 0 };
+
+	
+  if (g_DIEDatabase.AnalyzeFile(data, dataSize, fileType, compiler, arch))
+  {
+    strCopy(g_DIEState.fileType, fileType);
+    strCopy(g_DIEState.compiler, compiler);
+    strCopy(g_DIEState.architecture, arch);
+    g_DIEState.analyzed = true;
+  }
+  else
+  {
+    strCopy(g_DIEState.fileType, "Unknown");
+    strCopy(g_DIEState.compiler, "Unknown");
+    strCopy(g_DIEState.architecture, "Unknown");
+    g_DIEState.analyzed = false;
+  }
+
+  platformFree(data);
+  InvalidateWindow();
 }
 
 void DIE_OpenInApplication()
@@ -577,10 +622,10 @@ void DIE_OpenInApplication()
     if ((int)result <= 32)
     {
         char errorMsg[256];
-        StrCopy(errorMsg, "ShellExecute failed with code: ");
+        strCopy(errorMsg, "ShellExecute failed with code: ");
         char code[32];
-        ItoaDec((long long)result, code, 32);
-        StrCat(errorMsg, code);
+        itoaDec((long long)result, code, 32);
+        strCat(errorMsg, code);
 
         MessageBoxA(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);
     }
@@ -643,7 +688,7 @@ bool HandleBottomPanelContentClick(int x, int y, int windowWidth, int windowHeig
         Rect prevBtn(contentX, cy, 120, 28);
         if (IsPointInRect(x, y, prevBtn))
         {
-            PatternSearch_FindPrev();
+            PatternSearch_findPrev();
             g_PatternSearch.hasFocus = false;
             InvalidateWindow();
             return true;
@@ -652,7 +697,7 @@ bool HandleBottomPanelContentClick(int x, int y, int windowWidth, int windowHeig
         Rect nextBtn(contentX + 130, cy, 100, 28);
         if (IsPointInRect(x, y, nextBtn))
         {
-            PatternSearch_FindNext();
+            PatternSearch_findNext();
             g_PatternSearch.hasFocus = false;
             InvalidateWindow();
             return true;
@@ -907,7 +952,7 @@ bool HandleLeftPanelContentClick(int x, int y, int windowWidth, int windowHeight
   currentY += (rowHeight + itemSpacing) * 3;
 
   char diePath[260];
-  bool dieFound = FindDIEPath(diePath, sizeof(diePath));
+  bool dieFound = findDIEPath(diePath, sizeof(diePath));
 
   if (dieFound)
   {

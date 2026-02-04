@@ -8,84 +8,86 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#undef min
+#undef max
 #define MAX_PATH_LEN MAX_PATH
 #else
 #define MAX_PATH_LEN 4096
 #endif
 
-inline void *sys_alloc(size_t size)
+inline void* sysAlloc(size_t size)
 {
 #ifdef _WIN32
+  return HeapAlloc(GetProcessHeap(), 0, size);
+#else
+  return malloc(size);
+#endif
+}
+
+inline void* sysRealloc(void* ptr, size_t size)
+{
+#ifdef _WIN32
+  if (!ptr)
     return HeapAlloc(GetProcessHeap(), 0, size);
+  if (size == 0)
+  {
+    HeapFree(GetProcessHeap(), 0, ptr);
+    return NULL;
+  }
+  return HeapReAlloc(GetProcessHeap(), 0, ptr, size);
 #else
-    return malloc(size);
+  return realloc(ptr, size);
 #endif
 }
 
-inline void *sys_realloc(void *ptr, size_t size)
+inline void sysFree(void* ptr)
 {
 #ifdef _WIN32
-    if (!ptr)
-        return HeapAlloc(GetProcessHeap(), 0, size);
-    if (size == 0)
-    {
-        HeapFree(GetProcessHeap(), 0, ptr);
-        return NULL;
-    }
-    return HeapReAlloc(GetProcessHeap(), 0, ptr, size);
+  if (ptr)
+    HeapFree(GetProcessHeap(), 0, ptr);
 #else
-    return realloc(ptr, size);
-#endif
-}
-
-inline void sys_free(void *ptr)
-{
-#ifdef _WIN32
-    if (ptr)
-        HeapFree(GetProcessHeap(), 0, ptr);
-#else
-    if (ptr)
-        free(ptr);
+  if (ptr)
+    free(ptr);
 #endif
 }
 
 #ifdef _WIN32
 
-inline void *PlatformAlloc(size_t size)
+inline void* platformAlloc(size_t size)
 {
-    return HeapAlloc(GetProcessHeap(), 0, size);
+  return HeapAlloc(GetProcessHeap(), 0, size);
 }
 
-inline void PlatformFree(void *ptr, size_t = 0)
+inline void platformFree(void* ptr, size_t = 0)
 {
-    if (ptr)
-        HeapFree(GetProcessHeap(), 0, ptr);
+  if (ptr)
+    HeapFree(GetProcessHeap(), 0, ptr);
 }
 
 #elif defined(__APPLE__)
 
-inline void *PlatformAlloc(size_t size)
+inline void* platformAlloc(size_t size)
 {
-    return malloc(size);
+  return malloc(size);
 }
 
-inline void PlatformFree(void *ptr, size_t = 0)
+inline void platformFree(void* ptr, size_t = 0)
 {
-    if (ptr)
-        free(ptr);
+  if (ptr)
+    free(ptr);
 }
 
 #else
 
-inline void *PlatformAlloc(size_t size)
+inline void* platformAlloc(size_t size)
 {
-    return malloc(size);
+  return malloc(size);
 }
 
-inline void PlatformFree(void *ptr, size_t = 0)
+inline void platformFree(void* ptr, size_t = 0)
 {
-    if (ptr)
-        free(ptr);
+  if (ptr)
+    free(ptr);
 }
 
 #endif
@@ -94,82 +96,104 @@ extern int g_SearchCaretX;
 extern int g_SearchCaretY;
 extern bool caretVisible;
 
-inline void Swap(int &a, int &b)
+inline void swap(int& a, int& b)
 {
-    int temp = a;
-    a = b;
-    b = temp;
+  int temp = a;
+  a = b;
+  b = temp;
 }
 
-inline void *memSet(void *dest, int val, size_t count)
+inline void memCopy(void* dest, const void* src, size_t n)
 {
-    unsigned char *p = (unsigned char *)dest;
-    while (count--)
-    {
-        *p++ = (unsigned char)val;
-    }
-    return dest;
+  if (!dest || !src || n == 0)
+    return;
+
+  unsigned char* d = (unsigned char*)dest;
+  const unsigned char* s = (const unsigned char*)src;
+
+  if (d > s && d < s + n)
+  {
+    d += n;
+    s += n;
+    while (n--)
+      *--d = *--s;
+  }
+  else
+  {
+    while (n--)
+      *d++ = *s++;
+  }
 }
 
-inline char *StrCopy(char *dest, const char *src)
+inline void* memSet(void* dest, int val, size_t count)
 {
-    char *original = dest;
-    while ((*dest++ = *src++))
-    {
-    }
-    return original;
+  unsigned char* p = (unsigned char*)dest;
+  while (count--)
+  {
+    *p++ = (unsigned char)val;
+  }
+  return dest;
 }
 
-inline void StringCopy(char *dest, const char *src, int maxLen)
+inline char* strCopy(char* dest, const char* src)
 {
-    int i = 0;
-    while (src[i] && i < maxLen - 1)
-    {
-        dest[i] = src[i];
-        i++;
-    }
-    dest[i] = 0;
+  char* original = dest;
+  while ((*dest++ = *src++))
+  {
+  }
+  return original;
+}
+
+inline void stringCopy(char* dest, const char* src, int maxLen)
+{
+  int i = 0;
+  while (src[i] && i < maxLen - 1)
+  {
+    dest[i] = src[i];
+    i++;
+  }
+  dest[i] = 0;
 }
 
 
-inline int strHexToInt(const char *hex)
+inline int strHexToInt(const char* hex)
 {
-    int value = 0;
-    for (int i = 0; i < 4; i++)
-    {
-        char c = hex[i];
-        int digit = 0;
+  int value = 0;
+  for (int i = 0; i < 4; i++)
+  {
+    char c = hex[i];
+    int digit = 0;
 
-        if (c >= '0' && c <= '9')
-            digit = c - '0';
-        else if (c >= 'A' && c <= 'F')
-            digit = c - 'A' + 10;
-        else if (c >= 'a' && c <= 'f')
-            digit = c - 'a' + 10;
-        else
-            return value;
+    if (c >= '0' && c <= '9')
+      digit = c - '0';
+    else if (c >= 'A' && c <= 'F')
+      digit = c - 'A' + 10;
+    else if (c >= 'a' && c <= 'f')
+      digit = c - 'a' + 10;
+    else
+      return value;
 
-        value = (value << 4) | digit;
-    }
-    return value;
+    value = (value << 4) | digit;
+  }
+  return value;
 }
 
-inline bool StringIsEmpty(const char *str)
+inline bool stringIsEmpty(const char* str)
 {
-    return str[0] == 0;
+  return str[0] == 0;
 }
 
-inline size_t StrLen(const char *str)
+inline size_t strLen(const char* str)
 {
-    const char *s = str;
-    while (*s)
-        s++;
-    return (size_t)(s - str);
+  const char* s = str;
+  while (*s)
+    s++;
+  return (size_t)(s - str);
 }
 
-inline void StringAppend(char* dest, char ch, int maxLen)
+inline void stringappend(char* dest, char ch, int maxLen)
 {
-  int len = StrLen(dest);
+  int len = strLen(dest);
   if (len < maxLen - 1)
   {
     dest[len] = ch;
@@ -177,175 +201,168 @@ inline void StringAppend(char* dest, char ch, int maxLen)
   }
 }
 
-inline void StringRemoveLast(char* str)
+inline void stringRemoveLast(char* str)
 {
-  int len = StrLen(str);
+  int len = strLen(str);
   if (len > 0)
   {
     str[len - 1] = 0;
   }
 }
 
-inline char *AllocString(const char *str)
+inline char* allocString(const char* str)
 {
-    if (!str)
-        return nullptr;
+  if (!str)
+    return nullptr;
 
-    size_t len = StrLen(str);
-    char *result = (char *)PlatformAlloc(len + 1);
-    if (!result)
-        return nullptr;
+  size_t len = strLen(str);
+  char* result = (char*)platformAlloc(len + 1);
+  if (!result)
+    return nullptr;
 
-    StrCopy(result, str);
-    return result;
+  strCopy(result, str);
+  return result;
 }
 
 template <typename T>
-inline T Clamp(T value, T min, T max)
+inline T clamp(T value, T min, T max)
 {
-    if (value < min)
-        return min;
-    if (value > max)
-        return max;
-    return value;
+  if (value < min)
+    return min;
+  if (value > max)
+    return max;
+  return value;
 }
 
 template <typename T>
-inline T Min(T a, T b)
+inline T min(T a, T b)
 {
-    return (a < b) ? a : b;
+  return (a < b) ? a : b;
 }
 
 template <typename T>
-inline T Max(T a, T b)
+inline T max(T a, T b)
 {
-    return (a > b) ? a : b;
+  return (a > b) ? a : b;
 }
 
-inline double Floor(double x)
+inline double floor(double x)
 {
-    long long i = (long long)x;
-    return (double)(i - (x < i));
+  long long i = (long long)x;
+  return (double)(i - (x < i));
 }
 
-inline bool strEquals(const char *a, const char *b)
+inline bool strEquals(const char* a, const char* b)
 {
-    if (a == b)
-        return true;
-    if (!a || !b)
-        return false;
+  if (a == b)
+    return true;
+  if (!a || !b)
+    return false;
 
-    while (*a && *b)
-    {
-        if (*a != *b)
-            return false;
-        a++;
-        b++;
-    }
-    return *a == *b;
+  while (*a && *b)
+  {
+    if (*a != *b)
+      return false;
+    a++;
+    b++;
+  }
+  return *a == *b;
 }
 
-inline void SizeToString(size_t value, char *out, int maxLen)
+inline void itoaDec(long long value, char* out, int max)
 {
-    char temp[32];
-    int tpos = 0;
+  char buf[32];
+  int i = 0;
 
-    size_t v = value;
+  bool neg = value < 0;
+  unsigned long long v = neg ? -value : value;
 
-    if (v == 0)
-    {
-        if (maxLen > 1)
-        {
-            out[0] = '0';
-            out[1] = 0;
-        }
-        return;
-    }
+  do
+  {
+    buf[i++] = '0' + (v % 10);
+    v /= 10;
+  } while (v && i < 31);
 
-    while (v && tpos < 31)
-    {
-        temp[tpos++] = '0' + (v % 10);
-        v /= 10;
-    }
+  if (neg && i < 31)
+    buf[i++] = '-';
 
-    int pos = 0;
-    for (int i = tpos - 1; i >= 0 && pos < maxLen - 1; i--)
-        out[pos++] = temp[i];
-
-    out[pos] = 0;
+  int j = 0;
+  while (i-- && j < max - 1)
+    out[j++] = buf[i];
+  out[j] = 0;
 }
 
-inline void *MemAlloc(size_t size)
+inline void* memAlloc(size_t size)
 {
-    return PlatformAlloc(size);
+  return platformAlloc(size);
 }
 
-inline void memFree(void *ptr, size_t size = 0)
+inline void memFree(void* ptr, size_t size = 0)
 {
-    PlatformFree(ptr, size);
+  platformFree(ptr, size);
 }
 
-inline int StrToInt(const char *s)
+inline int strToInt(const char* s)
 {
-    if (!s)
-        return 0;
+  if (!s)
+    return 0;
 
-    while (*s == ' ' || *s == '\t')
-        s++;
+  while (*s == ' ' || *s == '\t')
+    s++;
 
-    int sign = 1;
-    if (*s == '-')
-    {
-        sign = -1;
-        s++;
-    }
-    else if (*s == '+')
-    {
-        s++;
-    }
+  int sign = 1;
+  if (*s == '-')
+  {
+    sign = -1;
+    s++;
+  }
+  else if (*s == '+')
+  {
+    s++;
+  }
 
-    int value = 0;
-    while (*s >= '0' && *s <= '9')
-    {
-        value = value * 10 + (*s - '0');
-        s++;
-    }
+  int value = 0;
+  while (*s >= '0' && *s <= '9')
+  {
+    value = value * 10 + (*s - '0');
+    s++;
+  }
 
-    return value * sign;
+  return value * sign;
 }
 
-inline char *StrRChr(const char *s, char c)
+inline char* strRChr(const char* s, char c)
 {
-    const char *last = nullptr;
-    while (*s)
-    {
-        if (*s == c)
-            last = s;
-        s++;
-    }
-    return (char *)last;
+  const char* last = nullptr;
+  while (*s)
+  {
+    if (*s == c)
+      last = s;
+    s++;
+  }
+  return (char*)last;
 }
 
-inline size_t WcsLen(const wchar_t *str)
+inline size_t wcsLen(const wchar_t* str)
 {
-    const wchar_t *s = str;
-    while (*s)
-        s++;
-    return (size_t)(s - str);
+  const wchar_t* s = str;
+  while (*s)
+    s++;
+  return (size_t)(s - str);
 }
 
-inline wchar_t *WcsCopy(wchar_t *dest, const wchar_t *src)
+inline wchar_t* wcsCopy(wchar_t* dest, const wchar_t* src)
 {
-    wchar_t *original = dest;
-    while ((*dest++ = *src++))
-    {
-    }
-    return original;
+  wchar_t* original = dest;
+  while ((*dest++ = *src++))
+  {
+  }
+  return original;
 }
 
-inline void WcsAppend(wchar_t* dest, const wchar_t* src, size_t maxLen)
+inline void wcsappend(wchar_t* dest, const wchar_t* src, size_t maxLen)
 {
-  size_t d = WcsLen(dest);
+  size_t d = wcsLen(dest);
   size_t s = 0;
 
   while (src[s] && d + 1 < maxLen)
@@ -382,30 +399,7 @@ inline const wchar_t* wcsStr(const wchar_t* haystack, const wchar_t* needle)
   return nullptr;
 }
 
-
-inline void MemCopy(void *dest, const void *src, size_t n)
-{
-    if (!dest || !src || n == 0)
-        return;
-
-    unsigned char *d = (unsigned char *)dest;
-    const unsigned char *s = (const unsigned char *)src;
-
-    if (d > s && d < s + n)
-    {
-        d += n;
-        s += n;
-        while (n--)
-            *--d = *--s;
-    }
-    else
-    {
-        while (n--)
-            *d++ = *s++;
-    }
-}
-
-inline bool StartsWith(const char* s, const char* prefix)
+inline bool startsWith(const char* s, const char* prefix)
 {
   while (*prefix)
   {
@@ -417,108 +411,148 @@ inline bool StartsWith(const char* s, const char* prefix)
   return true;
 }
 
-inline void ByteToHex(uint8_t b, char out[2])
+inline bool isXDigit(char c)
 {
-    const char *hex = "0123456789ABCDEF";
-    out[0] = hex[(b >> 4) & 0xF];
-    out[1] = hex[b & 0xF];
+  return (c >= '0' && c <= '9') ||
+    (c >= 'A' && c <= 'F') ||
+    (c >= 'a' && c <= 'f');
 }
 
-inline bool IsXDigit(char c)
+inline int hexDigitToInt(char c)
 {
-    return (c >= '0' && c <= '9') ||
-           (c >= 'A' && c <= 'F') ||
-           (c >= 'a' && c <= 'f');
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'A' && c <= 'F')
+    return 10 + (c - 'A');
+  if (c >= 'a' && c <= 'f')
+    return 10 + (c - 'a');
+  return 0;
 }
 
-inline int HexDigitToInt(char c)
+inline long long clampLL(long long v, long long lo, long long hi)
 {
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'A' && c <= 'F')
-        return 10 + (c - 'A');
-    if (c >= 'a' && c <= 'f')
-        return 10 + (c - 'a');
-    return 0;
+  if (v < lo)
+    return lo;
+  if (v > hi)
+    return hi;
+  return v;
 }
 
-inline long long ClampLL(long long v, long long lo, long long hi)
+inline int clampInt(int v, int lo, int hi)
 {
-    if (v < lo)
-        return lo;
-    if (v > hi)
-        return hi;
-    return v;
+  if (v < lo)
+    return lo;
+  if (v > hi)
+    return hi;
+  return v;
 }
 
-inline int ClampInt(int v, int lo, int hi)
+inline char intToHexChar(int digit)
 {
-    if (v < lo)
-        return lo;
-    if (v > hi)
-        return hi;
-    return v;
+  if (digit < 10)
+    return (char)('0' + digit);
+  return (char)('A' + (digit - 10));
 }
 
-inline char IntToHexChar(int digit)
+inline void byteToHex(uint8_t b, char out[2])
 {
-    if (digit < 10)
-        return (char)('0' + digit);
-    return (char)('A' + (digit - 10));
+  const char* hex = "0123456789ABCDEF";
+  out[0] = hex[(b >> 4) & 0xF];
+  out[1] = hex[b & 0xF];
 }
 
-inline wchar_t *AllocWideString(const wchar_t *str)
+inline void uintToHex8(unsigned int v, char out[8])
 {
-    if (!str)
-        return nullptr;
+  out[0] = intToHexChar((v >> 28) & 0xF);
+  out[1] = intToHexChar((v >> 24) & 0xF);
+  out[2] = intToHexChar((v >> 20) & 0xF);
+  out[3] = intToHexChar((v >> 16) & 0xF);
+  out[4] = intToHexChar((v >> 12) & 0xF);
+  out[5] = intToHexChar((v >> 8) & 0xF);
+  out[6] = intToHexChar((v >> 4) & 0xF);
+  out[7] = intToHexChar(v & 0xF);
+}
 
-    size_t len = WcsLen(str);
-    wchar_t *result = (wchar_t *)PlatformAlloc((len + 1) * sizeof(wchar_t));
-    if (!result)
-        return nullptr;
+inline void itoaHex(unsigned long long value, char* out, int max)
+{
+  static const char* hex = "0123456789ABCDEF";
 
-    WcsCopy(result, str);
-    return result;
+  if (max < 2)
+  {
+    if (max > 0)
+      out[0] = 0;
+    return;
+  }
+
+  int pos = 0;
+  bool started = false;
+
+  for (int i = 60; i >= 0; i -= 4)
+  {
+    unsigned digit = (value >> i) & 0xF;
+    if (digit || started || i == 0)
+    {
+      if (pos < max - 1)
+        out[pos++] = hex[digit];
+      started = true;
+    }
+  }
+
+  out[pos] = 0;
+}
+
+inline wchar_t* allocWideString(const wchar_t* str)
+{
+  if (!str)
+    return nullptr;
+
+  size_t len = wcsLen(str);
+  wchar_t* result = (wchar_t*)platformAlloc((len + 1) * sizeof(wchar_t));
+  if (!result)
+    return nullptr;
+
+  wcsCopy(result, str);
+  return result;
 }
 
 static double fast_log2(double x)
 {
-    union
-    {
-        double d;
-        uint64_t i;
-    } u = {x};
+  union
+  {
+    double d;
+    uint64_t i;
+  } u = { x };
 
-    int exp = (int)((u.i >> 52) & 0x7FF) - 1023;
+  int exp = (int)((u.i >> 52) & 0x7FF) - 1023;
 
-    u.i &= ~(uint64_t)0x7FF << 52;
-    u.i |= (uint64_t)1023 << 52;
+  u.i &= ~(uint64_t)0x7FF << 52;
+  u.i |= (uint64_t)1023 << 52;
 
-    double m = u.d - 1.0;
+  double m = u.d - 1.0;
 
-    double m2 = m * m;
-    double m3 = m2 * m;
+  double m2 = m * m;
+  double m3 = m2 * m;
 
-    double approx = m - 0.5 * m2 + (1.0 / 3.0) * m3;
+  double approx = m - 0.5 * m2 + (1.0 / 3.0) * m3;
 
-    return (double)exp + approx;
+  return (double)exp + approx;
 }
 
-inline void StrCat(char *dest, const char *src)
+inline void strCat(char* dest, const char* src)
 {
-    if (!dest || !src)
-        return;
+  if (!dest || !src)
+    return;
 
-    while (*dest)
-        dest++;
+  while (*dest)
+    dest++;
 
-    while (*src)
-        *dest++ = *src++;
+  while (*src)
+    *dest++ = *src++;
 
-    *dest = '\0';
+  *dest = '\0';
 }
 
-inline int WcsCompareIgnoreCase(const wchar_t* a, const wchar_t* b)
+inline int wcsCompareIgnoreCase(const wchar_t* a, const wchar_t* b)
 {
   if (!a && !b)
     return 0;
@@ -547,651 +581,570 @@ inline int WcsCompareIgnoreCase(const wchar_t* a, const wchar_t* b)
   return (int)*a - (int)*b;
 }
 
-inline int StrCompareIgnoreCase(const char *a, const char *b)
+inline int strCompareIgnoreCase(const char* a, const char* b)
 {
-    if (!a && !b)
-        return 0;
-    if (!a)
-        return -1;
-    if (!b)
-        return 1;
+  if (!a && !b)
+    return 0;
+  if (!a)
+    return -1;
+  if (!b)
+    return 1;
 
-    while (*a && *b)
-    {
-        unsigned char ca = *a;
-        unsigned char cb = *b;
-
-        if (ca >= 'A' && ca <= 'Z')
-            ca += 32;
-        if (cb >= 'A' && cb <= 'Z')
-            cb += 32;
-
-        if (ca != cb)
-            return (int)ca - (int)cb;
-
-        ++a;
-        ++b;
-    }
-
-    return (int)(unsigned char)*a - (int)(unsigned char)*b;
-}
-
-inline int StrCompare(const char *a, const char *b)
-{
-    if (!a && !b)
-        return 0;
-    if (!a)
-        return -1;
-    if (!b)
-        return 1;
-
-    while (*a && (*a == *b))
-    {
-        ++a;
-        ++b;
-    }
-
-    return (int)((unsigned char)*a) - (int)((unsigned char)*b);
-}
-
-inline void ItoaDec(long long value, char *out, int max)
-{
-    char buf[32];
-    int i = 0;
-
-    bool neg = value < 0;
-    unsigned long long v = neg ? -value : value;
-
-    do
-    {
-        buf[i++] = '0' + (v % 10);
-        v /= 10;
-    } while (v && i < 31);
-
-    if (neg && i < 31)
-        buf[i++] = '-';
-
-    int j = 0;
-    while (i-- && j < max - 1)
-        out[j++] = buf[i];
-    out[j] = 0;
-}
-
-inline void ItoaHex(unsigned long long value, char* out, int max)
-{
-  static const char* hex = "0123456789ABCDEF";
-
-  if (max < 2)
+  while (*a && *b)
   {
-    if (max > 0)
-      out[0] = 0;
-    return;
+    unsigned char ca = *a;
+    unsigned char cb = *b;
+
+    if (ca >= 'A' && ca <= 'Z')
+      ca += 32;
+    if (cb >= 'A' && cb <= 'Z')
+      cb += 32;
+
+    if (ca != cb)
+      return (int)ca - (int)cb;
+
+    ++a;
+    ++b;
   }
 
-  int pos = 0;
-  bool started = false;
+  return (int)(unsigned char)*a - (int)(unsigned char)*b;
+}
 
-  for (int i = 60; i >= 0; i -= 4)
+inline int strCompare(const char* a, const char* b)
+{
+  if (!a && !b)
+    return 0;
+  if (!a)
+    return -1;
+  if (!b)
+    return 1;
+
+  while (*a && (*a == *b))
   {
-    unsigned digit = (value >> i) & 0xF;
-    if (digit || started || i == 0)
-    {
-      if (pos < max - 1)
-        out[pos++] = hex[digit];
-      started = true;
-    }
+    ++a;
+    ++b;
   }
 
-  out[pos] = 0;
+  return (int)((unsigned char)*a) - (int)((unsigned char)*b);
 }
 
 template <typename T>
 class Vector
 {
 private:
-    T *data;
-    size_t count;
-    size_t capacity;
+  T* data;
+  size_t count;
+  size_t capacity;
 
 public:
-    Vector() : data(nullptr), count(0), capacity(0) {}
+  Vector() : data(nullptr), count(0), capacity(0) {}
 
-    Vector(const Vector &other) : data(nullptr), count(0), capacity(0)
+  Vector(const Vector& other) : data(nullptr), count(0), capacity(0)
+  {
+    if (other.count > 0)
     {
-        if (other.count > 0)
-        {
-            capacity = other.capacity;
-            data = (T *)PlatformAlloc(capacity * sizeof(T));
+      capacity = other.capacity;
+      data = (T*)platformAlloc(capacity * sizeof(T));
 
-            for (size_t i = 0; i < other.count; i++)
-            {
-                new (&data[i]) T(other.data[i]);
-            }
-            count = other.count;
+      for (size_t i = 0; i < other.count; i++)
+      {
+        new (&data[i]) T(other.data[i]);
+      }
+      count = other.count;
+    }
+  }
+
+  Vector& operator=(const Vector& other)
+  {
+    if (this != &other)
+    {
+      for (size_t i = 0; i < count; ++i)
+      {
+        data[i].~T();
+      }
+
+      if (data)
+      {
+        platformFree(data, capacity * sizeof(T));
+        data = nullptr;
+      }
+
+      count = 0;
+      capacity = 0;
+
+      if (other.count > 0)
+      {
+        capacity = other.capacity;
+        data = (T*)platformAlloc(capacity * sizeof(T));
+
+        for (size_t i = 0; i < other.count; i++)
+        {
+          new (&data[i]) T(other.data[i]);
         }
+        count = other.count;
+      }
+    }
+    return *this;
+  }
+
+  ~Vector()
+  {
+    for (size_t i = 0; i < count; ++i)
+    {
+      data[i].~T();
     }
 
-    Vector &operator=(const Vector &other)
+    if (data)
     {
-        if (this != &other)
-        {
-            for (size_t i = 0; i < count; ++i)
-            {
-                data[i].~T();
-            }
+      platformFree(data, capacity * sizeof(T));
+      data = nullptr;
+    }
+  }
 
-            if (data)
-            {
-                PlatformFree(data, capacity * sizeof(T));
-                data = nullptr;
-            }
+  void push_back(const T& item)
+  {
+    if (count >= capacity)
+    {
+      size_t newCapacity = (capacity == 0) ? 4 : capacity * 2;
+      T* newData = (T*)platformAlloc(newCapacity * sizeof(T));
 
-            count = 0;
-            capacity = 0;
+      for (size_t i = 0; i < count; i++)
+      {
+        new (&newData[i]) T(data[i]);
+        data[i].~T();
+      }
 
-            if (other.count > 0)
-            {
-                capacity = other.capacity;
-                data = (T *)PlatformAlloc(capacity * sizeof(T));
+      if (data)
+        platformFree(data, capacity * sizeof(T));
 
-                for (size_t i = 0; i < other.count; i++)
-                {
-                    new (&data[i]) T(other.data[i]);
-                }
-                count = other.count;
-            }
-        }
-        return *this;
+      data = newData;
+      capacity = newCapacity;
     }
 
-    ~Vector()
-    {
-        for (size_t i = 0; i < count; ++i)
-        {
-            data[i].~T();
-        }
+    new (&data[count]) T(item);
+    count++;
+  }
 
-        if (data)
-        {
-            PlatformFree(data, capacity * sizeof(T));
-            data = nullptr;
-        }
+  void Add(const T& item) { push_back(item); }
+
+  void remove(size_t index)
+  {
+    if (index >= count)
+      return;
+
+    data[index].~T();
+
+    for (size_t i = index; i < count - 1; i++)
+    {
+      new (&data[i]) T(data[i + 1]);
+      data[i + 1].~T();
     }
 
-    void push_back(const T &item)
+    count--;
+  }
+
+  T& operator[](size_t index) { return data[index]; }
+  const T& operator[](size_t index) const { return data[index]; }
+  size_t size() const { return count; }
+  size_t Count() const { return count; }
+  bool empty() const { return count == 0; }
+
+  void clear()
+  {
+    for (size_t i = 0; i < count; ++i)
     {
-        if (count >= capacity)
-        {
-            size_t newCapacity = (capacity == 0) ? 4 : capacity * 2;
-            T *newData = (T *)PlatformAlloc(newCapacity * sizeof(T));
-
-            for (size_t i = 0; i < count; i++)
-            {
-                new (&newData[i]) T(data[i]);
-                data[i].~T();
-            }
-
-            if (data)
-                PlatformFree(data, capacity * sizeof(T));
-
-            data = newData;
-            capacity = newCapacity;
-        }
-
-        new (&data[count]) T(item);
-        count++;
+      data[i].~T();
     }
-
-    void Add(const T &item) { push_back(item); }
-
-    void remove(size_t index)
-    {
-        if (index >= count)
-            return;
-
-        data[index].~T();
-
-        for (size_t i = index; i < count - 1; i++)
-        {
-            new (&data[i]) T(data[i + 1]);
-            data[i + 1].~T();
-        }
-
-        count--;
-    }
-
-    T &operator[](size_t index) { return data[index]; }
-    const T &operator[](size_t index) const { return data[index]; }
-    size_t size() const { return count; }
-    size_t Count() const { return count; }
-    bool empty() const { return count == 0; }
-
-    void clear()
-    {
-        for (size_t i = 0; i < count; ++i)
-        {
-            data[i].~T();
-        }
-        count = 0;
-    }
+    count = 0;
+  }
 };
-
-inline char *StrDup(const char *s)
-{
-    if (!s)
-        return nullptr;
-    size_t len = StrLen(s);
-    char *result = (char *)PlatformAlloc(len + 1);
-    StrCopy(result, s);
-    return result;
-}
 
 struct SimpleString
 {
-    char *data;
-    size_t length;
-    size_t capacity;
+  char* data;
+  size_t length;
+  size_t capacity;
 };
 
 struct ByteBuffer
 {
-    uint8_t *data;
-    size_t size;
-    size_t capacity;
+  uint8_t* data;
+  size_t size;
+  size_t capacity;
 };
 
 struct LineArray
 {
-    SimpleString *lines;
-    size_t count;
-    size_t capacity;
+  SimpleString* lines;
+  size_t count;
+  size_t capacity;
 };
 
-inline void mem_copy(void *dst, const void *src, size_t n)
+inline void ss_init(SimpleString* s)
 {
-    unsigned char *d = (unsigned char *)dst;
-    const unsigned char *s = (const unsigned char *)src;
-    while (n--)
-    {
-        *d++ = *s++;
-    }
+  s->data = NULL;
+  s->length = 0;
+  s->capacity = 0;
 }
 
-inline void mem_set(void *dst, int value, size_t n)
+inline void ss_free(SimpleString* s)
 {
-    unsigned char *d = (unsigned char *)dst;
-    unsigned char v = (unsigned char)value;
-    while (n--)
-    {
-        *d++ = v;
-    }
-}
-
-inline void ss_init(SimpleString *s)
-{
+  if (s->data)
+  {
+    sysFree(s->data);
     s->data = NULL;
-    s->length = 0;
-    s->capacity = 0;
+  }
+  s->length = 0;
+  s->capacity = 0;
 }
 
-inline void ss_free(SimpleString *s)
+inline bool ss_reserve(SimpleString* s, size_t newCap)
 {
-    if (s->data)
-    {
-        sys_free(s->data);
-        s->data = NULL;
-    }
-    s->length = 0;
-    s->capacity = 0;
-}
-
-inline bool ss_reserve(SimpleString *s, size_t newCap)
-{
-    if (newCap <= s->capacity)
-        return true;
-    size_t allocSize = newCap + 1;
-    char *newData = (char *)sys_realloc(s->data, allocSize);
-    if (!newData)
-        return false;
-    s->data = newData;
-    s->capacity = newCap;
-    if (s->length == 0)
-        s->data[0] = '\0';
+  if (newCap <= s->capacity)
     return true;
+  size_t allocSize = newCap + 1;
+  char* newData = (char*)sysRealloc(s->data, allocSize);
+  if (!newData)
+    return false;
+  s->data = newData;
+  s->capacity = newCap;
+  if (s->length == 0)
+    s->data[0] = '\0';
+  return true;
 }
 
-inline bool ss_append_char(SimpleString *s, char c)
+inline bool ss_append_char(SimpleString* s, char c)
 {
-    if (s->length + 1 >= s->capacity)
-    {
-        size_t newCap = s->capacity ? s->capacity * 2 : 32;
-        if (!ss_reserve(s, newCap))
-            return false;
-    }
-    s->data[s->length++] = c;
-    s->data[s->length] = '\0';
+  if (s->length + 1 >= s->capacity)
+  {
+    size_t newCap = s->capacity ? s->capacity * 2 : 32;
+    if (!ss_reserve(s, newCap))
+      return false;
+  }
+  s->data[s->length++] = c;
+  s->data[s->length] = '\0';
+  return true;
+}
+
+inline void ss_clear(SimpleString* s)
+{
+  s->length = 0;
+  if (s->data)
+    s->data[0] = '\0';
+}
+
+inline bool ss_append_cstr(SimpleString* s, const char* str)
+{
+  if (!str)
     return true;
+  size_t len = 0;
+  while (str[len] != '\0')
+    ++len;
+
+  if (s->length + len >= s->capacity)
+  {
+    size_t newCap = s->capacity ? s->capacity : 32;
+    while (s->length + len >= newCap)
+      newCap *= 2;
+    if (!ss_reserve(s, newCap))
+      return false;
+  }
+
+  memCopy(s->data + s->length, str, len);
+  s->length += len;
+  s->data[s->length] = '\0';
+  return true;
 }
 
-inline void ss_clear(SimpleString *s)
+inline bool la_reserve(LineArray* a, size_t newCap)
 {
-    s->length = 0;
-    if (s->data)
-        s->data[0] = '\0';
-}
-
-inline bool ss_append_cstr(SimpleString *s, const char *str)
-{
-    if (!str)
-        return true;
-    size_t len = 0;
-    while (str[len] != '\0')
-        ++len;
-
-    if (s->length + len >= s->capacity)
-    {
-        size_t newCap = s->capacity ? s->capacity : 32;
-        while (s->length + len >= newCap)
-            newCap *= 2;
-        if (!ss_reserve(s, newCap))
-            return false;
-    }
-
-    mem_copy(s->data + s->length, str, len);
-    s->length += len;
-    s->data[s->length] = '\0';
+  if (newCap <= a->capacity)
     return true;
+  SimpleString* newLines =
+    (SimpleString*)sysRealloc(a->lines, newCap * sizeof(SimpleString));
+  if (!newLines)
+    return false;
+
+  for (size_t i = a->capacity; i < newCap; ++i)
+  {
+    ss_init(&newLines[i]);
+  }
+
+  a->lines = newLines;
+  a->capacity = newCap;
+  return true;
 }
 
-inline bool la_reserve(LineArray *a, size_t newCap)
+inline bool la_push_back(LineArray* a, const SimpleString* s)
 {
-    if (newCap <= a->capacity)
-        return true;
-    SimpleString *newLines =
-        (SimpleString *)sys_realloc(a->lines, newCap * sizeof(SimpleString));
-    if (!newLines)
-        return false;
+  if (a->count >= a->capacity)
+  {
+    size_t newCap = a->capacity ? a->capacity * 2 : 16;
+    if (!la_reserve(a, newCap))
+      return false;
+  }
 
-    for (size_t i = a->capacity; i < newCap; ++i)
-    {
-        ss_init(&newLines[i]);
-    }
-
-    a->lines = newLines;
-    a->capacity = newCap;
-    return true;
+  SimpleString* dst = &a->lines[a->count];
+  ss_clear(dst);
+  if (s->length > 0)
+  {
+    if (!ss_reserve(dst, s->length))
+      return false;
+    ss_append_cstr(dst, s->data);
+  }
+  ++a->count;
+  return true;
 }
 
-inline bool la_push_back(LineArray *a, const SimpleString *s)
+inline bool la_push_back_cstr(LineArray* a, const char* str)
 {
-    if (a->count >= a->capacity)
-    {
-        size_t newCap = a->capacity ? a->capacity * 2 : 16;
-        if (!la_reserve(a, newCap))
-            return false;
-    }
-
-    SimpleString *dst = &a->lines[a->count];
-    ss_clear(dst);
-    if (s->length > 0)
-    {
-        if (!ss_reserve(dst, s->length))
-            return false;
-        ss_append_cstr(dst, s->data);
-    }
-    ++a->count;
-    return true;
+  SimpleString tmp;
+  ss_init(&tmp);
+  ss_append_cstr(&tmp, str);
+  bool ok = la_push_back(a, &tmp);
+  ss_free(&tmp);
+  return ok;
 }
 
-inline bool la_push_back_cstr(LineArray *a, const char *str)
+inline bool ss_append_dec2(SimpleString* s, unsigned int value)
 {
-    SimpleString tmp;
-    ss_init(&tmp);
-    ss_append_cstr(&tmp, str);
-    bool ok = la_push_back(a, &tmp);
-    ss_free(&tmp);
-    return ok;
+  char buf[3];
+  buf[0] = (char)('0' + ((value / 10) % 10));
+  buf[1] = (char)('0' + (value % 10));
+  buf[2] = '\0';
+  return ss_append_cstr(s, buf);
 }
 
-inline bool ss_append_dec2(SimpleString *s, unsigned int value)
+inline bool ss_append_hex8(SimpleString* s, unsigned int value)
 {
-    char buf[3];
-    buf[0] = (char)('0' + ((value / 10) % 10));
-    buf[1] = (char)('0' + (value % 10));
-    buf[2] = '\0';
-    return ss_append_cstr(s, buf);
+  char buf[9];
+  for (int i = 7; i >= 0; --i)
+  {
+    unsigned int nibble = value & 0xF;
+    buf[i] = (char)(nibble < 10 ? ('0' + nibble) : ('A' + (nibble - 10)));
+    value >>= 4;
+  }
+  buf[8] = '\0';
+  return ss_append_cstr(s, buf);
 }
 
-inline bool ss_append_hex8(SimpleString *s, unsigned int value)
+inline bool ss_append_hex2(SimpleString* s, unsigned int value)
 {
-    char buf[9];
-    for (int i = 7; i >= 0; --i)
-    {
-        unsigned int nibble = value & 0xF;
-        buf[i] = (char)(nibble < 10 ? ('0' + nibble) : ('A' + (nibble - 10)));
-        value >>= 4;
-    }
-    buf[8] = '\0';
-    return ss_append_cstr(s, buf);
+  char buf[3];
+  for (int i = 1; i >= 0; --i)
+  {
+    unsigned int nibble = value & 0xF;
+    buf[i] = (char)(nibble < 10 ? ('0' + nibble) : ('A' + (nibble - 10)));
+    value >>= 4;
+  }
+  buf[2] = '\0';
+  return ss_append_cstr(s, buf);
 }
 
-inline bool ss_append_hex2(SimpleString *s, unsigned int value)
+inline void bb_init(ByteBuffer* b)
 {
-    char buf[3];
-    for (int i = 1; i >= 0; --i)
-    {
-        unsigned int nibble = value & 0xF;
-        buf[i] = (char)(nibble < 10 ? ('0' + nibble) : ('A' + (nibble - 10)));
-        value >>= 4;
-    }
-    buf[2] = '\0';
-    return ss_append_cstr(s, buf);
+  b->data = NULL;
+  b->size = 0;
+  b->capacity = 0;
 }
 
-inline void bb_init(ByteBuffer *b)
+inline void bb_free(ByteBuffer* b)
 {
+  if (b->data)
+  {
+    sysFree(b->data);
     b->data = NULL;
-    b->size = 0;
-    b->capacity = 0;
+  }
+  b->size = 0;
+  b->capacity = 0;
 }
 
-inline void bb_free(ByteBuffer *b)
+inline bool bb_resize(ByteBuffer* b, size_t newSize)
 {
-    if (b->data)
+  if (newSize > b->capacity)
+  {
+    size_t newCap = b->capacity ? b->capacity : 256;
+    while (newCap < newSize)
+      newCap *= 2;
+    uint8_t* newData = (uint8_t*)sysRealloc(b->data, newCap);
+    if (!newData)
+      return false;
+    b->data = newData;
+    b->capacity = newCap;
+  }
+  b->size = newSize;
+  return true;
+}
+
+inline bool bb_empty(const ByteBuffer* b)
+{
+  return b->size == 0;
+}
+
+inline void la_init(LineArray* a)
+{
+  a->lines = NULL;
+  a->count = 0;
+  a->capacity = 0;
+}
+
+inline void la_clear(LineArray* a)
+{
+  if (a->lines)
+  {
+    for (size_t i = 0; i < a->count; ++i)
     {
-        sys_free(b->data);
-        b->data = NULL;
+      ss_free(&a->lines[i]);
     }
-    b->size = 0;
-    b->capacity = 0;
+  }
+  a->count = 0;
 }
 
-inline bool bb_resize(ByteBuffer *b, size_t newSize)
+inline void la_free(LineArray* a)
 {
-    if (newSize > b->capacity)
-    {
-        size_t newCap = b->capacity ? b->capacity : 256;
-        while (newCap < newSize)
-            newCap *= 2;
-        uint8_t *newData = (uint8_t *)sys_realloc(b->data, newCap);
-        if (!newData)
-            return false;
-        b->data = newData;
-        b->capacity = newCap;
-    }
-    b->size = newSize;
-    return true;
-}
-
-inline bool bb_empty(const ByteBuffer *b)
-{
-    return b->size == 0;
-}
-
-inline void la_init(LineArray *a)
-{
+  la_clear(a);
+  if (a->lines)
+  {
+    sysFree(a->lines);
     a->lines = NULL;
-    a->count = 0;
-    a->capacity = 0;
-}
-
-inline void la_clear(LineArray *a)
-{
-    if (a->lines)
-    {
-        for (size_t i = 0; i < a->count; ++i)
-        {
-            ss_free(&a->lines[i]);
-        }
-    }
-    a->count = 0;
-}
-
-inline void la_free(LineArray *a)
-{
-    la_clear(a);
-    if (a->lines)
-    {
-        sys_free(a->lines);
-        a->lines = NULL;
-    }
-    a->capacity = 0;
+  }
+  a->capacity = 0;
 }
 
 #ifdef _WIN32
-class WinString
+class winString
 {
 private:
-    char *data;
-    size_t len;
-    size_t cap;
+  char* data;
+  size_t len;
+  size_t cap;
 
 public:
-    WinString() : data(nullptr), len(0), cap(0) {}
+  winString() : data(nullptr), len(0), cap(0) {}
 
-    ~WinString()
+  ~winString()
+  {
+    if (data)
+      platformFree(data);
+  }
+
+  winString(const winString& other) : data(nullptr), len(0), cap(0)
+  {
+    if (other.len > 0)
     {
-        if (data)
-            PlatformFree(data);
+      reserve(other.len);
+      memCopy(data, other.data, other.len);
+      len = other.len;
+      data[len] = 0;
     }
+  }
 
-    WinString(const WinString &other) : data(nullptr), len(0), cap(0)
+  winString& operator=(const winString& other)
+  {
+    if (this != &other)
     {
-        if (other.len > 0)
-        {
-            Reserve(other.len);
-            MemCopy(data, other.data, other.len);
-            len = other.len;
-            data[len] = 0;
-        }
-    }
-
-    WinString &operator=(const WinString &other)
-    {
-        if (this != &other)
-        {
-            Clear();
-            if (other.len > 0)
-            {
-                Reserve(other.len);
-                MemCopy(data, other.data, other.len);
-                len = other.len;
-                data[len] = 0;
-            }
-        }
-        return *this;
-    }
-
-    void Reserve(size_t newCap)
-    {
-        if (newCap <= cap)
-            return;
-        char *newData = (char *)PlatformAlloc(newCap + 1);
-        if (data)
-        {
-            MemCopy(newData, data, len);
-            PlatformFree(data);
-        }
-        data = newData;
-        cap = newCap;
+      clear();
+      if (other.len > 0)
+      {
+        reserve(other.len);
+        memCopy(data, other.data, other.len);
+        len = other.len;
         data[len] = 0;
+      }
     }
+    return *this;
+  }
 
-    void Append(const char *str)
+  void reserve(size_t newCap)
+  {
+    if (newCap <= cap)
+      return;
+    char* newData = (char*)platformAlloc(newCap + 1);
+    if (data)
     {
-        if (!str)
-            return;
-        size_t slen = StrLen(str);
-        if (len + slen > cap)
+      memCopy(newData, data, len);
+      platformFree(data);
+    }
+    data = newData;
+    cap = newCap;
+    data[len] = 0;
+  }
+
+  void append(const char* str)
+  {
+    if (!str)
+      return;
+    size_t slen = strLen(str);
+    if (len + slen > cap)
+    {
+      reserve((len + slen) * 2);
+    }
+    memCopy(data + len, str, slen);
+    len += slen;
+    data[len] = 0;
+  }
+
+  void append(char c)
+  {
+    if (len + 1 > cap)
+    {
+      reserve((cap == 0 ? 16 : cap * 2));
+    }
+    data[len++] = c;
+    data[len] = 0;
+  }
+
+  const char* CStr() const { return data ? data : ""; }
+  size_t Length() const { return len; }
+  bool IsEmpty() const { return len == 0; }
+
+  void clear()
+  {
+    if (data)
+      platformFree(data);
+    data = nullptr;
+    len = 0;
+    cap = 0;
+  }
+
+  int find(const char* needle) const
+  {
+    if (!data || !needle)
+      return -1;
+    size_t nlen = strLen(needle);
+    if (nlen == 0 || nlen > len)
+      return -1;
+
+    for (size_t i = 0; i <= len - nlen; i++)
+    {
+      bool match = true;
+      for (size_t j = 0; j < nlen; j++)
+      {
+        if (data[i + j] != needle[j])
         {
-            Reserve((len + slen) * 2);
+          match = false;
+          break;
         }
-        MemCopy(data + len, str, slen);
-        len += slen;
-        data[len] = 0;
+      }
+      if (match)
+        return (int)i;
     }
+    return -1;
+  }
 
-    void Append(char c)
-    {
-        if (len + 1 > cap)
-        {
-            Reserve((cap == 0 ? 16 : cap * 2));
-        }
-        data[len++] = c;
-        data[len] = 0;
-    }
-
-    const char *CStr() const { return data ? data : ""; }
-    size_t Length() const { return len; }
-    bool IsEmpty() const { return len == 0; }
-
-    void Clear()
-    {
-        if (data)
-            PlatformFree(data);
-        data = nullptr;
-        len = 0;
-        cap = 0;
-    }
-
-    int Find(const char *needle) const
-    {
-        if (!data || !needle)
-            return -1;
-        size_t nlen = StrLen(needle);
-        if (nlen == 0 || nlen > len)
-            return -1;
-
-        for (size_t i = 0; i <= len - nlen; i++)
-        {
-            bool match = true;
-            for (size_t j = 0; j < nlen; j++)
-            {
-                if (data[i + j] != needle[j])
-                {
-                    match = false;
-                    break;
-                }
-            }
-            if (match)
-                return (int)i;
-        }
-        return -1;
-    }
-
-    WinString Substr(size_t start, size_t length) const
-    {
-        WinString result;
-        if (!data || start >= len)
-            return result;
-        if (start + length > len)
-            length = len - start;
-        result.Reserve(length);
-        MemCopy(result.data, data + start, length);
-        result.len = length;
-        result.data[length] = 0;
-        return result;
-    }
+  winString substr(size_t start, size_t length) const
+  {
+    winString result;
+    if (!data || start >= len)
+      return result;
+    if (start + length > len)
+      length = len - start;
+    result.reserve(length);
+    memCopy(result.data, data + start, length);
+    result.len = length;
+    result.data[length] = 0;
+    return result;
+  }
 };
 #endif
 #endif

@@ -143,8 +143,8 @@ void GetConfigPath(char *outPath, int maxLen)
   if (!inProgramFiles && !GetIsNativeFlag())
   {
     WideCharToMultiByte(CP_UTF8, 0, exePath, -1, outPath, maxLen - 30, nullptr, nullptr);
-    int len = (int)StrLen(outPath);
-    StrCopy(outPath + len, "\\hexviewer_config.ini");
+    int len = (int)strLen(outPath);
+    strCopy(outPath + len, "\\hexviewer_config.ini");
     return;
   }
 
@@ -153,26 +153,26 @@ void GetConfigPath(char *outPath, int maxLen)
   if (len > 0 && len < MAX_PATH)
   {
     WideCharToMultiByte(CP_UTF8, 0, localAppData, -1, outPath, maxLen - 50, nullptr, nullptr);
-    int slen = (int)StrLen(outPath);
-    StrCopy(outPath + slen, "\\HexViewer\\hexviewer_config.ini");
+    int slen = (int)strLen(outPath);
+    strCopy(outPath + slen, "\\HexViewer\\hexviewer_config.ini");
   }
   else
   {
     WideCharToMultiByte(CP_UTF8, 0, exePath, -1, outPath, maxLen - 30, nullptr, nullptr);
-    int slen = (int)StrLen(outPath);
-    StrCopy(outPath + slen, "\\hexviewer_config.ini");
+    int slen = (int)strLen(outPath);
+    strCopy(outPath + slen, "\\hexviewer_config.ini");
   }
 #else
   const char *home = getenv("HOME");
   if (home)
   {
-    StrCopy(outPath, home);
-    int len = (int)StrLen(outPath);
-    StrCopy(outPath + len, "/.config/HexViewer/hexviewer_config.ini");
+    strCopy(outPath, home);
+    int len = (int)strLen(outPath);
+    strCopy(outPath + len, "/.config/HexViewer/hexviewer_config.ini");
   }
   else
   {
-    StrCopy(outPath, "hexviewer_config.ini");
+    strCopy(outPath, "hexviewer_config.ini");
   }
 #endif
 }
@@ -220,48 +220,48 @@ void SaveOptionsToFile(const AppOptions& options)
 
   DWORD written;
 
-  StrCopy(buf, "[Options]\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "[Options]\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
-  StrCopy(buf, "darkMode=");
-  StrCopy(buf + 9, options.darkMode ? "1" : "0");
-  StrCopy(buf + 10, "\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "darkMode=");
+  strCopy(buf + 9, options.darkMode ? "1" : "0");
+  strCopy(buf + 10, "\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
-  StrCopy(buf, "bookmarkHighlights=");
-  StrCopy(buf + 19, options.bookmarkHighlights ? "1" : "0");
-  StrCopy(buf + 20, "\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "bookmarkHighlights=");
+  strCopy(buf + 19, options.bookmarkHighlights ? "1" : "0");
+  strCopy(buf + 20, "\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
-  StrCopy(buf, "bytesPerLine=");
-  ItoaDec((long long)options.defaultBytesPerLine, buf + 13, 243);
-  int len = (int)StrLen(buf);
-  StrCopy(buf + len, "\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "bytesPerLine=");
+  itoaDec((long long)options.defaultBytesPerLine, buf + 13, 243);
+  int len = (int)strLen(buf);
+  strCopy(buf + len, "\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
-  StrCopy(buf, "autoReload=");
-  StrCopy(buf + 11, options.autoReload ? "1" : "0");
-  StrCopy(buf + 12, "\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "autoReload=");
+  strCopy(buf + 11, options.autoReload ? "1" : "0");
+  strCopy(buf + 12, "\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
-  StrCopy(buf, "language=");
-  StrCopy(buf + 9, options.language);
-  len = (int)StrLen(buf);
-  StrCopy(buf + len, "\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "language=");
+  strCopy(buf + 9, options.language);
+  len = (int)strLen(buf);
+  strCopy(buf + len, "\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
-  StrCopy(buf, "fontSize=");
-  ItoaDec((long long)options.fontSize, buf + 9, 247);
-  len = (int)StrLen(buf);
-  StrCopy(buf + len, "\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "fontSize=");
+  itoaDec((long long)options.fontSize, buf + 9, 247);
+  len = (int)strLen(buf);
+  strCopy(buf + len, "\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
-  StrCopy(buf, "\n[RecentFiles]\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "\n[RecentFiles]\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
   for (int i = 0; i < g_RecentFileCount; i++)
   {
-    StrCopy(buf, "File");
+    strCopy(buf, "File");
 
     char numStr[4];
     int num = i;
@@ -288,85 +288,86 @@ void SaveOptionsToFile(const AppOptions& options)
     }
     numStr[numLen] = '\0';
 
-    StrCopy(buf + 4, numStr);
+    strCopy(buf + 4, numStr);
     int pos = 4 + numLen;
     buf[pos++] = '=';
 
-    StrCopy(buf + pos, g_RecentFiles[i]);
-    len = (int)StrLen(buf);
+    strCopy(buf + pos, g_RecentFiles[i]);
+    len = (int)strLen(buf);
     buf[len++] = '\n';
     buf[len] = '\0';
 
-    WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+    WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
   }
 
-  StrCopy(buf, "\n[Plugins]\n");
-  WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+  strCopy(buf, "\n[Plugins]\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
   for (int i = 0; i < options.enabledPluginCount; i++)
   {
-    StrCopy(buf, "enabled=");
-    StrCopy(buf + 8, options.enabledPlugins[i]);
-    len = (int)StrLen(buf);
+    strCopy(buf, "enabled=");
+    strCopy(buf + 8, options.enabledPlugins[i]);
+    len = (int)strLen(buf);
     buf[len++] = '\n';
     buf[len] = '\0';
 
-    WriteFile(hFile, buf, (DWORD)StrLen(buf), &written, nullptr);
+    WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
   }
 
   CloseHandle(hFile);
 
 #else
-  char dirPath[512];
-  StrCopy(dirPath, configPath);
-  for (int i = (int)StrLen(dirPath) - 1; i >= 0; i--)
-  {
-    if (dirPath[i] == '/')
-    {
-      dirPath[i] = 0;
-			mkdir("~/.config", 0755);
-      mkdir(dirPath, 0755);
-      break;
-    }
-  }
+char dirPath[512];
+strCopy(dirPath, configPath);
 
-  int fd = open(configPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-  if (fd < 0)
-    return;
+const char* home = getenv("HOME");
+if (home)
+{
+  std::string base = std::string(home) + "/.config";
+  mkdir(base.c_str(), 0755);
 
-  StrCopy(buf, "[Options]\n");
-  write(fd, buf, StrLen(buf));
+  std::string hv = base + "/HexViewer";
+  mkdir(hv.c_str(), 0755);
+}
 
-  StrCopy(buf, "darkMode=");
-  StrCopy(buf + 9, options.darkMode ? "1\n" : "0\n");
-  write(fd, buf, StrLen(buf));
+int fd = open(configPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+if (fd < 0)
+  return;
 
-  StrCopy(buf, "bookmarkHighlights=");
-  StrCopy(buf + 19, options.bookmarkHighlights ? "1\n" : "0\n");
-  write(fd, buf, StrLen(buf));
 
-  StrCopy(buf, "bytesPerLine=");
-  ItoaDec((long long)options.defaultBytesPerLine, buf + 13, 243);
-  int len = (int)StrLen(buf);
-  StrCopy(buf + len, "\n");
-  write(fd, buf, StrLen(buf));
+  strCopy(buf, "[Options]\n");
+  write(fd, buf, strLen(buf));
 
-  StrCopy(buf, "autoReload=");
-  StrCopy(buf + 11, options.autoReload ? "1\n" : "0\n");
-  write(fd, buf, StrLen(buf));
+  strCopy(buf, "darkMode=");
+  strCopy(buf + 9, options.darkMode ? "1\n" : "0\n");
+  write(fd, buf, strLen(buf));
 
-  StrCopy(buf, "language=");
-  StrCopy(buf + 9, options.language);
-  len = (int)StrLen(buf);
-  StrCopy(buf + len, "\n");
-  write(fd, buf, StrLen(buf));
+  strCopy(buf, "bookmarkHighlights=");
+  strCopy(buf + 19, options.bookmarkHighlights ? "1\n" : "0\n");
+  write(fd, buf, strLen(buf));
 
-  StrCopy(buf, "\n[RecentFiles]\n");
-  write(fd, buf, StrLen(buf));
+  strCopy(buf, "bytesPerLine=");
+  itoaDec((long long)options.defaultBytesPerLine, buf + 13, 243);
+  int len = (int)strLen(buf);
+  strCopy(buf + len, "\n");
+  write(fd, buf, strLen(buf));
+
+  strCopy(buf, "autoReload=");
+  strCopy(buf + 11, options.autoReload ? "1\n" : "0\n");
+  write(fd, buf, strLen(buf));
+
+  strCopy(buf, "language=");
+  strCopy(buf + 9, options.language);
+  len = (int)strLen(buf);
+  strCopy(buf + len, "\n");
+  write(fd, buf, strLen(buf));
+
+  strCopy(buf, "\n[RecentFiles]\n");
+  write(fd, buf, strLen(buf));
 
   for (int i = 0; i < g_RecentFileCount; i++)
   {
-    StrCopy(buf, "File");
+    strCopy(buf, "File");
 
     char numStr[4];
     int num = i;
@@ -393,29 +394,29 @@ void SaveOptionsToFile(const AppOptions& options)
     }
     numStr[numLen] = '\0';
 
-    StrCopy(buf + 4, numStr);
+    strCopy(buf + 4, numStr);
     int pos = 4 + numLen;
     buf[pos++] = '=';
-    StrCopy(buf + pos, g_RecentFiles[i]);
-    len = (int)StrLen(buf);
+    strCopy(buf + pos, g_RecentFiles[i]);
+    len = (int)strLen(buf);
     buf[len++] = '\n';
     buf[len] = '\0';
 
-    write(fd, buf, StrLen(buf));
+    write(fd, buf, strLen(buf));
   }
 
-  StrCopy(buf, "\n[Plugins]\n");
-  write(fd, buf, StrLen(buf));
+  strCopy(buf, "\n[Plugins]\n");
+  write(fd, buf, strLen(buf));
 
   for (int i = 0; i < options.enabledPluginCount; i++)
   {
-    StrCopy(buf, "enabled=");
-    StrCopy(buf + 8, options.enabledPlugins[i]);
-    len = (int)StrLen(buf);
+    strCopy(buf, "enabled=");
+    strCopy(buf + 8, options.enabledPlugins[i]);
+    len = (int)strLen(buf);
     buf[len++] = '\n';
     buf[len] = '\0';
 
-    write(fd, buf, StrLen(buf));
+    write(fd, buf, strLen(buf));
   }
 
   close(fd);
@@ -520,7 +521,7 @@ void LoadOptionsFromFile(AppOptions& options)
             {
               if (options.enabledPluginCount < 10)
               {
-                StrCopy(options.enabledPlugins[options.enabledPluginCount], val);
+                strCopy(options.enabledPlugins[options.enabledPluginCount], val);
                 options.enabledPluginCount++;
               }
             }
@@ -529,11 +530,11 @@ void LoadOptionsFromFile(AppOptions& options)
           {
             if (key[0] == 'F' && key[1] == 'i' && key[2] == 'l' && key[3] == 'e')
             {
-              int fileIndex = StrToInt(key + 4);
+              int fileIndex = strToInt(key + 4);
 
               if (fileIndex >= 0 && fileIndex < 10 && val[0] != 0)
               {
-                StrCopy(g_RecentFiles[fileIndex], val);
+                strCopy(g_RecentFiles[fileIndex], val);
                 if (fileIndex >= g_RecentFileCount)
                 {
                   g_RecentFileCount = fileIndex + 1;
@@ -550,13 +551,13 @@ void LoadOptionsFromFile(AppOptions& options)
               options.bookmarkHighlights = strEquals(val, "1");
 
             else if (strEquals(key, "bytesPerLine"))
-              options.defaultBytesPerLine = StrToInt(val);
+              options.defaultBytesPerLine = strToInt(val);
             else if (strEquals(key, "autoReload"))
               options.autoReload = strEquals(val, "1");
             else if (strEquals(key, "language"))
-              StrCopy(options.language, val);
+              strCopy(options.language, val);
             else if (strEquals(key, "fontSize"))
-              options.fontSize = StrToInt(val);
+              options.fontSize = strToInt(val);
           }
         }
 
@@ -680,8 +681,8 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
   int fontDropdownY = y;
   {
     char fontSizeLabel[32];
-    ItoaDec((long long)data->tempOptions.fontSize, fontSizeLabel, 32);
-    StrCat(fontSizeLabel, "pt");
+    itoaDec((long long)data->tempOptions.fontSize, fontSizeLabel, 32);
+    strCat(fontSizeLabel, "pt");
 
     Rect r(margin + 20, fontDropdownY, 200, controlHeight);
     WidgetState ws(r);
@@ -777,8 +778,8 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
   if (data->fontDropdownOpen)
   {
     char fontSizeLabel[32];
-    ItoaDec((long long)data->tempOptions.fontSize, fontSizeLabel, 32);
-    StrCat(fontSizeLabel, "pt");
+    itoaDec((long long)data->tempOptions.fontSize, fontSizeLabel, 32);
+    strCat(fontSizeLabel, "pt");
 
     Rect r(margin + 20, fontDropdownY, 200, controlHeight);
     WidgetState ws(r);
@@ -976,7 +977,7 @@ void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, in
   if (data->dropdownOpen && data->hoveredDropdownItem >= 0)
   {
     data->selectedLanguage = data->hoveredDropdownItem;
-    StrCopy(data->tempOptions.language, data->languages[data->selectedLanguage]);
+    strCopy(data->tempOptions.language, data->languages[data->selectedLanguage]);
     Translations::SetLanguage(data->tempOptions.language);
     data->dropdownOpen = false;
     return;
@@ -1057,7 +1058,7 @@ void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, in
       }
     }
 #endif
-    StrCopy(data->tempOptions.language, data->languages[data->selectedLanguage]);
+    strCopy(data->tempOptions.language, data->languages[data->selectedLanguage]);
     *data->originalOptions = data->tempOptions;
     data->dialogResult = true;
     data->running = false;

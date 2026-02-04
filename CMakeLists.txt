@@ -4,11 +4,9 @@ if (MSVC)
 else()
     project(HexViewer LANGUAGES CXX)
 endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 if (MSVC)
     add_compile_options(
         /nologo /W3 /O1 /GL /GS- /GR-
@@ -16,7 +14,6 @@ if (MSVC)
         /D_CRT_SECURE_NO_WARNINGS /D_HAS_EXCEPTIONS=0
     )
 endif()
-
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/include/core
@@ -24,18 +21,17 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include/system
     ${CMAKE_SOURCE_DIR}/resources/ui
 )
-
 set(CPP_SOURCES
     src/core/hexdata.cpp
     src/core/render.cpp
     src/core/panelcontent.cpp
     src/ui/menu.cpp
-    
+    src/system/die_database.cpp
+    src/system/die_downloaddialog.cpp
     src/ui/pluginmanager.cpp
     src/core/pluginexecutor.cpp
     src/ui/selectblockdialog.cpp
 )
-
 # Files that must be compiled as Objective‑C++ on macOS
 set(MAC_OBJCXX_SOURCES
     src/hexviewer.cpp
@@ -46,7 +42,6 @@ set(MAC_OBJCXX_SOURCES
     src/ui/searchdialog.cpp
     src/ui/options.cpp
 )
-
 if (UNIX AND NOT APPLE)
     find_program(OBJCOPY objcopy REQUIRED)
     set(ABOUT_PNG about.png)
@@ -65,7 +60,6 @@ if (UNIX AND NOT APPLE)
     )
     list(APPEND CPP_SOURCES ${ABOUT_OBJ})
 endif()
-
 if (APPLE)
     set(SOURCES ${CPP_SOURCES} ${MAC_OBJCXX_SOURCES})
     set_source_files_properties(
@@ -76,7 +70,6 @@ if (APPLE)
 else()
     set(SOURCES ${CPP_SOURCES} ${MAC_OBJCXX_SOURCES})
 endif()
-
 if (WIN32)
     list(APPEND SOURCES resources/ui/hexviewer.rc)
     set_property(
@@ -87,9 +80,7 @@ if (WIN32)
             "/I${CMAKE_CURRENT_SOURCE_DIR}/resources/icons"
     )
 endif()
-
 add_executable(HexViewer ${SOURCES})
-
 if(MSVC)
     set_source_files_properties(
         src/system/update.cpp
@@ -99,7 +90,6 @@ if(MSVC)
         PROPERTIES COMPILE_OPTIONS "/GL-"
     )
 endif()
-
 if (WIN32)
     target_link_options(HexViewer PRIVATE
         /SUBSYSTEM:WINDOWS
@@ -111,7 +101,7 @@ if (WIN32)
         /MANIFEST:NO
     )
     target_link_libraries(HexViewer PRIVATE
-        dwmapi.lib gdiplus.lib wininet.lib msimg32.lib
+        dwmapi.lib gdiplus.lib wininet.lib msimg32.lib comctl32.lib
     )
 elseif(APPLE)
     find_library(COCOA_FRAMEWORK Cocoa REQUIRED)
@@ -126,7 +116,8 @@ elseif(APPLE)
         ${COREFOUNDATION_FRAMEWORK}
         ${CORETEXT_FRAMEWORK}
         ${COREGRAPHICS_FRAMEWORK}
+        curl  # Add curl for macOS too
     )
 else() # Linux
-    target_link_libraries(HexViewer PRIVATE X11 pthread dl)
+    target_link_libraries(HexViewer PRIVATE X11 pthread dl curl)
 endif()

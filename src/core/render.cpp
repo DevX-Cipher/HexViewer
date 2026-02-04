@@ -138,7 +138,7 @@ void RenderManager::cleanup()
 #elif __APPLE__
   if (backBuffer)
   {
-    PlatformFree(backBuffer);
+    platformFree(backBuffer);
     backBuffer = nullptr;
   }
 
@@ -209,9 +209,9 @@ void RenderManager::resize(int width, int height)
 #elif __APPLE__
   if (backBuffer)
   {
-    PlatformFree(backBuffer);
+    platformFree(backBuffer);
   }
-  backBuffer = PlatformAlloc(width * height * 4);
+  backBuffer = platformAlloc(width * height * 4);
 
 #else
   if (backBuffer)
@@ -417,10 +417,13 @@ void RenderManager::drawRect(const Rect &rect, const Color &color, bool filled)
   if (context)
   {
     CGContextRef ctx = (CGContextRef)context;
+
+    int flippedY = windowHeight - rect.y - rect.height;
+
     CGContextSetRGBFillColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
     CGContextSetRGBStrokeColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
 
-    CGRect cgRect = CGRectMake(rect.x, rect.y, rect.width, rect.height);
+    CGRect cgRect = CGRectMake(rect.x, flippedY, rect.width, rect.height);
 
     if (filled)
     {
@@ -458,11 +461,15 @@ void RenderManager::drawLine(int x1, int y1, int x2, int y2, const Color &color)
   if (context)
   {
     CGContextRef ctx = (CGContextRef)context;
+
+    int flippedY1 = windowHeight - y1;
+    int flippedY2 = windowHeight - y2;
+
     CGContextSetRGBStrokeColor(ctx, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
     CGContextSetLineWidth(ctx, 1.0f);
     CGContextBeginPath(ctx);
-    CGContextMoveToPoint(ctx, x1, y1);
-    CGContextAddLineToPoint(ctx, x2, y2);
+    CGContextMoveToPoint(ctx, x1, flippedY1);
+    CGContextAddLineToPoint(ctx, x2, flippedY2);
     CGContextStrokePath(ctx);
   }
 #else
@@ -478,7 +485,7 @@ void RenderManager::drawText(const char *text, int x, int y, const Color &color)
 
 #ifdef _WIN32
   setColor(color);
-  TextOutA(memDC, x, y, text, (int)StrLen(text));
+  TextOutA(memDC, x, y, text, (int)strLen(text));
 #elif __APPLE__
   if (!context)
     return;
@@ -503,8 +510,10 @@ void RenderManager::drawText(const char *text, int x, int y, const Color &color)
     CFAttributedStringRef attrString = CFAttributedStringCreate(NULL, cfString, attributes);
     CTLineRef line = CTLineCreateWithAttributedString(attrString);
 
+    int flippedY = windowHeight - y - fontSize;
+
     CGContextSetTextMatrix(ctx, CGAffineTransformIdentity);
-    CGContextSetTextPosition(ctx, x, y + fontSize);
+    CGContextSetTextPosition(ctx, x, flippedY);
     CTLineDraw(line, ctx);
 
     CFRelease(line);
@@ -517,7 +526,7 @@ void RenderManager::drawText(const char *text, int x, int y, const Color &color)
   CGContextRestoreGState(ctx);
 #else
   XSetForeground(display, gc, (color.r << 16) | (color.g << 8) | color.b);
-  XDrawString(display, backBuffer, gc, x, y + 12, text, StrLen(text));
+  XDrawString(display, backBuffer, gc, x, y + 12, text, strLen(text));
 #endif
 }
 
@@ -528,13 +537,13 @@ int RenderManager::measureTextWidth(const char* text)
     return 0;
 
   SIZE size;
-  if (GetTextExtentPoint32A(memDC, text, (int)StrLen(text), &size))
+  if (GetTextExtentPoint32A(memDC, text, (int)strLen(text), &size))
     return size.cx;
 
   return 0;
 #else
   if (!text) return 0;
-  return (int)StrLen(text) * _charWidth;
+  return (int)strLen(text) * _charWidth;
 #endif
 }
 
@@ -579,11 +588,12 @@ void RenderManager::drawRoundedRect(const Rect &rect, float radius, const Color 
     CGContextRef ctx = (CGContextRef)context;
 
     float x = (float)rect.x;
-    float y = (float)rect.y;
+    float y = (float)(windowHeight - rect.y - rect.height);
     float w = (float)rect.width;
     float h = (float)rect.height;
 
     CGMutablePathRef path = CGPathCreateMutable();
+
     CGPathMoveToPoint(path, NULL, x + radius, y);
     CGPathAddLineToPoint(path, NULL, x + w - radius, y);
     CGPathAddArc(path, NULL, x + w - radius, y + radius, radius, -M_PI / 2, 0, false);
@@ -717,7 +727,7 @@ void RenderManager::drawModernButton(const WidgetState &state, const Theme &them
     drawRoundedRect(state.rect, radius, borderColor, false);
   }
 
-  int textWidth = StrLen(label) * 8;
+  int textWidth = strLen(label) * 8;
   int textHeight = 16;
   int textX = state.rect.x + (state.rect.width - textWidth) / 2;
   int textY = state.rect.y + (state.rect.height - textHeight) / 2;
@@ -951,10 +961,10 @@ void RenderManager::drawDropdown(
     int maxVisibleItems = 5;
 
     int totalItems = (int)items.size();
-    int maxScroll = Clamp(totalItems - maxVisibleItems, 0, 0x7FFFFFFF);
-    scrollOffset = Clamp(scrollOffset, 0, maxScroll);
+    int maxScroll = clamp(totalItems - maxVisibleItems, 0, 0x7FFFFFFF);
+    scrollOffset = clamp(scrollOffset, 0, maxScroll);
     int remaining = totalItems - scrollOffset;
-    int visibleItems = Clamp(remaining, 0, maxVisibleItems);
+    int visibleItems = clamp(remaining, 0, maxVisibleItems);
 
     int listHeight = itemHeight * visibleItems;
     int listY = state.rect.y + state.rect.height + 4;
@@ -1076,7 +1086,7 @@ PointF RenderManager::GetBytePointF(Point gp)
 
 Point RenderManager::GetGridBytePoint(long long byteIndex)
 {
-  int row = (int)Floor((double)byteIndex / (double)_bytesPerLine);
+  int row = (int)(byteIndex / _bytesPerLine);
   int column = (int)(byteIndex % _bytesPerLine);
   return Point(column, row);
 }
@@ -1229,7 +1239,7 @@ int MeasureTextHeight(const char *text)
 
 void RenderManager::drawProgressBar(const Rect &rect, float progress, const Theme &theme)
 {
-  progress = Clamp(progress, 0.0f, 1.0f);
+  progress = clamp(progress, 0.0f, 1.0f);
 
   float radius = 4.0f;
 
@@ -1251,9 +1261,9 @@ void RenderManager::drawProgressBar(const Rect &rect, float progress, const Them
     {
       Rect highlightRect(rect.x + 2, rect.y + 2, fillWidth - 4, rect.height / 3);
       Color highlightColor(
-          Clamp(fillColor.r + 40, 0, 255),
-          Clamp(fillColor.g + 40, 0, 255),
-          Clamp(fillColor.b + 40, 0, 255),
+          clamp(fillColor.r + 40, 0, 255),
+          clamp(fillColor.g + 40, 0, 255),
+          clamp(fillColor.b + 40, 0, 255),
           150);
       if (highlightRect.width > 0)
       {
@@ -1338,8 +1348,8 @@ void RenderManager::drawLeftPanel(
   }
 
   char titleText[64];
-  StrCopy(titleText, "File Explorer");
-  StrCat(titleText, dockText);
+  strCopy(titleText, "File Explorer");
+  strCat(titleText, dockText);
   drawText(titleText, panelBounds.x + 16, panelBounds.y + 7, theme.textColor);
 
   int contentX = panelBounds.x + 15;
@@ -1360,9 +1370,9 @@ void RenderManager::drawLeftPanel(
   if (isDarkTheme)
   {
     faded = Color(
-      Clamp(theme.textColor.r - 40, 0, 255),
-      Clamp(theme.textColor.g - 40, 0, 255),
-      Clamp(theme.textColor.b - 40, 0, 255));
+      clamp(theme.textColor.r - 40, 0, 255),
+      clamp(theme.textColor.g - 40, 0, 255),
+      clamp(theme.textColor.b - 40, 0, 255));
 
     halfText = Color(
       theme.textColor.r / 2,
@@ -1377,19 +1387,19 @@ void RenderManager::drawLeftPanel(
   else
   {
     faded = Color(
-      Clamp(theme.textColor.r + 60, 0, 255),
-      Clamp(theme.textColor.g + 60, 0, 255),
-      Clamp(theme.textColor.b + 60, 0, 255));
+      clamp(theme.textColor.r + 60, 0, 255),
+      clamp(theme.textColor.g + 60, 0, 255),
+      clamp(theme.textColor.b + 60, 0, 255));
 
     halfText = Color(
-      Clamp(theme.textColor.r + 80, 0, 255),
-      Clamp(theme.textColor.g + 80, 0, 255),
-      Clamp(theme.textColor.b + 80, 0, 255));
+      clamp(theme.textColor.r + 80, 0, 255),
+      clamp(theme.textColor.g + 80, 0, 255),
+      clamp(theme.textColor.b + 80, 0, 255));
 
     thirdText = Color(
-      Clamp(theme.textColor.r + 120, 0, 255),
-      Clamp(theme.textColor.g + 120, 0, 255),
-      Clamp(theme.textColor.b + 120, 0, 255));
+      clamp(theme.textColor.r + 120, 0, 255),
+      clamp(theme.textColor.g + 120, 0, 255),
+      clamp(theme.textColor.b + 120, 0, 255));
   }
 
   drawText("File Information", contentX, currentY, theme.headerColor);
@@ -1399,18 +1409,18 @@ void RenderManager::drawLeftPanel(
 
   if (fileSize < 1024)
   {
-    ItoaDec(fileSize, buf, 256);
-    StrCat(buf, " bytes");
+    itoaDec(fileSize, buf, 256);
+    strCat(buf, " bytes");
   }
   else if (fileSize < 1024 * 1024)
   {
-    ItoaDec(fileSize / 1024, buf, 256);
-    StrCat(buf, " KB");
+    itoaDec(fileSize / 1024, buf, 256);
+    strCat(buf, " KB");
   }
   else
   {
-    ItoaDec(fileSize / (1024 * 1024), buf, 256);
-    StrCat(buf, " MB");
+    itoaDec(fileSize / (1024 * 1024), buf, 256);
+    strCat(buf, " MB");
   }
   drawText("Size:", contentX, currentY, faded);
   drawText(buf, contentX + 85, currentY, theme.textColor);
@@ -1452,24 +1462,24 @@ void RenderManager::drawLeftPanel(
 
     Color highlightColor = isDarkTheme ? Color(100, 150, 255) : Color(50, 100, 200);
 
-    StrCopy(buf, "0x");
-    ItoaHex(cursorBytePos, buf + 2, 254);
+    strCopy(buf, "0x");
+    itoaHex(cursorBytePos, buf + 2, 254);
     drawText("Offset:", contentX, currentY, faded);
     drawText(buf, contentX + 85, currentY, highlightColor);
     currentY += rowHeight + itemSpacing;
 
-    ItoaDec(byteVal, buf, 256);
+    itoaDec(byteVal, buf, 256);
     drawText("Uint8:", contentX, currentY, faded);
     drawText(buf, contentX + 85, currentY, theme.textColor);
     currentY += rowHeight + itemSpacing;
 
-    ItoaDec((int8_t)byteVal, buf, 256);
+    itoaDec((int8_t)byteVal, buf, 256);
     drawText("Int8:", contentX, currentY, faded);
     drawText(buf, contentX + 85, currentY, theme.textColor);
     currentY += rowHeight + itemSpacing;
 
-    StrCopy(buf, "0x");
-    ByteToHex(byteVal, buf + 2);
+    strCopy(buf, "0x");
+    byteToHex(byteVal, buf + 2);
     buf[4] = 0;
     drawText("Hex:", contentX, currentY, faded);
     drawText(buf, contentX + 85, currentY, theme.textColor);
@@ -1484,7 +1494,7 @@ void RenderManager::drawLeftPanel(
     }
     else
     {
-      StrCopy(buf, ".");
+      strCopy(buf, ".");
     }
     drawText("ASCII:", contentX, currentY, faded);
     drawText(buf, contentX + 85, currentY, theme.textColor);
@@ -1550,14 +1560,14 @@ void RenderManager::drawLeftPanel(
       drawRect(colorBox, bm.color, true);
 
       char displayText[128];
-      StrCopy(displayText, bm.name);
-      StrCat(displayText, " [0x");
+      strCopy(displayText, bm.name);
+      strCat(displayText, " [0x");
 
       char hexByte[3];
-      ByteToHex(bm.byteValue, hexByte);
+      byteToHex(bm.byteValue, hexByte);
       hexByte[2] = '\0';
-      StrCat(displayText, hexByte);
-      StrCat(displayText, "]");
+      strCat(displayText, hexByte);
+      strCat(displayText, "]");
 
       int textX = contentX + 17;
       drawText(displayText, textX, currentY, theme.textColor);
@@ -1578,8 +1588,8 @@ void RenderManager::drawLeftPanel(
   }
   else
   {
-    StrCopy(buf, "0x");
-    ByteToHex(g_ByteStats.mostCommonByte, buf + 2);
+    strCopy(buf, "0x");
+    byteToHex(g_ByteStats.mostCommonByte, buf + 2);
     buf[4] = 0;
     drawText("Most Common:", contentX, currentY, faded);
     drawText(buf, contentX + 85, currentY, theme.textColor);
@@ -1607,11 +1617,11 @@ void RenderManager::drawLeftPanel(
   currentY += rowHeight + itemSpacing;
 
   char diePath[260];
-  bool dieFound = FindDIEPath(diePath, sizeof(diePath));
+  bool dieFound = findDIEPath(diePath, sizeof(diePath));
 
   if (dieFound)
   {
-    StrCopy(g_DIEExecutablePath, diePath);
+    strCopy(g_DIEExecutablePath, diePath);
 
     currentY += 4;
 
@@ -1653,8 +1663,8 @@ void RenderManager::drawLeftPanel(
 
       drawText(annotation.label, contentX, currentY, theme.textColor);
 
-      StrCopy(buf, "0x");
-      ItoaHex(annotation.offset, buf + 2, 254);
+      strCopy(buf, "0x");
+      itoaHex(annotation.offset, buf + 2, 254);
 
       Color pluginColor = isDarkTheme ? Color(150, 100, 200) : Color(120, 70, 170);
 
@@ -1673,10 +1683,10 @@ void RenderManager::drawLeftPanel(
     if (pluginAnnotations->count > 10)
     {
       char moreText[64];
-      StrCopy(moreText, "... ");
-      ItoaDec(pluginAnnotations->count - 10, buf, 256);
-      StrCat(moreText, buf);
-      StrCat(moreText, " more");
+      strCopy(moreText, "... ");
+      itoaDec(pluginAnnotations->count - 10, buf, 256);
+      strCat(moreText, buf);
+      strCat(moreText, " more");
       drawText(moreText, contentX, currentY, halfText);
       currentY += rowHeight + itemSpacing;
     }
@@ -1733,16 +1743,16 @@ void RenderManager::drawBottomPanel(
   if (isDarkTheme)
   {
     panelBg = Color(
-        Clamp(theme.windowBackground.r + 10, 0, 255),
-        Clamp(theme.windowBackground.g + 10, 0, 255),
-        Clamp(theme.windowBackground.b + 10, 0, 255));
+        clamp(theme.windowBackground.r + 10, 0, 255),
+        clamp(theme.windowBackground.g + 10, 0, 255),
+        clamp(theme.windowBackground.b + 10, 0, 255));
   }
   else
   {
     panelBg = Color(
-        Clamp(theme.windowBackground.r - 20, 0, 255),
-        Clamp(theme.windowBackground.g - 20, 0, 255),
-        Clamp(theme.windowBackground.b - 20, 0, 255));
+        clamp(theme.windowBackground.r - 20, 0, 255),
+        clamp(theme.windowBackground.g - 20, 0, 255),
+        clamp(theme.windowBackground.b - 20, 0, 255));
   }
 
   drawRect(panelBounds, panelBg, true);
@@ -1758,16 +1768,16 @@ void RenderManager::drawBottomPanel(
     if (isDarkTheme)
     {
       titleBg = Color(
-          Clamp(panelBg.r + 15, 0, 255),
-          Clamp(panelBg.g + 15, 0, 255),
-          Clamp(panelBg.b + 15, 0, 255));
+          clamp(panelBg.r + 15, 0, 255),
+          clamp(panelBg.g + 15, 0, 255),
+          clamp(panelBg.b + 15, 0, 255));
     }
     else
     {
       titleBg = Color(
-          Clamp(panelBg.r - 15, 0, 255),
-          Clamp(panelBg.g - 15, 0, 255),
-          Clamp(panelBg.b - 15, 0, 255));
+          clamp(panelBg.r - 15, 0, 255),
+          clamp(panelBg.g - 15, 0, 255),
+          clamp(panelBg.b - 15, 0, 255));
     }
   }
 
@@ -1794,8 +1804,8 @@ void RenderManager::drawBottomPanel(
   }
 
   char titleText[64];
-  StrCopy(titleText, "Analysis Panel");
-  StrCat(titleText, dockText);
+  strCopy(titleText, "Analysis Panel");
+  strCat(titleText, dockText);
   drawText(titleText, panelBounds.x + 10, panelBounds.y + 7, theme.textColor);
 
   drawRect(panelBounds, theme.separator, false);
@@ -1831,16 +1841,16 @@ void RenderManager::drawBottomPanel(
         if (isDarkTheme)
         {
           c = Color(
-              Clamp(panelBg.r + 20, 0, 255),
-              Clamp(panelBg.g + 20, 0, 255),
-              Clamp(panelBg.b + 20, 0, 255));
+              clamp(panelBg.r + 20, 0, 255),
+              clamp(panelBg.g + 20, 0, 255),
+              clamp(panelBg.b + 20, 0, 255));
         }
         else
         {
           c = Color(
-              Clamp(panelBg.r - 20, 0, 255),
-              Clamp(panelBg.g - 20, 0, 255),
-              Clamp(panelBg.b - 20, 0, 255));
+              clamp(panelBg.r - 20, 0, 255),
+              clamp(panelBg.g - 20, 0, 255),
+              clamp(panelBg.b - 20, 0, 255));
         }
 
         drawRoundedRect(r, 3, c, true);
@@ -1859,7 +1869,7 @@ void RenderManager::drawBottomPanel(
 
     for (int i = 0; i < 4; i++)
     {
-      int w = StrLen(tabLabels[i]) * 8 + 20;
+      int w = strLen(tabLabels[i]) * 8 + 20;
       Rect r(x, y, w, tabHeight - 5);
 
       if (tabs[i] == state.activeTab)
@@ -1868,16 +1878,16 @@ void RenderManager::drawBottomPanel(
         if (isDarkTheme)
         {
           c = Color(
-              Clamp(panelBg.r + 20, 0, 255),
-              Clamp(panelBg.g + 20, 0, 255),
-              Clamp(panelBg.b + 20, 0, 255));
+              clamp(panelBg.r + 20, 0, 255),
+              clamp(panelBg.g + 20, 0, 255),
+              clamp(panelBg.b + 20, 0, 255));
         }
         else
         {
           c = Color(
-              Clamp(panelBg.r - 20, 0, 255),
-              Clamp(panelBg.g - 20, 0, 255),
-              Clamp(panelBg.b - 20, 0, 255));
+              clamp(panelBg.r - 20, 0, 255),
+              clamp(panelBg.g - 20, 0, 255),
+              clamp(panelBg.b - 20, 0, 255));
         }
 
         drawRoundedRect(r, 3, c, true);
@@ -1947,7 +1957,7 @@ void RenderManager::drawBottomPanel(
     extern bool caretVisible;
     if (g_PatternSearch.hasFocus && caretVisible)
     {
-      int caretX = contentX + 8 + (int)StrLen(g_PatternSearch.searchPattern) * 8;
+      int caretX = contentX + 8 + (int)strLen(g_PatternSearch.searchPattern) * 8;
       Rect caret(caretX, contentY + 4, 2, 20);
       drawRect(caret, theme.textColor, true);
     }
@@ -1956,15 +1966,15 @@ void RenderManager::drawBottomPanel(
     btn.enabled = true;
 
     btn.rect = Rect(contentX + 210, contentY, 80, 28);
-    drawModernButton(btn, theme, "Find");
+    drawModernButton(btn, theme, "find");
 
     contentY += 40;
 
     btn.rect = Rect(contentX, contentY, 120, 28);
-    drawModernButton(btn, theme, "Find Previous");
+    drawModernButton(btn, theme, "find Previous");
 
     btn.rect = Rect(contentX + 130, contentY, 100, 28);
-    drawModernButton(btn, theme, "Find Next");
+    drawModernButton(btn, theme, "find Next");
 
     break;
   }
@@ -2218,7 +2228,7 @@ void RenderManager::drawContextMenu(
     }
 
     int maxY = state.y + totalHeight - submenuHeight - padding;
-    submenuY = Clamp(submenuY, state.y + padding, maxY);
+    submenuY = clamp(submenuY, state.y + padding, maxY);
 
     submenuState.y = submenuY;
 
@@ -2374,9 +2384,9 @@ void RenderManager::updateScrollbarMetrics(
 }
 
 void RenderManager::drawModernScrollbar(
-    const ScrollbarState &state,
-    const Theme &theme,
-    bool vertical)
+  const ScrollbarState& state,
+  const Theme& theme,
+  bool vertical)
 {
   if (!state.visible)
     return;
@@ -2401,12 +2411,12 @@ void RenderManager::drawModernScrollbar(
   if (state.hovered || state.pressed)
   {
     Rect trackRect(state.trackX, state.trackY,
-                   state.trackWidth, state.trackHeight);
+      state.trackWidth, state.trackHeight);
     drawRoundedRect(trackRect, 8.0f, trackColor, true);
   }
 
   Rect thumbRect(state.thumbX, state.thumbY,
-                 state.thumbWidth, state.thumbHeight);
+    state.thumbWidth, state.thumbHeight);
 
   Color finalThumbColor = thumbColor;
   if (state.thumbHovered && !state.pressed)
@@ -2414,7 +2424,16 @@ void RenderManager::drawModernScrollbar(
     finalThumbColor.a = (uint8_t)(thumbColor.a * 1.3f > 255 ? 255 : thumbColor.a * 1.3f);
   }
 
-  float radius = 8.0f;
+  float radius;
+  if (vertical)
+  {
+    radius = (float)state.thumbWidth / 2.0f;
+  }
+  else
+  {
+    radius = (float)state.thumbHeight / 2.0f;
+  }
+
   drawRoundedRect(thumbRect, radius, finalThumbColor, true);
 }
 
@@ -2506,8 +2525,8 @@ void RenderManager::drawDataInspectorContent(
   int valueX = contentX + labelWidth;
   Color labelColor = Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40);
 
-  StrCopy(buf, "Offset: ");
-  ItoaHex(vals.byteOffset, buf + StrLen(buf), 256 - StrLen(buf));
+  strCopy(buf, "Offset: ");
+  itoaHex(vals.byteOffset, buf + strLen(buf), 256 - strLen(buf));
   drawText(buf, contentX, contentY, Color(100, 150, 255));
   contentY += 20;
 
@@ -2515,18 +2534,18 @@ void RenderManager::drawDataInspectorContent(
   contentY += 8;
 
   drawText("Uint8:", contentX, contentY, labelColor);
-  ItoaDec(vals.uint8Val, buf, 256);
-  StrCat(buf, " (0x");
+  itoaDec(vals.uint8Val, buf, 256);
+  strCat(buf, " (0x");
   char hexBuf[8];
-  ByteToHex(vals.uint8Val, hexBuf);
+  byteToHex(vals.uint8Val, hexBuf);
   hexBuf[2] = ')';
   hexBuf[3] = 0;
-  StrCat(buf, hexBuf);
+  strCat(buf, hexBuf);
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
   drawText("Int8:", contentX, contentY, labelColor);
-  ItoaDec(vals.int8Val, buf, 256);
+  itoaDec(vals.int8Val, buf, 256);
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
@@ -2544,7 +2563,7 @@ void RenderManager::drawDataInspectorContent(
   }
   else
   {
-    StrCopy(buf, ".");
+    strCopy(buf, ".");
   }
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 18;
@@ -2553,20 +2572,20 @@ void RenderManager::drawDataInspectorContent(
   contentY += 8;
 
   drawText("Uint16 LE:", contentX, contentY, labelColor);
-  ItoaDec(vals.uint16LE, buf, 256);
-  StrCat(buf, " (0x");
+  itoaDec(vals.uint16LE, buf, 256);
+  strCat(buf, " (0x");
   for (int i = 0; i < 4; i++)
   {
     int nibble = (vals.uint16LE >> (12 - i * 4)) & 0xF;
-    buf[StrLen(buf)] = IntToHexChar(nibble);
-    buf[StrLen(buf) + 1] = 0;
+    buf[strLen(buf)] = intToHexChar(nibble);
+    buf[strLen(buf) + 1] = 0;
   }
-  StrCat(buf, ")");
+  strCat(buf, ")");
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
   drawText("Int16 LE:", contentX, contentY, labelColor);
-  ItoaDec(vals.int16LE, buf, 256);
+  itoaDec(vals.int16LE, buf, 256);
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 18;
 
@@ -2574,17 +2593,17 @@ void RenderManager::drawDataInspectorContent(
   contentY += 8;
 
   drawText("Uint32 LE:", contentX, contentY, labelColor);
-  ItoaDec(vals.uint32LE, buf, 256);
+  itoaDec(vals.uint32LE, buf, 256);
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
   drawText("Int32 LE:", contentX, contentY, labelColor);
-  ItoaDec(vals.int32LE, buf, 256);
+  itoaDec(vals.int32LE, buf, 256);
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
   drawText("Float LE:", contentX, contentY, labelColor);
-  StrCopy(buf, "<float>");
+  strCopy(buf, "<float>");
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 18;
 
@@ -2592,12 +2611,12 @@ void RenderManager::drawDataInspectorContent(
   contentY += 8;
 
   drawText("Uint64 LE:", contentX, contentY, labelColor);
-  ItoaDec(vals.uint64LE, buf, 256);
+  itoaDec(vals.uint64LE, buf, 256);
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
   drawText("Double LE:", contentX, contentY, labelColor);
-  StrCopy(buf, "<double>");
+  strCopy(buf, "<double>");
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 }
@@ -2621,8 +2640,8 @@ void RenderManager::drawFileInfoContent(
   contentY += 18;
 
   drawText("Format:", contentX, contentY, labelColor);
-  ItoaDec(info.fileSize, buf, 256);
-  StrCat(buf, " bytes");
+  itoaDec(info.fileSize, buf, 256);
+  strCat(buf, " bytes");
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 18;
 }
@@ -2653,12 +2672,12 @@ void RenderManager::drawBookmarksContent(
     drawRect(colorBox, bm.color, true);
 
     char buf[128];
-    StrCopy(buf, bm.name);
-    StrCat(buf, " (");
+    strCopy(buf, bm.name);
+    strCat(buf, " (");
     char hexBuf[32];
-    ItoaHex(bm.byteOffset, hexBuf, 32);
-    StrCat(buf, hexBuf);
-    StrCat(buf, ")");
+    itoaHex(bm.byteOffset, hexBuf, 32);
+    strCat(buf, hexBuf);
+    strCat(buf, ")");
 
     Color textColor = ((int)i == g_Bookmarks.selectedIndex)
                           ? Color(100, 150, 255)
@@ -2689,7 +2708,7 @@ void RenderManager::drawByteStatsContent(
   Color labelColor = Color(theme.textColor.r - 40, theme.textColor.g - 40, theme.textColor.b - 40);
 
   drawText("Entropy:", contentX, contentY, labelColor);
-  StrCopy(buf, "<entropy> bits");
+  strCopy(buf, "<entropy> bits");
 
   Color entropyColor = theme.textColor;
   if (g_ByteStats.entropy > 7.5)
@@ -2705,27 +2724,27 @@ void RenderManager::drawByteStatsContent(
   contentY += 18;
 
   drawText("Most Common:", contentX, contentY, labelColor);
-  StrCopy(buf, "0x");
-  ByteToHex(g_ByteStats.mostCommonByte, buf + 2);
+  strCopy(buf, "0x");
+  byteToHex(g_ByteStats.mostCommonByte, buf + 2);
   buf[4] = ' ';
   buf[5] = '(';
-  ItoaDec(g_ByteStats.mostCommonCount, buf + 6, 250);
-  StrCat(buf, ")");
+  itoaDec(g_ByteStats.mostCommonCount, buf + 6, 250);
+  strCat(buf, ")");
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
   drawText("Least Common:", contentX, contentY, labelColor);
-  StrCopy(buf, "0x");
-  ByteToHex(g_ByteStats.leastCommonByte, buf + 2);
+  strCopy(buf, "0x");
+  byteToHex(g_ByteStats.leastCommonByte, buf + 2);
   buf[4] = ' ';
   buf[5] = '(';
-  ItoaDec(g_ByteStats.leastCommonCount, buf + 6, 250);
-  StrCat(buf, ")");
+  itoaDec(g_ByteStats.leastCommonCount, buf + 6, 250);
+  strCat(buf, ")");
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 16;
 
   drawText("Null Bytes:", contentX, contentY, labelColor);
-  ItoaDec(g_ByteStats.nullByteCount, buf, 256);
+  itoaDec(g_ByteStats.nullByteCount, buf, 256);
   drawText(buf, valueX, contentY, theme.textColor);
   contentY += 18;
 
@@ -2740,7 +2759,7 @@ void RenderManager::drawByteStatsContent(
   drawRect(histRect, Color(20, 20, 25), true);
   drawRect(histRect, theme.controlBorder, false);
 
-  int barCount = Clamp(histWidth / 2, 32, 256);
+  int barCount = clamp(histWidth / 2, 32, 256);
   int bytesPerBar = 256 / barCount;
   int barWidth = histWidth / barCount;
 
@@ -2812,7 +2831,7 @@ void RenderManager::updateDisasmResize(int mouseX)
 
   const int MIN_WIDTH = 150;
   const int MAX_WIDTH = 600;
-  _disasmColumnWidth = Clamp(newWidth, MIN_WIDTH, MAX_WIDTH);
+  _disasmColumnWidth = clamp(newWidth, MIN_WIDTH, MAX_WIDTH);
 }
 
 void RenderManager::endDisasmResize()
@@ -2946,8 +2965,8 @@ void RenderManager::renderHexViewer(
   size_t maxVisibleLines = (size_t)(contentHeight / layout.lineHeight);
   _visibleLines = (int)maxVisibleLines;
 
-  size_t startLine = (size_t)scrollPos;
-  size_t endLine = Clamp(startLine + maxVisibleLines, (size_t)0, hexLines.size());
+  size_t actualStartLine = (size_t)scrollPos;
+  size_t actualEndLine = actualStartLine + hexLines.size();
 
   extern HexData g_HexData;
   const LineArray& disasmLines = g_HexData.getDisassemblyLines();
@@ -2966,12 +2985,12 @@ void RenderManager::renderHexViewer(
 
     for (long long line = firstLine; line <= lastLine; line++)
     {
-      if (line < (long long)startLine)
+      if (line < (long long)actualStartLine)
         continue;
-      if (line >= (long long)endLine)
+      if (line >= (long long)actualEndLine)
         break;
 
-      int displayLine = (int)(line - startLine);
+      int displayLine = (int)(line - actualStartLine);
       int yPos = contentY + displayLine * _charHeight;
 
       long long lineStart = line * _bytesPerLine;
@@ -3005,10 +3024,10 @@ void RenderManager::renderHexViewer(
       const Bookmark& bm = g_Bookmarks.bookmarks[i];
       long long bmLine = bm.byteOffset / _bytesPerLine;
 
-      if (bmLine < (long long)startLine || bmLine >= (long long)endLine)
+      if (bmLine < (long long)actualStartLine || bmLine >= (long long)actualEndLine)
         continue;
 
-      int displayLine = (int)(bmLine - startLine);
+      int displayLine = (int)(bmLine - actualStartLine);
       int yPos = contentY + displayLine * _charHeight;
 
       int col = (int)(bm.byteOffset % _bytesPerLine);
@@ -3030,9 +3049,9 @@ void RenderManager::renderHexViewer(
     }
   }
 
-  for (size_t i = startLine; i < endLine; i++)
+  for (size_t i = 0; i < hexLines.size(); i++)
   {
-    int y = contentY + (int)((i - startLine) * layout.lineHeight);
+    int y = contentY + (int)(i * layout.lineHeight);
     const char* line = hexLines[i];
 
     drawText(line,
@@ -3040,12 +3059,13 @@ void RenderManager::renderHexViewer(
       y,
       currentTheme.textColor);
 
-    if (i < disasmLines.count && disasmLines.lines[i].data != nullptr)
+    size_t actualLineIndex = actualStartLine + i;
+    if (actualLineIndex < disasmLines.count && disasmLines.lines[actualLineIndex].data != nullptr)
     {
-      if (disasmLines.lines[i].length > 0)
+      if (disasmLines.lines[actualLineIndex].length > 0)
       {
         int disasmX = separatorX + 10;
-        drawText(disasmLines.lines[i].data, disasmX, y, currentTheme.disassemblyColor);
+        drawText(disasmLines.lines[actualLineIndex].data, disasmX, y, currentTheme.disassemblyColor);
       }
     }
   }
@@ -3078,7 +3098,9 @@ void RenderManager::renderHexViewer(
     g_MainScrollbar.pressed = scrollbarPressed;
     g_MainScrollbar.thumbHovered = scrollbarHovered;
 
-    int totalContentHeight = (int)hexLines.size() * _charHeight;
+    extern HexData g_HexData;
+    const LineArray& allLines = g_HexData.getHexLines();
+    int totalContentHeight = (int)allLines.count * _charHeight;
     int viewportHeight = contentHeight;
 
     int scrollbarX = windowWidth - 16;

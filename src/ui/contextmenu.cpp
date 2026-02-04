@@ -49,9 +49,9 @@ wchar_t *ContextMenuRegistry::GetRegistryPath(UserRole role)
   switch (role)
   {
   case UserRole::CurrentUser:
-    return AllocWideString(L"Software\\Classes\\*\\shell\\HexViewer");
+    return allocWideString(L"Software\\Classes\\*\\shell\\HexViewer");
   default:
-    return AllocWideString(L"Software\\Classes\\*\\shell\\HexViewer");
+    return allocWideString(L"Software\\Classes\\*\\shell\\HexViewer");
   }
 }
 
@@ -63,7 +63,7 @@ bool ContextMenuRegistry::SetRegistryValue(HKEY hKey, const wchar_t *valueName, 
       0,
       REG_SZ,
       (const BYTE *)data,
-      (DWORD)((WcsLen(data) + 1) * sizeof(wchar_t)));
+      (DWORD)((wcsLen(data) + 1) * sizeof(wchar_t)));
   return result == ERROR_SUCCESS;
 }
 
@@ -95,26 +95,26 @@ bool ContextMenuRegistry::Register(const wchar_t *exePath, UserRole role)
 
   if (result != ERROR_SUCCESS)
   {
-    PlatformFree(registryPath, (WcsLen(registryPath) + 1) * sizeof(wchar_t));
+    platformFree(registryPath, (wcsLen(registryPath) + 1) * sizeof(wchar_t));
     return false;
   }
 
   if (!SetRegistryValue(hKey, nullptr, L"Open with Hex Viewer"))
   {
     RegCloseKey(hKey);
-    PlatformFree(registryPath, (WcsLen(registryPath) + 1) * sizeof(wchar_t));
+    platformFree(registryPath, (wcsLen(registryPath) + 1) * sizeof(wchar_t));
     return false;
   }
 
-  size_t exePathLen = WcsLen(exePath);
-  wchar_t *iconPath = (wchar_t *)PlatformAlloc((exePathLen + 3) * sizeof(wchar_t));
-  WcsCopy(iconPath, exePath);
+  size_t exePathLen = wcsLen(exePath);
+  wchar_t *iconPath = (wchar_t *)platformAlloc((exePathLen + 3) * sizeof(wchar_t));
+  wcsCopy(iconPath, exePath);
   iconPath[exePathLen] = L',';
   iconPath[exePathLen + 1] = L'0';
   iconPath[exePathLen + 2] = L'\0';
 
   SetRegistryValue(hKey, L"Icon", iconPath);
-  PlatformFree(iconPath, (exePathLen + 3) * sizeof(wchar_t));
+  platformFree(iconPath, (exePathLen + 3) * sizeof(wchar_t));
 
   result = RegCreateKeyExW(
       hKey,
@@ -130,11 +130,11 @@ bool ContextMenuRegistry::Register(const wchar_t *exePath, UserRole role)
   if (result == ERROR_SUCCESS)
   {
     size_t cmdLen = exePathLen + 8;
-    wchar_t *command = (wchar_t *)PlatformAlloc(cmdLen * sizeof(wchar_t));
+    wchar_t *command = (wchar_t *)platformAlloc(cmdLen * sizeof(wchar_t));
     wchar_t *p = command;
 
     *p++ = L'\"';
-    WcsCopy(p, exePath);
+    wcsCopy(p, exePath);
     p += exePathLen;
     *p++ = L'\"';
     *p++ = L' ';
@@ -145,12 +145,12 @@ bool ContextMenuRegistry::Register(const wchar_t *exePath, UserRole role)
     *p = L'\0';
 
     success = SetRegistryValue(hCommandKey, nullptr, command);
-    PlatformFree(command, cmdLen * sizeof(wchar_t));
+    platformFree(command, cmdLen * sizeof(wchar_t));
     RegCloseKey(hCommandKey);
   }
 
   RegCloseKey(hKey);
-  PlatformFree(registryPath, (WcsLen(registryPath) + 1) * sizeof(wchar_t));
+  platformFree(registryPath, (wcsLen(registryPath) + 1) * sizeof(wchar_t));
 
   if (success)
   {
@@ -166,7 +166,7 @@ bool ContextMenuRegistry::Unregister(UserRole role)
   wchar_t *registryPath = GetRegistryPath(role);
 
   bool success = DeleteRegistryKey(rootKey, registryPath);
-  PlatformFree(registryPath, (WcsLen(registryPath) + 1) * sizeof(wchar_t));
+  platformFree(registryPath, (wcsLen(registryPath) + 1) * sizeof(wchar_t));
 
   if (success)
   {
@@ -189,7 +189,7 @@ bool ContextMenuRegistry::IsRegistered(UserRole role)
       KEY_READ,
       &hKey);
 
-  PlatformFree(registryPath, (WcsLen(registryPath) + 1) * sizeof(wchar_t));
+  platformFree(registryPath, (wcsLen(registryPath) + 1) * sizeof(wchar_t));
 
   if (result == ERROR_SUCCESS)
   {
@@ -210,14 +210,14 @@ bool SetClipboardText(const char *text)
   if (OpenClipboard(g_Hwnd))
   {
     EmptyClipboard();
-    size_t textLen = StrLen(text);
+    size_t textLen = strLen(text);
     HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, textLen + 1);
     if (hMem)
     {
       char *pMem = (char *)GlobalLock(hMem);
       if (pMem)
       {
-        MemCopy(pMem, text, textLen + 1);
+        memCopy(pMem, text, textLen + 1);
         GlobalUnlock(hMem);
         SetClipboardData(CF_TEXT, hMem);
       }
@@ -247,9 +247,9 @@ bool SetClipboardText(const char *text)
   static char *clipboardData = nullptr;
   if (clipboardData)
   {
-    PlatformFree(clipboardData, StrLen(clipboardData) + 1);
+    platformFree(clipboardData, strLen(clipboardData) + 1);
   }
-  clipboardData = AllocString(text);
+  clipboardData = allocString(text);
 
   return true;
 #endif
@@ -266,7 +266,7 @@ char *GetClipboardText()
       char *pData = (char *)GlobalLock(hData);
       if (pData)
       {
-        char *result = AllocString(pData);
+        char *result = allocString(pData);
         GlobalUnlock(hData);
         CloseClipboard();
         return result;
@@ -282,7 +282,7 @@ char *GetClipboardText()
     NSString *nsText = [pasteboard stringForType:NSPasteboardTypeString];
     if (nsText)
     {
-      return AllocString([nsText UTF8String]);
+      return allocString([nsText UTF8String]);
     }
   }
   return nullptr;
@@ -310,9 +310,9 @@ void InvalidateWindow()
 #endif
 }
 
-void AppendToBuffer(char *&buffer, size_t &capacity, size_t &length, const char *text)
+void appendToBuffer(char *&buffer, size_t &capacity, size_t &length, const char *text)
 {
-  size_t textLen = StrLen(text);
+  size_t textLen = strLen(text);
   size_t newLength = length + textLen;
 
   if (newLength >= capacity)
@@ -321,22 +321,22 @@ void AppendToBuffer(char *&buffer, size_t &capacity, size_t &length, const char 
     if (newCapacity < newLength + 1)
       newCapacity = newLength + 1;
 
-    char *newBuffer = (char *)PlatformAlloc(newCapacity);
+    char *newBuffer = (char *)platformAlloc(newCapacity);
     if (buffer)
     {
-      MemCopy(newBuffer, buffer, length);
-      PlatformFree(buffer, capacity);
+      memCopy(newBuffer, buffer, length);
+      platformFree(buffer, capacity);
     }
     buffer = newBuffer;
     capacity = newCapacity;
   }
 
-  MemCopy(buffer + length, text, textLen);
+  memCopy(buffer + length, text, textLen);
   length = newLength;
   buffer[length] = '\0';
 }
 
-void AppendCharToBuffer(char *&buffer, size_t &capacity, size_t &length, char c)
+void appendCharToBuffer(char *&buffer, size_t &capacity, size_t &length, char c)
 {
   if (length + 1 >= capacity)
   {
@@ -344,11 +344,11 @@ void AppendCharToBuffer(char *&buffer, size_t &capacity, size_t &length, char c)
     if (newCapacity < length + 2)
       newCapacity = length + 2;
 
-    char *newBuffer = (char *)PlatformAlloc(newCapacity);
+    char *newBuffer = (char *)platformAlloc(newCapacity);
     if (buffer)
     {
-      MemCopy(newBuffer, buffer, length);
-      PlatformFree(buffer, capacity);
+      memCopy(newBuffer, buffer, length);
+      platformFree(buffer, capacity);
     }
     buffer = newBuffer;
     capacity = newCapacity;
@@ -381,8 +381,8 @@ void AppContextMenu::show(int x, int y)
 
   {
     ContextMenuItem item;
-    item.text = AllocString("Copy");
-    item.shortcut = AllocString("Ctrl+C");
+    item.text = allocString("Copy");
+    item.shortcut = allocString("Ctrl+C");
     item.enabled = hasSelection;
     item.checked = false;
     item.separator = false;
@@ -392,7 +392,7 @@ void AppContextMenu::show(int x, int y)
 
   {
     ContextMenuItem copyAsItem;
-    copyAsItem.text = AllocString("Copy As");
+    copyAsItem.text = allocString("Copy As");
     copyAsItem.shortcut = nullptr;
     copyAsItem.enabled = hasSelection;
     copyAsItem.checked = false;
@@ -401,7 +401,7 @@ void AppContextMenu::show(int x, int y)
 
     {
       ContextMenuItem sub;
-      sub.text = AllocString("Copy as Hex");
+      sub.text = allocString("Copy as Hex");
       sub.shortcut = nullptr;
       sub.enabled = hasSelection;
       sub.checked = false;
@@ -411,7 +411,7 @@ void AppContextMenu::show(int x, int y)
     }
     {
       ContextMenuItem sub;
-      sub.text = AllocString("Copy as Text");
+      sub.text = allocString("Copy as Text");
       sub.shortcut = nullptr;
       sub.enabled = hasSelection;
       sub.checked = false;
@@ -421,7 +421,7 @@ void AppContextMenu::show(int x, int y)
     }
     {
       ContextMenuItem sub;
-      sub.text = AllocString("Copy as C Array");
+      sub.text = allocString("Copy as C Array");
       sub.shortcut = nullptr;
       sub.enabled = hasSelection;
       sub.checked = false;
@@ -435,8 +435,8 @@ void AppContextMenu::show(int x, int y)
 
   {
     ContextMenuItem item;
-    item.text = AllocString("Paste");
-    item.shortcut = AllocString("Ctrl+V");
+    item.text = allocString("Paste");
+    item.shortcut = allocString("Ctrl+V");
     item.enabled = hasData && hasCursor;
     item.checked = false;
     item.separator = false;
@@ -457,8 +457,8 @@ void AppContextMenu::show(int x, int y)
 
   {
     ContextMenuItem item;
-    item.text = AllocString("Select All");
-    item.shortcut = AllocString("Ctrl+A");
+    item.text = allocString("Select All");
+    item.shortcut = allocString("Ctrl+A");
     item.enabled = hasData;
     item.checked = false;
     item.separator = false;
@@ -479,8 +479,8 @@ void AppContextMenu::show(int x, int y)
 
   {
     ContextMenuItem item;
-    item.text = AllocString("Go to...");
-    item.shortcut = AllocString("Ctrl+G");
+    item.text = allocString("Go to...");
+    item.shortcut = allocString("Ctrl+G");
     item.enabled = hasData;
     item.checked = false;
     item.separator = false;
@@ -489,8 +489,8 @@ void AppContextMenu::show(int x, int y)
   }
   {
     ContextMenuItem item;
-    item.text = AllocString("Select Block...");
-    item.shortcut = AllocString("Ctrl+B");
+    item.text = allocString("Select Block...");
+    item.shortcut = allocString("Ctrl+B");
     item.enabled = hasData;
     item.checked = false;
     item.separator = false;
@@ -511,7 +511,7 @@ void AppContextMenu::show(int x, int y)
 
   {
     ContextMenuItem fillItem;
-    fillItem.text = AllocString("Fill Selection");
+    fillItem.text = allocString("Fill Selection");
     fillItem.shortcut = nullptr;
     fillItem.enabled = hasSelection;
     fillItem.checked = false;
@@ -520,7 +520,7 @@ void AppContextMenu::show(int x, int y)
 
     {
       ContextMenuItem sub;
-      sub.text = AllocString("Fill with Zeros");
+      sub.text = allocString("Fill with Zeros");
       sub.shortcut = nullptr;
       sub.enabled = hasSelection;
       sub.checked = false;
@@ -530,7 +530,7 @@ void AppContextMenu::show(int x, int y)
     }
     {
       ContextMenuItem sub;
-      sub.text = AllocString("Fill with 0xFF");
+      sub.text = allocString("Fill with 0xFF");
       sub.shortcut = nullptr;
       sub.enabled = hasSelection;
       sub.checked = false;
@@ -540,7 +540,7 @@ void AppContextMenu::show(int x, int y)
     }
     {
       ContextMenuItem sub;
-      sub.text = AllocString("Fill with Pattern...");
+      sub.text = allocString("Fill with Pattern...");
       sub.shortcut = nullptr;
       sub.enabled = hasSelection;
       sub.checked = false;
@@ -554,7 +554,7 @@ void AppContextMenu::show(int x, int y)
 
   {
     ContextMenuItem item;
-    item.text = AllocString("Add Bookmark");
+    item.text = allocString("Add Bookmark");
     item.shortcut = nullptr;
     item.enabled = hasData && hasCursor;
     item.checked = false;
@@ -735,7 +735,7 @@ void AppContextMenu::executeAction(int actionId)
     {
       size_t capacity = 1024;
       size_t length = 0;
-      char *hexString = (char *)PlatformAlloc(capacity);
+      char *hexString = (char *)platformAlloc(capacity);
       hexString[0] = '\0';
 
       long long start = cursorBytePos;
@@ -745,10 +745,10 @@ void AppContextMenu::executeAction(int actionId)
       {
         uint8_t byte = g_HexData.readByte(i);
         char hex[4];
-        ByteToHex(byte, hex);
+        byteToHex(byte, hex);
         hex[2] = ' ';
         hex[3] = '\0';
-        AppendToBuffer(hexString, capacity, length, hex);
+        appendToBuffer(hexString, capacity, length, hex);
       }
 
       if (length > 0 && hexString[length - 1] == ' ')
@@ -757,7 +757,7 @@ void AppContextMenu::executeAction(int actionId)
       }
 
       SetClipboardText(hexString);
-      PlatformFree(hexString, capacity);
+      platformFree(hexString, capacity);
     }
     break;
   }
@@ -768,7 +768,7 @@ void AppContextMenu::executeAction(int actionId)
     {
       size_t capacity = 1024;
       size_t length = 0;
-      char *textString = (char *)PlatformAlloc(capacity);
+      char *textString = (char *)platformAlloc(capacity);
       textString[0] = '\0';
 
       long long start = cursorBytePos;
@@ -778,11 +778,11 @@ void AppContextMenu::executeAction(int actionId)
       {
         uint8_t byte = g_HexData.readByte(i);
         char c = (byte >= 32 && byte <= 126) ? (char)byte : '.';
-        AppendCharToBuffer(textString, capacity, length, c);
+        appendCharToBuffer(textString, capacity, length, c);
       }
 
       SetClipboardText(textString);
-      PlatformFree(textString, capacity);
+      platformFree(textString, capacity);
     }
     break;
   }
@@ -793,10 +793,10 @@ void AppContextMenu::executeAction(int actionId)
     {
       size_t capacity = 4096;
       size_t length = 0;
-      char *cArrayString = (char *)PlatformAlloc(capacity);
+      char *cArrayString = (char *)platformAlloc(capacity);
       cArrayString[0] = '\0';
 
-      AppendToBuffer(cArrayString, capacity, length, "unsigned char data[] = {\n    ");
+      appendToBuffer(cArrayString, capacity, length, "unsigned char data[] = {\n    ");
 
       long long start = cursorBytePos;
       long long end = start + selectionLength;
@@ -809,26 +809,26 @@ void AppContextMenu::executeAction(int actionId)
         char hex[8];
         hex[0] = '0';
         hex[1] = 'x';
-        ByteToHex(byte, hex + 2);
+        byteToHex(byte, hex + 2);
         hex[4] = '\0';
-        AppendToBuffer(cArrayString, capacity, length, hex);
+        appendToBuffer(cArrayString, capacity, length, hex);
 
         if (i < end - 1 && i < (long long)g_HexData.getFileSize() - 1)
         {
-          AppendToBuffer(cArrayString, capacity, length, ", ");
+          appendToBuffer(cArrayString, capacity, length, ", ");
           count++;
 
           if (count >= bytesPerLine)
           {
-            AppendToBuffer(cArrayString, capacity, length, "\n    ");
+            appendToBuffer(cArrayString, capacity, length, "\n    ");
             count = 0;
           }
         }
       }
 
-      AppendToBuffer(cArrayString, capacity, length, "\n};");
+      appendToBuffer(cArrayString, capacity, length, "\n};");
       SetClipboardText(cArrayString);
-      PlatformFree(cArrayString, capacity);
+      platformFree(cArrayString, capacity);
     }
     break;
   }
@@ -842,7 +842,7 @@ void AppContextMenu::executeAction(int actionId)
       {
         Vector<uint8_t> bytes;
         size_t pos = 0;
-        size_t clipLen = StrLen(clipText);
+        size_t clipLen = strLen(clipText);
 
         while (pos < clipLen)
         {
@@ -864,10 +864,10 @@ void AppContextMenu::executeAction(int actionId)
           }
 
           if (pos + 1 < clipLen &&
-              IsXDigit(clipText[pos]) && IsXDigit(clipText[pos + 1]))
+              isXDigit(clipText[pos]) && isXDigit(clipText[pos + 1]))
           {
-            uint8_t byte = (HexDigitToInt(clipText[pos]) << 4) |
-                           HexDigitToInt(clipText[pos + 1]);
+            uint8_t byte = (hexDigitToInt(clipText[pos]) << 4) |
+                           hexDigitToInt(clipText[pos + 1]);
             bytes.push_back(byte);
             pos += 2;
           }
@@ -887,10 +887,10 @@ void AppContextMenu::executeAction(int actionId)
         }
 
         long long maxPos = (fileSize > 0) ? static_cast<long long>(fileSize - 1) : 0LL;
-        cursorBytePos = ClampLL(pastePos, 0LL, maxPos);
+        cursorBytePos = clampLL(pastePos, 0LL, maxPos);
         editingOffset = cursorBytePos;
 
-        PlatformFree(clipText, StrLen(clipText) + 1);
+        platformFree(clipText, strLen(clipText) + 1);
         InvalidateWindow();
       }
     }
@@ -924,7 +924,7 @@ void AppContextMenu::executeAction(int actionId)
 
             int bytesPerLine = g_HexData.getCurrentBytesPerLine();
             int targetRow = offset / bytesPerLine;
-            g_ScrollY = Clamp(targetRow - 5, 0, maxScrolls);
+            g_ScrollY = clamp(targetRow - 5, 0, maxScrolls);
 
             InvalidateWindow();
           }
@@ -943,7 +943,7 @@ void AppContextMenu::executeAction(int actionId)
 
             int bytesPerLine = g_HexData.getCurrentBytesPerLine();
             int targetRow = offset / bytesPerLine;
-            g_ScrollY = Clamp(targetRow - 5, 0, maxScrolls);
+            g_ScrollY = clamp(targetRow - 5, 0, maxScrolls);
 
             InvalidateWindow();
           }
@@ -1012,10 +1012,10 @@ void AppContextMenu::executeAction(int actionId)
     if (cursorBytePos != -1)
     {
       char defaultName[64];
-      StrCopy(defaultName, "Offset 0x");
+      strCopy(defaultName, "Offset 0x");
       char offsetStr[32];
-      ItoaHex(cursorBytePos, offsetStr, 32);
-      StrCat(defaultName, offsetStr);
+      itoaHex(cursorBytePos, offsetStr, 32);
+      strCat(defaultName, offsetStr);
 
 #ifdef _WIN32
       SearchDialogs::ShowInputDialog(
@@ -1030,7 +1030,7 @@ void AppContextMenu::executeAction(int actionId)
           {
             Bookmark newBookmark;
             newBookmark.byteOffset = cursorBytePos;
-            StrCopy(newBookmark.name, bookmarkName);
+            strCopy(newBookmark.name, bookmarkName);
 
             Color colors[] = {
                 Color(255, 100, 100),
@@ -1063,7 +1063,7 @@ void AppContextMenu::executeAction(int actionId)
           {
             Bookmark newBookmark;
             newBookmark.byteOffset = cursorBytePos;
-            StrCopy(newBookmark.name, bookmarkName.c_str());
+            strCopy(newBookmark.name, bookmarkName.c_str());
 
             Color colors[] = {
                 Color(255, 100, 100),
@@ -1095,7 +1095,7 @@ void AppContextMenu::executeAction(int actionId)
           {
             Bookmark newBookmark;
             newBookmark.byteOffset = cursorBytePos;
-            StrCopy(newBookmark.name, bookmarkName.c_str());
+            strCopy(newBookmark.name, bookmarkName.c_str());
 
             Color colors[] = {
                 Color(255, 100, 100),
@@ -1171,7 +1171,7 @@ void AppContextMenu::executeAction(int actionId)
 
           int bytesPerLine = g_HexData.getCurrentBytesPerLine();
           int targetRow = start / bytesPerLine;
-          g_ScrollY = Clamp(targetRow - 5, 0, maxScrolls);
+          g_ScrollY = clamp(targetRow - 5, 0, maxScrolls);
 
           InvalidateWindow();
         }
@@ -1210,7 +1210,7 @@ void AppContextMenu::executeAction(int actionId)
 
           int bytesPerLine = g_HexData.getCurrentBytesPerLine();
           int targetRow = start / bytesPerLine;
-          g_ScrollY = Clamp(targetRow - 5, 0, maxScrolls);
+          g_ScrollY = clamp(targetRow - 5, 0, maxScrolls);
 
           InvalidateWindow();
         }
@@ -1248,7 +1248,7 @@ void AppContextMenu::executeAction(int actionId)
 
           int bytesPerLine = g_HexData.getCurrentBytesPerLine();
           int targetRow = start / bytesPerLine;
-          g_ScrollY = Clamp(targetRow - 5, 0, maxScrolls);
+          g_ScrollY = clamp(targetRow - 5, 0, maxScrolls);
 
           InvalidateWindow();
         }
