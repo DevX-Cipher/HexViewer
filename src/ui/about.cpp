@@ -745,7 +745,7 @@ void AboutDialog::RenderContent(int width, int height)
   updateState.hovered = (hoveredButton == 1);
   updateState.pressed = (pressedButton == 1);
 
-  char copyright[] = "(c) 2025 DiE team!";
+  char copyright[] = "(c) 2025-2026 horsicq";
   int copyrightX = (width - (strLen(copyright) * 8)) / 2;
   renderer->drawText(copyright, copyrightX, height - 20, theme.disabledText);
 }
