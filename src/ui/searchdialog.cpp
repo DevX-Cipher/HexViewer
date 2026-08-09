@@ -51,7 +51,7 @@ namespace SearchDialogs
         int margin = 20;
         int y = margin + 10;
 
-        data->renderer->drawText(Translations::T("find:"), margin, y, theme.textColor);
+        data->renderer->drawText(Translations::T("Find:"), margin, y, theme.textColor);
         y += 28;
 
         Rect findBox(margin, y, windowWidth - margin * 2, 30);

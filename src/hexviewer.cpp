@@ -782,7 +782,7 @@ void OnfindReplace()
 			char buf[512];
 			buf[0] = '\0';
 
-			CopyString(buf, "find: ", sizeof(buf));
+			CopyString(buf, "Find: ", sizeof(buf));
 			int len = strLen(buf);
 
 			CopyString(buf + len, find, sizeof(buf) - len);
@@ -802,7 +802,7 @@ void OnfindReplace()
 		g_Options.darkMode,
 		[](const std::string& find, const std::string& replace)
 		{
-			printf("find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
+			printf("Find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
 		});
 	if (g_Hwnd) {
 		NSWindow* window = (__bridge NSWindow*)g_Hwnd;
@@ -814,7 +814,7 @@ void OnfindReplace()
 		g_Options.darkMode,
 		[](const std::string& find, const std::string& replace)
 		{
-			printf("find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
+			printf("Find: %s\nReplace: %s\n", find.c_str(), replace.c_str());
 		});
 	LinuxRedraw();
 #endif
