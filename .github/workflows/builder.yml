@@ -50,6 +50,7 @@ jobs:
 
       - name: Build HexViewer
         run: |
+          pwd
           build_win.bat
 
       - name: Upload Windows Release
