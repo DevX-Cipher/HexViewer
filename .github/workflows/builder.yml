@@ -76,9 +76,8 @@ jobs:
 
       - name: Build HexViewer
         run: |
-          chmod a+x build_macos.sh
-          ./build_macos.sh
-          mv build/HexViewer build/hexviewer_macos
+          chmod a+x package_dmg.sh
+          ./package_dmg.sh
 
       - name: Upload macOS Release
         if: github.event_name != 'pull_request'
@@ -87,6 +86,6 @@ jobs:
           tag_name: Beta
           draft: false
           prerelease: true
-          files: build/hexviewer_macos
+          files: build/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
