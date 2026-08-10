@@ -13,11 +13,11 @@ class DIEDownloadDialog
 {
 public:
 #if defined(_WIN32)
-  static bool Show(HWND parent, bool darkMode);
+bool DIEDownloadDialog::Show(HWND parent, bool darkMode)
 #elif defined(__APPLE__)
-  static bool Show(NSWindow* parent, bool darkMode);
+bool DIEDownloadDialog::Show(NSWindow* parent, bool darkMode)
 #else
-  static bool Show(void* parent, bool darkMode);
+bool DIEDownloadDialog::Show(void* parent, bool darkMode)
 #endif
 
 private:
