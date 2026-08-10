@@ -8,6 +8,7 @@
 #elif defined(__linux__)
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 #include <X11/keysym.h>
 #include <unistd.h>
 #else
@@ -2555,6 +2556,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProcA(hwnd, msg, wParam, lParam);
 }
 
+void LoadDroppedFile(const char* path)
+{
+	if (g_HexData.loadFile(path))
+	{
+		strCopy(g_CurrentFilePath, path);
+		AddToRecentFiles(path);
+		SaveOptionsToFile(g_Options);
+		RebuildFileMenu();
+		ApplyEnabledPlugins();
+
+		g_TotalLines = (int)g_HexData.getHexLines().count;
+		g_ScrollY = 0;
+	}
+}
+
 void InitializeDIESystem()
 {
 	char diePath[260];
@@ -2760,7 +2776,9 @@ extern "C" void entry()
 			userInfo : nil];
 		[self addTrackingArea:trackingArea] ;
 
-		caretTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
+		[self registerForDraggedTypes:@[NSPasteboardTypeFileURL]] ;
+
+		caretTimer = [NSTimer scheduledTimerWithTimeInterval : 0.5
 			target : self
 			selector : @selector(blinkCaret:)
 			userInfo:nil
@@ -2772,6 +2790,36 @@ extern "C" void entry()
 - (void)dealloc
 {
 	[caretTimer invalidate] ;
+}
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender
+{
+	NSPasteboard* pboard = [sender draggingPasteboard];
+	if ([pboard canReadObjectForClasses : @ [[NSURL class]] options:nil])
+		return NSDragOperationCopy;
+	return NSDragOperationNone;
+}
+
+- (NSDragOperation)draggingUpdated:(id<NSDraggingInfo>)sender
+{
+	return NSDragOperationCopy;
+}
+
+- (BOOL)performDragOperation : (id<NSDraggingInfo>)sender
+{
+	NSPasteboard* pboard = [sender draggingPasteboard];
+	NSArray<NSURL*>* urls = [pboard readObjectsForClasses : @ [[NSURL class]] options:nil];
+
+	if (urls.count == 0)
+		return NO;
+
+	const char* path = [[urls[0] path]UTF8String];
+	if (!path)
+		return NO;
+
+	LoadDroppedFile(path);
+	[self setNeedsDisplay:YES] ;
+	return YES;
 }
 
 - (void)blinkCaret:(NSTimer*)timer
@@ -3809,6 +3857,148 @@ Window g_window = 0;
 GC g_GC;
 Atom g_WmDeleteWindow;
 
+Atom g_XdndAware;
+Atom g_XdndEnter;
+Atom g_XdndPosition;
+Atom g_XdndStatus;
+Atom g_XdndDrop;
+Atom g_XdndFinished;
+Atom g_XdndSelection;
+Atom g_XdndActionCopy;
+Atom g_XdndTypeList;
+Window g_XdndSourceWindow = 0;
+
+void LoadDroppedFile(const char* path)
+{
+	if (g_HexData.loadFile(path))
+	{
+		strCopy(g_CurrentFilePath, path);
+		AddToRecentFiles(path);
+		SaveOptionsToFile(g_Options);
+		RebuildFileMenu();
+		ApplyEnabledPlugins();
+
+		g_TotalLines = (int)g_HexData.getHexLines().count;
+		g_ScrollY = 0;
+	}
+}
+
+void HandleXdndEnter(XClientMessageEvent* xclient)
+{
+	g_XdndSourceWindow = (Window)xclient->data.l[0];
+}
+
+void HandleXdndPosition(XClientMessageEvent* xclient)
+{
+	Window source = (Window)xclient->data.l[0];
+	long timestamp = (long)xclient->data.l[3];
+
+	XClientMessageEvent status = { 0 };
+	status.type = ClientMessage;
+	status.display = g_display;
+	status.window = source;
+	status.message_type = g_XdndStatus;
+	status.format = 32;
+	status.data.l[0] = g_window;
+	status.data.l[1] = 1; // accept
+	status.data.l[2] = 0;
+	status.data.l[3] = 0;
+	status.data.l[4] = g_XdndActionCopy;
+
+	XSendEvent(g_display, source, False, NoEventMask, (XEvent*)&status);
+	XFlush(g_display);
+}
+
+void HandleXdndDrop(XClientMessageEvent* xclient)
+{
+	Window source = (Window)xclient->data.l[0];
+
+	XConvertSelection(
+		g_display,
+		g_XdndSelection,
+		XInternAtom(g_display, "text/uri-list", False),
+		g_XdndSelection,
+		g_window,
+		CurrentTime);
+	XFlush(g_display);
+
+	XClientMessageEvent finished = { 0 };
+	finished.type = ClientMessage;
+	finished.display = g_display;
+	finished.window = source;
+	finished.message_type = g_XdndFinished;
+	finished.format = 32;
+	finished.data.l[0] = g_window;
+	finished.data.l[1] = 1;
+	finished.data.l[2] = g_XdndActionCopy;
+
+	XSendEvent(g_display, source, False, NoEventMask, (XEvent*)&finished);
+	XFlush(g_display);
+}
+
+void HandleXdndSelectionNotify(XSelectionEvent* xsel)
+{
+	if (xsel->property == None)
+		return;
+
+	Atom actualType;
+	int actualFormat;
+	unsigned long itemCount, bytesAfter;
+	unsigned char* data = nullptr;
+
+	XGetWindowProperty(
+		g_display, g_window, xsel->property,
+		0, 65536, False, AnyPropertyType,
+		&actualType, &actualFormat, &itemCount, &bytesAfter, &data);
+
+	if (data)
+	{
+		char* text = (char*)data;
+		char* lineStart = text;
+
+		while (*lineStart)
+		{
+			char* lineEnd = lineStart;
+			while (*lineEnd && *lineEnd != '\r' && *lineEnd != '\n')
+				lineEnd++;
+
+			if (lineEnd > lineStart)
+			{
+				char uri[1024];
+				size_t len = (size_t)(lineEnd - lineStart);
+				if (len >= sizeof(uri))
+					len = sizeof(uri) - 1;
+
+				for (size_t i = 0; i < len; i++)
+					uri[i] = lineStart[i];
+				uri[len] = '\0';
+
+				const char* filePrefix = "file://";
+				size_t prefixLen = strLen(filePrefix);
+				char* path = uri;
+
+				if (len > prefixLen &&
+					uri[0] == filePrefix[0] && uri[1] == filePrefix[1] &&
+					uri[2] == filePrefix[2] && uri[3] == filePrefix[3] &&
+					uri[4] == filePrefix[4] && uri[5] == filePrefix[5] &&
+					uri[6] == filePrefix[6])
+				{
+					path = uri + prefixLen;
+				}
+
+				LoadDroppedFile(path);
+				break;
+			}
+
+			lineStart = lineEnd;
+			while (*lineStart == '\r' || *lineStart == '\n')
+				lineStart++;
+		}
+
+		XFree(data);
+	}
+}
+
 void UpdateLinuxScrollbar()
 {
 }
@@ -4461,6 +4651,9 @@ void LinuxRedraw()
 	int windowHeight = attrs.height;
 	int menuBarHeight = g_MenuBar.getHeight();
 
+	int leftPanelWidth = g_LeftPanel.visible ? g_LeftPanel.width : 0;
+	g_Renderer.UpdateHexMetrics(leftPanelWidth, menuBarHeight);
+
 	g_Renderer.beginFrame();
 
 	g_Renderer.clear(
@@ -4487,13 +4680,8 @@ void LinuxRedraw()
 
 		for (int i = startLine; i < endLine; i++)
 		{
-			const SimpleString* line = &lines.lines[i];
-			char* buf = (char*)malloc(line->length + 1);
-
-			for (size_t j = 0; j < line->length; j++)
-				buf[j] = line->data[j];
-
-			buf[line->length] = '\0';
+			char* buf = (char*)malloc(256);
+			g_HexData.getHexLine((size_t)i, buf, 256);
 			hexLines.push_back(buf);
 		}
 	}
@@ -4501,11 +4689,15 @@ void LinuxRedraw()
 	const SimpleString& header = g_HexData.getHeaderLine();
 	const char* headerStr = header.data ? header.data : "No File Loaded";
 
+	int maxScrollPos = g_TotalLines - g_LinesPerPage;
+	if (maxScrollPos < 0)
+		maxScrollPos = 0;
+
 	g_Renderer.renderHexViewer(
 		hexLines,
 		headerStr,
 		g_ScrollY,
-		g_TotalLines,
+		maxScrollPos,
 		false,
 		false,
 		Rect(0, 0, 0, 0),
@@ -4514,10 +4706,11 @@ void LinuxRedraw()
 		-1,
 		-1,
 		"",
-		0LL,
-		0,
+		cursorBytePos,
+		cursorNibblePos,
 		(long long)g_HexData.getFileSize(),
-		g_LeftPanel.visible ? g_LeftPanel.width : 0);
+		g_LeftPanel.visible ? g_LeftPanel.width : 0,
+		windowHeight);
 
 	for (size_t i = 0; i < hexLines.size(); i++)
 		free(hexLines[i]);
@@ -4595,6 +4788,23 @@ int main(int argc, char** argv)
 	g_WmDeleteWindow = XInternAtom(g_display, "WM_DELETE_WINDOW", False);
 	XSetWMProtocols(g_display, g_window, &g_WmDeleteWindow, 1);
 
+	g_XdndAware = XInternAtom(g_display, "XdndAware", False);
+	g_XdndEnter = XInternAtom(g_display, "XdndEnter", False);
+	g_XdndPosition = XInternAtom(g_display, "XdndPosition", False);
+	g_XdndStatus = XInternAtom(g_display, "XdndStatus", False);
+	g_XdndDrop = XInternAtom(g_display, "XdndDrop", False);
+	g_XdndFinished = XInternAtom(g_display, "XdndFinished", False);
+	g_XdndSelection = XInternAtom(g_display, "XdndSelection", False);
+	g_XdndActionCopy = XInternAtom(g_display, "XdndActionCopy", False);
+	g_XdndTypeList = XInternAtom(g_display, "XdndTypeList", False);
+
+	{
+		Atom version = 5;
+		XChangeProperty(
+			g_display, g_window, g_XdndAware, XA_ATOM, 32,
+			PropModeReplace, (unsigned char*)&version, 1);
+	}
+
 	g_GC = XCreateGC(g_display, g_window, 0, nullptr);
 
 	XMapWindow(g_display, g_window);
@@ -4607,6 +4817,10 @@ int main(int argc, char** argv)
 	g_BottomPanel.height = 250;
 	g_Renderer.resize(800, 600);
 	g_MenuBar.setPosition(0, 0);
+
+	g_LinesPerPage = (600 - g_MenuBar.getHeight() - 40) / 16;
+	if (g_LinesPerPage < 1)
+		g_LinesPerPage = 1;
 
 	g_MenuBar.addMenu(MenuHelper::createFileMenu(OnNew, OnFileOpen, OnFileSave, OnFileExit, OnFileProcessOpen, RecentCallbacks));
 	g_MenuBar.addMenu(MenuHelper::createSearchMenu(OnfindReplace, OnGoTo));
@@ -4703,7 +4917,26 @@ int main(int argc, char** argv)
 
 			case ClientMessage:
 				if ((Atom)event.xclient.data.l[0] == g_WmDeleteWindow)
+				{
 					running = false;
+				}
+				else if (event.xclient.message_type == g_XdndEnter)
+				{
+					HandleXdndEnter(&event.xclient);
+				}
+				else if (event.xclient.message_type == g_XdndPosition)
+				{
+					HandleXdndPosition(&event.xclient);
+				}
+				else if (event.xclient.message_type == g_XdndDrop)
+				{
+					HandleXdndDrop(&event.xclient);
+				}
+				break;
+
+			case SelectionNotify:
+				HandleXdndSelectionNotify(&event.xselection);
+				LinuxRedraw();
 				break;
 			}
 		}
