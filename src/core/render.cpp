@@ -244,10 +244,16 @@ void RenderManager::UpdateHexMetrics(int leftPanelWidth, int menuBarHeight)
   layout.charWidth = fontSize * 0.6f;
   layout.lineHeight = fontSize * 1.4f;
 #else
-  if (fontInfo)
+  if (fontInfo && fontInfo->max_bounds.width > 0 &&
+    (fontInfo->ascent + fontInfo->descent) > 0)
   {
     layout.charWidth = (float)fontInfo->max_bounds.width;
     layout.lineHeight = (float)(fontInfo->ascent + fontInfo->descent);
+  }
+  else
+  {
+    layout.charWidth = 9.6f;
+    layout.lineHeight = 20.0f;
   }
 #endif
 
