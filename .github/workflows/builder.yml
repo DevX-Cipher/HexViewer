@@ -27,9 +27,8 @@ jobs:
       - name: Build HexViewer
         run: |
           ls -l
-          chmod a+x build_linux.sh
-          ./build_linux.sh
-          mv build/HexViewer build/hexviewer_linux
+          chmod a+x package_deb.sh
+          ./package_deb.sh
 
       - name: Upload Linux Release
         if: github.event_name != 'pull_request'
@@ -38,7 +37,7 @@ jobs:
           tag_name: Beta
           draft: false
           prerelease: true
-          files: build/src/console/cdie_linux
+          files: build/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
