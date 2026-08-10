@@ -4258,6 +4258,59 @@ void HandleLinuxKeyPress(XKeyEvent* event)
 				return;
 			}
 		}
+		return;
+	}
+
+	if (!ctrl && cursorBytePos >= 0 && cursorBytePos < (long long)g_HexData.getFileSize())
+	{
+		char buf[8];
+		KeySym sym;
+		int len = XLookupString(event, buf, sizeof(buf), &sym, NULL);
+
+		if (len > 0)
+		{
+			char c = buf[0];
+
+			if (c >= 'a' && c <= 'f')
+				c -= 32;
+
+			if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))
+			{
+				int nibbleValue = (c <= '9') ? (c - '0') : (c - 'A' + 10);
+
+				uint8_t currentByte = g_HexData.getByte((size_t)cursorBytePos);
+				uint8_t newByte;
+
+				if (cursorNibblePos == 0)
+					newByte = (nibbleValue << 4) | (currentByte & 0x0F);
+				else
+					newByte = (currentByte & 0xF0) | nibbleValue;
+
+				g_HexData.editByte((size_t)cursorBytePos, newByte);
+
+				if (cursorNibblePos == 0)
+				{
+					cursorNibblePos = 1;
+				}
+				else
+				{
+					if (cursorBytePos < (long long)g_HexData.getFileSize() - 1)
+					{
+						cursorBytePos++;
+						cursorNibblePos = 0;
+
+						long long cursorLine = cursorBytePos / 16;
+						if (cursorLine >= g_ScrollY + g_LinesPerPage)
+						{
+							g_ScrollY = (int)(cursorLine - g_LinesPerPage + 1);
+						}
+					}
+				}
+
+				caretVisible = true;
+				return;
+			}
+		}
 	}
 }
 
@@ -4296,6 +4349,32 @@ void HandleLinuxMouseButton(XButtonEvent* event, bool pressed)
 			unsigned int mask;
 			XQueryPointer(g_display, g_window, &root, &root,
 				&root_x, &root_y, &win_x, &win_y, &mask);
+
+			int leftPanelWidth_click = g_LeftPanel.visible ? g_LeftPanel.width : 0;
+			g_Renderer.UpdateHexMetrics(leftPanelWidth_click, g_MenuBar.getHeight());
+
+			if (g_Renderer.IsPointInHexArea(x, y, leftPanelWidth_click,
+				g_MenuBar.getHeight(), windowWidth, windowHeight))
+			{
+				g_PatternSearch.hasFocus = false;
+
+				BytePositionInfo clickInfo = g_Renderer.GetHexBytePositionInfo(Point(x, y));
+
+				if (clickInfo.Index >= 0 &&
+					clickInfo.Index < (long long)g_HexData.getFileSize())
+				{
+					g_Selection.startByte = clickInfo.Index;
+					g_Selection.endByte = clickInfo.Index;
+					g_Selection.active = true;
+					g_Selection.dragging = true;
+
+					cursorBytePos = clickInfo.Index;
+					cursorNibblePos = clickInfo.CharacterPosition;
+					caretVisible = true;
+				}
+
+				return;
+			}
 
 			if (g_Renderer.isPointInDisasmResizeHandle(x, y, g_MenuBar.getHeight()))
 			{
@@ -4440,6 +4519,20 @@ void HandleLinuxMouseButton(XButtonEvent* event, bool pressed)
 	{
 		if (event->button == Button1)
 		{
+			if (g_Selection.dragging)
+			{
+				g_Selection.dragging = false;
+				g_Selection.active = true;
+
+				if (g_Selection.startByte == g_Selection.endByte)
+				{
+					g_Selection.clear();
+				}
+
+				LinuxRedraw();
+				return;
+			}
+
 			if (g_Renderer.isResizingDisasmColumn())
 			{
 				g_Renderer.endDisasmResize();
@@ -4943,7 +5036,6 @@ int main(int argc, char** argv)
 
 		usleep(1000);
 	}
-
 
 	SaveOptionsToFile(g_Options);
 	XFreeGC(g_display, g_GC);
