@@ -26,6 +26,7 @@ jobs:
 
       - name: Build HexViewer
         run: |
+          ls -l
           chmod a+x build_linux.sh
           ./build_linux.sh
           mv build/HexViewer build/hexviewer_linux
@@ -50,7 +51,6 @@ jobs:
 
       - name: Build HexViewer
         run: |
-          dir
           ./build_win.bat
 
       - name: Upload Windows Release
