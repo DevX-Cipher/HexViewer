@@ -50,8 +50,8 @@ jobs:
 
       - name: Build HexViewer
         run: |
-          pwd
-          build_win.bat
+          dir
+          ./build_win.bat
 
       - name: Upload Windows Release
         if: github.event_name != 'pull_request'
