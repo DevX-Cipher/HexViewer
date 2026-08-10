@@ -26,10 +26,8 @@ jobs:
 
       - name: Build HexViewer
         run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
-          make -j$(nproc)
+          chmod a+x build_linux.sh
+          ./build_linux.sh
           mv build/HexViewer build/hexviewer_linux
 
       - name: Upload Linux Release
@@ -52,10 +50,7 @@ jobs:
 
       - name: Build HexViewer
         run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
-          cmake --build . --config Release --parallel
+          build_win.bat
 
       - name: Upload Windows Release
         if: github.event_name != 'pull_request'
@@ -79,12 +74,10 @@ jobs:
           brew update
           brew install cmake
 
-      - name: Build cdie
+      - name: Build HexViewer
         run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
-          make -j$(sysctl -n hw.logicalcpu)
+          chmod a+x build_macos.sh
+          ./build_macos.sh
           mv build/HexViewer build/hexviewer_macos
 
       - name: Upload macOS Release
