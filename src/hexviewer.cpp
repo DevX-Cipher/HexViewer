@@ -32,6 +32,7 @@
 
 typedef unsigned long long size_t_custom;
 
+void LoadDroppedFile(const char* path);
 void SaveOptionsToFile(const AppOptions &opts);
 void LoadOptionsFromFile(AppOptions &opts);
 void OnFileSaveAs();
