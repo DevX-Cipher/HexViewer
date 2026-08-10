@@ -38,6 +38,7 @@ set(MAC_OBJCXX_SOURCES
     src/system/update.cpp
     src/ui/about.cpp
     src/ui/contextmenu.cpp
+    src/system/die_downloaddialog.cpp
     src/ui/processdialog.cpp
     src/ui/searchdialog.cpp
     src/ui/options.cpp
