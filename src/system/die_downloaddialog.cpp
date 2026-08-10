@@ -1,5 +1,6 @@
 #include "die_downloaddialog.h"
 #include "die_database.h"
+#include "core/global.h"
 
 #ifdef _WIN32
 #include <commctrl.h>
