@@ -246,7 +246,7 @@ inline T max(T a, T b)
   return (a > b) ? a : b;
 }
 
-inline double floor(double x)
+inline double hex_floor(double x)
 {
   long long i = (long long)x;
   return (double)(i - (x < i));
