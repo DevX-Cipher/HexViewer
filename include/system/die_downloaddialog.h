@@ -3,22 +3,19 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+typedef HWND NativeWindow;
 #elif defined(__APPLE__)
 #include <Cocoa/Cocoa.h>
+typedef NSWindow* NativeWindow;
 #else
 #include <X11/Xlib.h>
+typedef void* NativeWindow;
 #endif
 
 class DIEDownloadDialog
 {
 public:
-#if defined(_WIN32)
-  static bool Show(HWND parent, bool darkMode);
-#elif defined(__APPLE__)
-  static bool Show(NSWindow* parent, bool darkMode);
-#else
-  static bool Show(void* parent, bool darkMode);
-#endif
+  static bool Show(NativeWindow parent, bool darkMode);
 
 private:
   static void ProgressCallback(const char* message, int percent);
