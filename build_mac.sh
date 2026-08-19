@@ -1,8 +1,29 @@
 #!/bin/bash
-
 set -e
 
+if ! command -v cmake >/dev/null 2>&1; then
+    echo "CMake not found. Attempting installation..."
+    if ! command -v brew >/dev/null 2>&1; then
+        echo "Homebrew is not installed."
+        echo "Installing Homebrew first..."
+
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+        if [ -d "/opt/homebrew/bin" ]; then
+            export PATH="/opt/homebrew/bin:$PATH"
+        elif [ -d "/usr/local/bin" ]; then
+            export PATH="/usr/local/bin:$PATH"
+        fi
+    fi
+
+    echo "Installing CMake..."
+    brew install cmake
+fi
+
+echo "CMake is installed."
+
 cd "$(dirname "$0")"
+
 if [ ! -d build ]; then
     mkdir build
 fi
@@ -83,7 +104,6 @@ EOF
 
 echo "Info.plist created."
 
-# Optional: ad-hoc sign so macOS doesn't complain
 echo "Signing app..."
 codesign --force --deep --sign - "${APP_DIR}"
 

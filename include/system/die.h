@@ -1,3 +1,4 @@
+/* Copyright (c) 2019-2026 hors<horsicq@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -16,12 +17,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ */
 
- *
- * ABI-compatible with horsicq/die_library: the same flags, the same exported
- * function names and signatures, so a program written against die_library
- * (its samples included) compiles and links against this library unchanged.
- * The implementation is the pure-C cdie engine rather than the Qt one.
+ /* die.h - public C API of the Detect It Easy library.
+  *
+  * ABI-compatible with horsicq/die_library: the same flags, the same exported
+  * function names and signatures, so a program written against die_library
+  * (its samples included) compiles and links against this library unchanged.
+  * The implementation is the pure-C cdie engine rather than the Qt one.
+  */
 
 #ifndef DIE_H
 #define DIE_H
@@ -32,11 +36,14 @@
 extern "C" {
 #endif
 
- *
- * Building the shared library defines DIE_BUILD_SHARED (exports). A program
- * that links the shared library sees the default (imports on Windows). A
- * program that links the static library defines DIE_STATIC (no decoration).
+  /* --- Export decoration --------------------------------------------------
+   *
+   * Building the shared library defines DIE_BUILD_SHARED (exports). A program
+   * that links the shared library sees the default (imports on Windows). A
+   * program that links the static library defines DIE_STATIC (no decoration).
+   */
 #if defined(_WIN32) && defined(__TINYC__)
+   /* TinyCC rejects __declspec(dllexport) but accepts the __attribute__ form. */
 #if defined(DIE_BUILD_SHARED)
 #define DIE_API __attribute__((dllexport))
 #elif defined(DIE_STATIC)
@@ -60,6 +67,7 @@ extern "C" {
 #endif
 #endif
 
+   /* --- Scan flags --------------------------------------------------------- */
 #define DIE_DEEPSCAN 0x00000001
 #define DIE_HEURISTICSCAN 0x00000002
 #define DIE_ALLTYPESSCAN 0x00000004
@@ -71,26 +79,29 @@ extern "C" {
 #define DIE_RESULTASTSV 0x00040000
 #define DIE_RESULTASCSV 0x00080000
 
-DIE_API char *DIE_ScanFileA(char *pszFileName, unsigned int nFlags, char *pszDatabase);
-DIE_API wchar_t *DIE_ScanFileW(wchar_t *pwszFileName, unsigned int nFlags, wchar_t *pwszDatabase);
-DIE_API char *DIE_ScanMemoryA(char *pMemory, int nMemorySize, unsigned int nFlags, char *pszDatabase);
-DIE_API wchar_t *DIE_ScanMemoryW(char *pMemory, int nMemorySize, unsigned int nFlags, wchar_t *pwszDatabase);
-DIE_API int DIE_LoadDatabaseA(char *pszDatabase);
-DIE_API int DIE_LoadDatabaseW(wchar_t *pwszDatabase);
-DIE_API char *DIE_ScanFileExA(char *pszFileName, unsigned int nFlags);
-DIE_API wchar_t *DIE_ScanFileExW(wchar_t *pwszFileName, unsigned int nFlags);
-DIE_API char *DIE_ScanMemoryExA(char *pMemory, int nMemorySize, unsigned int nFlags);
-DIE_API wchar_t *DIE_ScanMemoryExW(char *pMemory, int nMemorySize, unsigned int nFlags);
-DIE_API void DIE_FreeMemoryA(char *pszString);
-DIE_API void DIE_FreeMemoryW(wchar_t *pwszString);
+/* --- Core functions ----------------------------------------------------- */
+  DIE_API char* DIE_ScanFileA(char* pszFileName, unsigned int nFlags, char* pszDatabase);
+  DIE_API wchar_t* DIE_ScanFileW(wchar_t* pwszFileName, unsigned int nFlags, wchar_t* pwszDatabase);
+  DIE_API char* DIE_ScanMemoryA(char* pMemory, int nMemorySize, unsigned int nFlags, char* pszDatabase);
+  DIE_API wchar_t* DIE_ScanMemoryW(char* pMemory, int nMemorySize, unsigned int nFlags, wchar_t* pwszDatabase);
+  DIE_API int DIE_LoadDatabaseA(char* pszDatabase);
+  DIE_API int DIE_LoadDatabaseW(wchar_t* pwszDatabase);
+  DIE_API char* DIE_ScanFileExA(char* pszFileName, unsigned int nFlags);
+  DIE_API wchar_t* DIE_ScanFileExW(wchar_t* pwszFileName, unsigned int nFlags);
+  DIE_API char* DIE_ScanMemoryExA(char* pMemory, int nMemorySize, unsigned int nFlags);
+  DIE_API wchar_t* DIE_ScanMemoryExW(char* pMemory, int nMemorySize, unsigned int nFlags);
+  DIE_API void DIE_FreeMemoryA(char* pszString);
+  DIE_API void DIE_FreeMemoryW(wchar_t* pwszString);
 
+  /* --- Windows-specific (VB) ---------------------------------------------- */
 #if defined(_WIN32)
-DIE_API int __stdcall DIE_VB_ScanFile(wchar_t *pwszFileName, unsigned int nFlags, wchar_t *pwszDatabase, wchar_t *pwszBuffer, int nBufferSize);
-typedef int(__stdcall *DIE_VB_CALLBACK)(wchar_t *curSigName, int curSigindex, int maxSigs);
-DIE_API int __stdcall DIE_VB_ScanFileCallback(wchar_t *pwszFileName, unsigned int nFlags, wchar_t *pwszDatabase, wchar_t *pwszBuffer, int nBufferSize,
-                                              DIE_VB_CALLBACK pfnCallback);
+  DIE_API int __stdcall DIE_VB_ScanFile(wchar_t* pwszFileName, unsigned int nFlags, wchar_t* pwszDatabase, wchar_t* pwszBuffer, int nBufferSize);
+  typedef int(__stdcall* DIE_VB_CALLBACK)(wchar_t* curSigName, int curSigindex, int maxSigs);
+  DIE_API int __stdcall DIE_VB_ScanFileCallback(wchar_t* pwszFileName, unsigned int nFlags, wchar_t* pwszDatabase, wchar_t* pwszBuffer, int nBufferSize,
+    DIE_VB_CALLBACK pfnCallback);
 #endif
 
+  /* --- Unicode name mapping ----------------------------------------------- */
 #if defined(UNICODE) || defined(_UNICODE)
 #define DIE_ScanFile DIE_ScanFileW
 #define DIE_ScanMemory DIE_ScanMemoryW
