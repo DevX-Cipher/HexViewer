@@ -1,0 +1,3 @@
+[submodule "CDiE"]
+	path = CDiE
+	url = https://github.com/horsicq/CDiE.git
