@@ -719,18 +719,20 @@ void AboutDialog::RenderContent(int width, int height)
   int toggleY = height - 100;
   betaToggleRect = Rect(40, toggleY, 200, 25);
 
-  Color checkboxBorder = betaToggleHovered ? Color(100, 150, 255) : theme.disabledText;
-  renderer->drawRect(checkboxRect, theme.windowBackground, true);
-  renderer->drawRect(checkboxRect, checkboxBorder, false);
+  /* Rect checkboxRect(betaToggleRect.x, betaToggleRect.y, 18, 18);
+ Color checkboxBorder = betaToggleHovered ? Color(100, 150, 255) : theme.disabledText;
+ renderer->drawRect(checkboxRect, theme.windowBackground, true);
+ renderer->drawRect(checkboxRect, checkboxBorder, false);
 
-  if (betaEnabled)
-  {
-    renderer->drawRect(Rect(checkboxRect.x + 3, checkboxRect.y + 3, 12, 12),
-                       Color(100, 150, 255), true);
-  }
+ if (betaEnabled)
+ {
+   renderer->drawRect(Rect(checkboxRect.x + 3, checkboxRect.y + 3, 12, 12),
+                      Color(100, 150, 255), true);
+ }
 
- renderer->drawText(Translations::T("Include Beta Versions"),
-                     betaToggleRect.x + 23, betaToggleRect.y + 2, theme.disabledText);
+renderer->drawText(Translations::T("Include Beta Versions"),
+                    betaToggleRect.x + 23, betaToggleRect.y + 2, theme.disabledText);
+*/
   int buttonY = height - 60;
   int buttonHeight = 35;
   int buttonWidth = 160;
