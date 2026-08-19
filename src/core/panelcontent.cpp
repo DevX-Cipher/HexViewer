@@ -22,7 +22,7 @@ const int PANEL_TITLE_HEIGHT = 28;
 extern HexData g_HexData;
 BookmarksState g_Bookmarks = { {}, -1, -1 }; 
 ByteStatistics g_ByteStats = {{0}, 0, 0, 0, 0, 0, 0.0, false};
-DetectItEasyState g_DIEState = {false, "", "", ""};
+DetectItEasyState g_DIEState = {};
 PatternSearchState g_PatternSearch = { "", -1, false };
 ChecksumState g_Checksum = { false, false, false, false, true };
 CompareState g_Compare = { "", false };
@@ -403,7 +403,8 @@ void ByteStats_clear()
 Rect GetDIEButtonRect(const Rect& panelBounds)
 {
   int contentX = panelBounds.x + 15;
-  int currentY = panelBounds.y + PANEL_TITLE_HEIGHT + 10;
+  int currentY = panelBounds.y + PANEL_TITLE_HEIGHT + 15;
+  int contentWidth = panelBounds.width - 30;
 
   int rowHeight = 16;
   int headerHeight = 18;
@@ -413,18 +414,52 @@ Rect GetDIEButtonRect(const Rect& panelBounds)
   long long fileSize = (long long)g_HexData.getFileSize();
 
   currentY += headerHeight + sectionSpacing;
+  currentY += rowHeight + itemSpacing;
+  currentY += rowHeight + itemSpacing;
+  currentY += 8;
 
+  currentY += headerHeight + sectionSpacing;
+  if (cursorBytePos >= 0 && cursorBytePos < fileSize)
+  {
+    currentY += (rowHeight + itemSpacing) * 5;
+    currentY += 8;
+  }
+  else
+  {
+    currentY += rowHeight + itemSpacing;
+  }
+
+  currentY += headerHeight + sectionSpacing;
+  if (!g_Bookmarks.bookmarks.empty())
+  {
+    size_t displayCount = g_Bookmarks.bookmarks.size() < 5 ? g_Bookmarks.bookmarks.size() : 5;
+    currentY += (rowHeight + itemSpacing) * displayCount;
+  }
+  else
+  {
+    currentY += (rowHeight + itemSpacing) * 2;
+  }
+  currentY += 8;
+
+  currentY += headerHeight + sectionSpacing;
   currentY += rowHeight + itemSpacing;
-  currentY += rowHeight + itemSpacing;
-  currentY += rowHeight + itemSpacing;
+  currentY += 8;
+
+  currentY += headerHeight + sectionSpacing;
+  if (!g_DIEState.analyzed || g_DIEState.resultCount == 0)
+  {
+    currentY += rowHeight + itemSpacing;
+  }
+  else
+  {
+    currentY += (rowHeight + itemSpacing) * g_DIEState.resultCount;
+  }
 
   currentY += 4;
   currentY += itemSpacing;
 
-  int contentWidth = panelBounds.width - 30;
   return Rect(contentX, currentY, contentWidth, rowHeight + 10);
 }
-
 Rect GetPluginAnnotationRect(int annotationIndex, const Rect& panelBounds)
 {
   int contentX = panelBounds.x + 15;
@@ -480,7 +515,15 @@ Rect GetPluginAnnotationRect(int annotationIndex, const Rect& panelBounds)
   currentY += 8;
 
   currentY += headerHeight + sectionSpacing;
-  currentY += (rowHeight + itemSpacing) * 3;
+
+  if (!g_DIEState.analyzed || g_DIEState.resultCount == 0)
+  {
+    currentY += rowHeight + itemSpacing;
+  }
+  else
+  {
+    currentY += (rowHeight + itemSpacing) * g_DIEState.resultCount;
+  }
 
   char diePath[260];
   bool dieFound = findDIEPath(diePath, sizeof(diePath));
@@ -543,56 +586,43 @@ Rect GetBookmarkRect(int bookmarkIndex, const Rect& panelBounds)
   return Rect(contentX, currentY, contentWidth, rowHeight + itemSpacing);
 }
 
-void DIE_Analyze()
+static HANDLE g_DIEThread = nullptr;
+
+static DWORD WINAPI DIEAnalyzeThread(LPVOID)
 {
-  if (g_DIEExecutablePath[0] != '\0')
-  {
-    g_DIEState.analyzed = true;
-    strCopy(g_DIEState.fileType, "Coming Soon");
-    strCopy(g_DIEState.compiler, "Coming Soon");
-    strCopy(g_DIEState.architecture, "Coming Soon");
-    InvalidateWindow();
-    return;
-  }
-
-  if (g_HexData.getFileSize() == 0)
-    return;
-
-  size_t dataSize = g_HexData.getFileSize();
-  if (dataSize > 1024 * 1024)
-    dataSize = 1024 * 1024;
-
-  uint8_t* data = (uint8_t*)platformAlloc(dataSize);
-  if (!data)
-    return;
-
-  for (size_t i = 0; i < dataSize; i++)
-  {
-    data[i] = g_HexData.getByte(i);
-  }
-
   char fileType[256] = { 0 };
   char compiler[256] = { 0 };
   char arch[256] = { 0 };
 
-	
-  if (g_DIEDatabase.AnalyzeFile(data, dataSize, fileType, compiler, arch))
+  g_DIEDatabase.AnalyzeFile(nullptr, 0, fileType, compiler, arch);
+  InvalidateWindow();
+  return 0;
+}
+
+void DIE_Analyze()
+{
+  if (g_HexData.getFileSize() == 0 || g_CurrentFilePath[0] == '\0')
+    return;
+
+  if (g_DIEThread != nullptr)
   {
-    strCopy(g_DIEState.fileType, fileType);
-    strCopy(g_DIEState.compiler, compiler);
-    strCopy(g_DIEState.architecture, arch);
-    g_DIEState.analyzed = true;
-  }
-  else
-  {
-    strCopy(g_DIEState.fileType, "Unknown");
-    strCopy(g_DIEState.compiler, "Unknown");
-    strCopy(g_DIEState.architecture, "Unknown");
-    g_DIEState.analyzed = false;
+    if (WaitForSingleObject(g_DIEThread, 0) == WAIT_TIMEOUT)
+    {
+      CloseHandle(g_DIEThread);
+      g_DIEThread = nullptr;
+    }
+    else
+    {
+      CloseHandle(g_DIEThread);
+      g_DIEThread = nullptr;
+    }
   }
 
-  platformFree(data);
-  InvalidateWindow();
+  g_DIEState.analyzed = false;
+  g_DIEState.resultCount = 0;
+  g_DIEState.widthApplied = false;
+
+  g_DIEThread = CreateThread(nullptr, 0, DIEAnalyzeThread, nullptr, 0, nullptr);
 }
 
 void DIE_OpenInApplication()
@@ -631,7 +661,6 @@ void DIE_OpenInApplication()
     }
 #endif
 }
-
 
 bool HandleBottomPanelContentClick(int x, int y, int windowWidth, int windowHeight)
 {
@@ -948,27 +977,20 @@ bool HandleLeftPanelContentClick(int x, int y, int windowWidth, int windowHeight
 
   currentY += 8;
 
-  currentY += headerHeight + sectionSpacing;
-  currentY += (rowHeight + itemSpacing) * 3;
-
   char diePath[260];
   bool dieFound = findDIEPath(diePath, sizeof(diePath));
 
   if (dieFound)
   {
-    currentY += 4;
-    currentY += itemSpacing;
-
-    Rect buttonRect(contentX, currentY, contentWidth, rowHeight + 10);
+    Rect buttonRect = GetDIEButtonRect(panelBounds);
 
     if (x >= buttonRect.x && x <= buttonRect.x + buttonRect.width &&
       y >= buttonRect.y && y <= buttonRect.y + buttonRect.height)
     {
-      DIE_OpenInApplication();
+      if (g_CurrentFilePath[0] != '\0')
+        DIE_OpenInApplication();
       return true;
     }
-
-    currentY += rowHeight + 10 + itemSpacing;
   }
 
   currentY += 8;

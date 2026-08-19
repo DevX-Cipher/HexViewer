@@ -339,7 +339,6 @@ public:
     AddTranslation("German", "Dark mode support", "Dunkler Modus Unterstützung");
     AddTranslation("German", "Check for Updates", "Nach Updates suchen");
 
-    /*AddTranslation("Japanese", "Options", "?????");
     AddTranslation("Japanese", "Dark Mode", "??????");
     AddTranslation("Japanese", "Auto-reload modified file", "?????????????????");
     AddTranslation("Japanese", "Add to context menu (right-click files)", "?????????????(??????????)");
@@ -476,7 +475,6 @@ public:
     AddTranslation("Chinese", "Real-time hex editing", "????????");
     AddTranslation("Chinese", "Dark mode support", "??????");
     AddTranslation("Chinese", "Check for Updates", "????");
-*/
     AddTranslation("Italian", "Options", "Opzioni");
     AddTranslation("Italian", "Dark Mode", "Modalità Scura");
     AddTranslation("Italian", "Auto-reload modified file", "Ricarica automaticamente il file modificato");

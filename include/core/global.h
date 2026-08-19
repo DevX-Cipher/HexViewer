@@ -15,6 +15,7 @@
 #define MAX_PATH_LEN 4096
 #endif
 
+
 inline void* sysAlloc(size_t size)
 {
 #ifdef _WIN32

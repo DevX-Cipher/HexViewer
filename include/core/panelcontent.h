@@ -93,11 +93,18 @@ struct ByteStatistics {
     bool computed;
 };
 
+struct DIEResult {
+  char category[32];
+  char value[128];
+};
+
 struct DetectItEasyState {
-    bool analyzed;
-    char fileType[64];
-    char compiler[64];
-    char architecture[32];
+  bool analyzed;
+  DIEResult results[32];
+  int resultCount;
+  bool widthApplied;
+  int measuredValueCol;
+  int measuredMaxValueWidth;
 };
 
 

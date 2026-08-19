@@ -12,7 +12,6 @@
 
 #include "global.h"
 
-
 #define DIE_DB_BASE_URL "https://github.com/horsicq/Detect-It-Easy/raw/master/db/"
 #define DIE_DB_BINARY_URL DIE_DB_BASE_URL "Binary/binary.db"
 #define DIE_DB_PE_URL DIE_DB_BASE_URL "PE/pe.db"
@@ -45,6 +44,7 @@ private:
   DIEDatabase machDb;
 
   char dbDirectory[512];
+  bool dbLoadedForScan;
 
   bool DownloadFile(const char* url, const char* destPath);
   bool ParseDatabase(const char* dbPath, DIEDatabase& db);
