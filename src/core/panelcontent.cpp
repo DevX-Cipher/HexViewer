@@ -586,6 +586,7 @@ Rect GetBookmarkRect(int bookmarkIndex, const Rect& panelBounds)
   return Rect(contentX, currentY, contentWidth, rowHeight + itemSpacing);
 }
 
+#ifdef _WIN32
 static HANDLE g_DIEThread = nullptr;
 
 static DWORD WINAPI DIEAnalyzeThread(LPVOID)
@@ -598,67 +599,139 @@ static DWORD WINAPI DIEAnalyzeThread(LPVOID)
   InvalidateWindow();
   return 0;
 }
+#else
+#include <thread>
+
+static std::thread g_DIEThread;
+#endif
+
+static void DIEAnalyzeWorker()
+{
+  char fileType[256] = { 0 };
+  char compiler[256] = { 0 };
+  char arch[256] = { 0 };
+
+  g_DIEDatabase.AnalyzeFile(nullptr, 0, fileType, compiler, arch);
+  InvalidateWindow();
+}
 
 void DIE_Analyze()
 {
   if (g_HexData.getFileSize() == 0 || g_CurrentFilePath[0] == '\0')
     return;
 
+#ifdef _WIN32
   if (g_DIEThread != nullptr)
   {
-    if (WaitForSingleObject(g_DIEThread, 0) == WAIT_TIMEOUT)
-    {
-      CloseHandle(g_DIEThread);
-      g_DIEThread = nullptr;
-    }
-    else
-    {
-      CloseHandle(g_DIEThread);
-      g_DIEThread = nullptr;
-    }
+    CloseHandle(g_DIEThread);
+    g_DIEThread = nullptr;
   }
+#else
+  if (g_DIEThread.joinable())
+  {
+    g_DIEThread.join();
+  }
+#endif
 
   g_DIEState.analyzed = false;
   g_DIEState.resultCount = 0;
   g_DIEState.widthApplied = false;
 
-  g_DIEThread = CreateThread(nullptr, 0, DIEAnalyzeThread, nullptr, 0, nullptr);
+#ifdef _WIN32
+  g_DIEThread = CreateThread(nullptr, 0,
+    [](LPVOID) -> DWORD { DIEAnalyzeWorker(); return 0; },
+    nullptr, 0, nullptr);
+#else
+  g_DIEThread = std::thread(DIEAnalyzeWorker);
+#endif
 }
 
 void DIE_OpenInApplication()
 {
-#ifdef _WIN32
-    if (!g_DIEExecutablePath[0])
-    {
-        MessageBoxA(nullptr, "DIE path is empty!", "Error", MB_OK | MB_ICONERROR);
-        return;
-    }
+#if defined(_WIN32)
+  if (!g_DIEExecutablePath[0])
+  {
+    MessageBoxA(nullptr, "DIE path is empty!", "Error", MB_OK | MB_ICONERROR);
+    return;
+  }
 
-    if (!g_CurrentFilePath[0])
-    {
-        MessageBoxA(nullptr, "Current file path is empty!", "Error", MB_OK | MB_ICONERROR);
-        return;
-    }
+  if (!g_CurrentFilePath[0])
+  {
+    MessageBoxA(nullptr, "Current file path is empty!", "Error", MB_OK | MB_ICONERROR);
+    return;
+  }
 
-    HINSTANCE result = ShellExecuteA(
-        nullptr,
-        "open",
-        g_DIEExecutablePath,
-        g_CurrentFilePath,
-        nullptr,
-        SW_SHOW
-    );
+  HINSTANCE result = ShellExecuteA(
+    nullptr,
+    "open",
+    g_DIEExecutablePath,
+    g_CurrentFilePath,
+    nullptr,
+    SW_SHOW
+  );
 
-    if ((int)result <= 32)
-    {
-        char errorMsg[256];
-        strCopy(errorMsg, "ShellExecute failed with code: ");
-        char code[32];
-        itoaDec((long long)result, code, 32);
-        strCat(errorMsg, code);
+  if ((int)result <= 32)
+  {
+    char errorMsg[256];
+    strCopy(errorMsg, "ShellExecute failed with code: ");
+    char code[32];
+    itoaDec((long long)result, code, 32);
+    strCat(errorMsg, code);
 
-        MessageBoxA(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);
-    }
+    MessageBoxA(nullptr, errorMsg, "Error", MB_OK | MB_ICONERROR);
+  }
+#elif defined(__APPLE__)
+  if (!g_DIEExecutablePath[0])
+  {
+    fprintf(stderr, "DIE path is empty!\n");
+    return;
+  }
+
+  if (!g_CurrentFilePath[0])
+  {
+    fprintf(stderr, "Current file path is empty!\n");
+    return;
+  }
+
+  pid_t pid = fork();
+
+  if (pid < 0)
+  {
+    fprintf(stderr, "fork() failed while launching DIE\n");
+    return;
+  }
+
+  if (pid == 0)
+  {
+    execl(g_DIEExecutablePath, g_DIEExecutablePath, g_CurrentFilePath, (char*)nullptr);
+    _exit(127);
+  }
+#elif defined(__linux__)
+  if (!g_DIEExecutablePath[0])
+  {
+    fprintf(stderr, "DIE path is empty!\n");
+    return;
+  }
+
+  if (!g_CurrentFilePath[0])
+  {
+    fprintf(stderr, "Current file path is empty!\n");
+    return;
+  }
+
+  pid_t pid = fork();
+
+  if (pid < 0)
+  {
+    fprintf(stderr, "fork() failed while launching DIE\n");
+    return;
+  }
+
+  if (pid == 0)
+  {
+    execl(g_DIEExecutablePath, g_DIEExecutablePath, g_CurrentFilePath, (char*)nullptr);
+    _exit(127);
+  }
 #endif
 }
 
