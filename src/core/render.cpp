@@ -22,9 +22,12 @@ extern HexData g_HexData;
 extern BookmarksState g_Bookmarks;
 extern ByteStatistics g_ByteStats;
 extern DetectItEasyState g_DIEState;
+extern LeftPanelState g_LeftPanel;
+void InvalidateWindow();
 
 char buf[256];
 char g_DIEExecutablePath[260];
+extern char g_CurrentFilePath[];
 extern long long cursorBytePos;
 int fontSize = g_Options.fontSize;
 const int PANEL_TITLE_HEIGHT = 28;
@@ -284,10 +287,11 @@ bool RenderManager::IsPointInHexArea(int mouseX, int mouseY, int leftPanelWidth,
 void RenderManager::createFont()
 {
 #ifdef _WIN32
+  const char* fontName = (g_Options.fontName[0] != '\0') ? g_Options.fontName : "Consolas";
   font = CreateFontA(
     g_Options.fontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
     DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-    DEFAULT_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas");
+    DEFAULT_QUALITY, FIXED_PITCH | FF_MODERN, fontName);
 
   if (font && memDC)
   {
@@ -506,7 +510,10 @@ void RenderManager::drawText(const char *text, int x, int y, const Color &color)
   if (cfString)
   {
     int fontSize = g_Options.fontSize > 0 ? g_Options.fontSize : 14;
-    CTFontRef font = CTFontCreateWithName(CFSTR("Monaco"), fontSize, NULL);
+    const char* fontNameCStr = (g_Options.fontName[0] != '\0') ? g_Options.fontName : "Monaco";
+    CFStringRef fontNameRef = CFStringCreateWithCString(NULL, fontNameCStr, kCFStringEncodingUTF8);
+    CTFontRef font = CTFontCreateWithName(fontNameRef, fontSize, NULL);
+    CFRelease(fontNameRef);
 
     CFStringRef keys[] = { kCTFontAttributeName, kCTForegroundColorFromContextAttributeName };
     CFTypeRef values[] = { font, kCFBooleanTrue };
@@ -706,7 +713,8 @@ void RenderManager::drawModernButton(const WidgetState &state, const Theme &them
   Color fillColor = theme.buttonNormal;
   if (!state.enabled)
   {
-    fillColor = theme.buttonDisabled;
+    bool isDark = theme.windowBackground.r < 128;
+    fillColor = isDark ? Color(60, 60, 60, 180) : Color(200, 200, 200, 255);
   }
   else if (state.pressed)
   {
@@ -738,7 +746,8 @@ void RenderManager::drawModernButton(const WidgetState &state, const Theme &them
   int textX = state.rect.x + (state.rect.width - textWidth) / 2;
   int textY = state.rect.y + (state.rect.height - textHeight) / 2;
 
-  Color textColor = state.enabled ? theme.buttonText : theme.disabledText;
+  bool isDark = theme.windowBackground.r < 128;
+  Color textColor = state.enabled ? theme.buttonText : (isDark ? Color(100, 100, 100, 255) : Color(160, 160, 160, 255));
   drawText(label, textX, textY, textColor);
 }
 
@@ -1607,20 +1616,55 @@ void RenderManager::drawLeftPanel(
   drawText("Detect it Easy", contentX, currentY, theme.headerColor);
   currentY += headerHeight + sectionSpacing;
 
-  drawText("File Type:", contentX, currentY, faded);
-  drawText(g_DIEState.fileType[0] ? g_DIEState.fileType : "Coming Soon",
-    contentX + 85, currentY, accentColor);
-  currentY += rowHeight + itemSpacing;
+  if (!g_DIEState.analyzed || g_DIEState.resultCount == 0)
+  {
+    drawText("Not analyzed", contentX, currentY, halfText);
+    currentY += rowHeight + itemSpacing;
+  }
+  else
+  {
+    int maxCategoryWidth = 0;
+    for (int i = 0; i < g_DIEState.resultCount && i < 32; i++)
+    {
+      int w = measureTextWidth(g_DIEState.results[i].category);
+      if (w > maxCategoryWidth)
+        maxCategoryWidth = w;
+    }
+    int valueCol = maxCategoryWidth + 12;
 
-  drawText("Compiler:", contentX, currentY, faded);
-  drawText(g_DIEState.compiler[0] ? g_DIEState.compiler : "Coming Soon",
-    contentX + 85, currentY, accentColor);
-  currentY += rowHeight + itemSpacing;
+    int maxValueWidth = 0;
+    for (int i = 0; i < g_DIEState.resultCount && i < 32; i++)
+    {
+      int w = measureTextWidth(g_DIEState.results[i].value);
+      if (w > maxValueWidth)
+        maxValueWidth = w;
+    }
 
-  drawText("Arch:", contentX, currentY, faded);
-  drawText(g_DIEState.architecture[0] ? g_DIEState.architecture : "Coming Soon",
-    contentX + 85, currentY, accentColor);
-  currentY += rowHeight + itemSpacing;
+    if (!g_DIEState.widthApplied)
+    {
+      int requiredWidth = 10 + valueCol + maxValueWidth + 10;
+      if (requiredWidth < 200) requiredWidth = 200;
+      if (requiredWidth > 500) requiredWidth = 500;
+      if (g_LeftPanel.width < requiredWidth)
+      {
+        g_LeftPanel.width = requiredWidth;
+        g_DIEState.widthApplied = true;
+        InvalidateWindow();
+        return;
+      }
+      g_DIEState.widthApplied = true;
+
+
+     
+    }
+
+    for (int i = 0; i < g_DIEState.resultCount && i < 32; i++)
+    {
+      drawText(g_DIEState.results[i].category, contentX, currentY, faded);
+      drawText(g_DIEState.results[i].value, contentX + valueCol, currentY, accentColor);
+      currentY += rowHeight + itemSpacing;
+    }
+  }
 
   char diePath[260];
   bool dieFound = findDIEPath(diePath, sizeof(diePath));
@@ -1635,10 +1679,12 @@ void RenderManager::drawLeftPanel(
     drawRect(separatorRect, theme.separator, true);
     currentY += itemSpacing;
 
+    bool fileIsOpen = g_CurrentFilePath[0] != '\0';
+
     Rect buttonRect(contentX, currentY, contentWidth, rowHeight + 10);
     WidgetState ws;
     ws.rect = buttonRect;
-    ws.enabled = true;
+    ws.enabled = fileIsOpen;
     ws.hovered = false;
     ws.pressed = false;
     drawModernButton(ws, theme, "Open in DIE");

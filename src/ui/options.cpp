@@ -256,6 +256,12 @@ void SaveOptionsToFile(const AppOptions& options)
   strCopy(buf + len, "\n");
   WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
+  strCopy(buf, "fontName=");
+  strCopy(buf + 9, options.fontName);
+  len = (int)strLen(buf);
+  strCopy(buf + len, "\n");
+  WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
+
   strCopy(buf, "\n[RecentFiles]\n");
   WriteFile(hFile, buf, (DWORD)strLen(buf), &written, nullptr);
 
@@ -558,6 +564,8 @@ void LoadOptionsFromFile(AppOptions& options)
               strCopy(options.language, val);
             else if (strEquals(key, "fontSize"))
               options.fontSize = strToInt(val);
+            else if (strEquals(key, "fontName"))
+              strCopy(options.fontName, val);
           }
         }
 
@@ -650,7 +658,7 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
   }
 
   data->renderer->drawText(Translations::T("Language:"), margin, y, theme.textColor);
-  NEXT_Y(controlSpacing);
+  NEXT_Y(2);
 
   int languageDropdownY = y;
   {
@@ -675,8 +683,28 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
     NEXT_Y(sectionSpacing);
   }
 
+  data->renderer->drawText(Translations::T("Font:"), margin, y, theme.textColor);
+  NEXT_Y(2);
+
+  int fontNameDropdownY = y;
+  {
+    Rect r(margin + 20, fontNameDropdownY, 200, controlHeight);
+    WidgetState ws(r);
+    ws.hovered = (data->hoveredWidget == 10);
+    ws.pressed = (data->pressedWidget == 10);
+
+    if (!data->fontNameDropdownOpen)
+    {
+      data->renderer->drawDropdown(ws, theme,
+        data->fontNames[data->selectedFontName],
+        false, data->fontNames, data->selectedFontName,
+        data->hoveredFontNameDropdownItem, data->fontNameDropdownScrollOffset);
+    }
+    NEXT_Y(controlSpacing);
+  }
+
   data->renderer->drawText(Translations::T("Font Size:"), margin, y, theme.textColor);
-  NEXT_Y(controlSpacing);
+  NEXT_Y(2);
 
   int fontDropdownY = y;
   {
@@ -702,9 +730,9 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
         data->fontDropdownScrollOffset);
     }
 
-    NEXT_Y(sectionSpacing);
+    NEXT_Y(controlSpacing);
   }
-	y += sectionSpacing *2;
+  y += controlSpacing;
 
   data->renderer->drawText(
     Translations::T("Default bytes per line:"), margin, y, theme.textColor);
@@ -797,6 +825,19 @@ void RenderOptionsDialog(OptionsDialogData* data, int windowWidth, int windowHei
       data->fontDropdownScrollOffset);
   }
 
+  if (data->fontNameDropdownOpen)
+  {
+    Rect r(margin + 20, fontNameDropdownY, 200, controlHeight);
+    WidgetState ws(r);
+    ws.hovered = (data->hoveredWidget == 10);
+    ws.pressed = (data->pressedWidget == 10);
+
+    data->renderer->drawDropdown(ws, theme,
+      data->fontNames[data->selectedFontName],
+      true, data->fontNames, data->selectedFontName,
+      data->hoveredFontNameDropdownItem, data->fontNameDropdownScrollOffset);
+  }
+
 #undef NEXT_Y
 }
 
@@ -812,29 +853,17 @@ void UpdateHoverState(OptionsDialogData* data, int x, int y, int windowWidth, in
   data->hoveredWidget = -1;
   data->hoveredDropdownItem = -1;
   data->hoveredFontDropdownItem = -1;
+  data->hoveredFontNameDropdownItem = -1;
 
 #define NEXT_Y(spacing) (startY += controlHeight + (spacing))
 
   NEXT_Y(15);
 
-  {
-    Rect r(margin, startY, 18, 18);
-    if (IsPointInRect(x, y, r)) { data->hoveredWidget = 0; return; }
-    NEXT_Y(controlSpacing);
-  }
+  { Rect r(margin, startY, 18, 18); if (IsPointInRect(x, y, r)) { data->hoveredWidget = 0; return; } NEXT_Y(controlSpacing); }
 
-  {
-    Rect r(margin, startY, 18, 18);
-    if (IsPointInRect(x, y, r)) { data->hoveredWidget = 9; return; }
-    NEXT_Y(controlSpacing);
-  }
+  { Rect r(margin, startY, 18, 18); if (IsPointInRect(x, y, r)) { data->hoveredWidget = 9; return; } NEXT_Y(controlSpacing); }
 
-  {
-    Rect r(margin, startY, 18, 18);
-    if (IsPointInRect(x, y, r)) { data->hoveredWidget = 1; return; }
-    NEXT_Y(controlSpacing);
-  }
-
+  { Rect r(margin, startY, 18, 18); if (IsPointInRect(x, y, r)) { data->hoveredWidget = 1; return; } NEXT_Y(controlSpacing); }
 
   if (!GetIsNativeFlag())
   {
@@ -850,10 +879,7 @@ void UpdateHoverState(OptionsDialogData* data, int x, int y, int windowWidth, in
     if (IsPointInRect(x, y, dropdownRect))
     {
       data->hoveredWidget = 7;
-      if (!data->dropdownOpen)
-      {
-        return;
-      }
+      if (!data->dropdownOpen) return;
     }
 
     if (data->dropdownOpen)
@@ -865,20 +891,10 @@ void UpdateHoverState(OptionsDialogData* data, int x, int y, int windowWidth, in
       for (size_t i = 0; i < data->languages.size(); i++)
       {
         int visualIndex = (int)i - data->dropdownScrollOffset;
-        if (visualIndex < 0 || visualIndex >= maxVisible)
-          continue;
+        if (visualIndex < 0 || visualIndex >= maxVisible) continue;
 
-        Rect itemRect(
-          margin + 20,
-          dropdownItemY + visualIndex * itemHeight + 4,
-          200,
-          itemHeight - 4);
-
-        if (IsPointInRect(x, y, itemRect))
-        {
-          data->hoveredDropdownItem = (int)i;
-          return;
-        }
+        Rect itemRect(margin + 20, dropdownItemY + visualIndex * itemHeight + 4, 200, itemHeight - 4);
+        if (IsPointInRect(x, y, itemRect)) { data->hoveredDropdownItem = (int)i; return; }
       }
     }
 
@@ -888,14 +904,40 @@ void UpdateHoverState(OptionsDialogData* data, int x, int y, int windowWidth, in
   NEXT_Y(controlSpacing);
 
   {
+    Rect fontNameRect(margin + 20, startY, 200, controlHeight);
+    if (IsPointInRect(x, y, fontNameRect))
+    {
+      data->hoveredWidget = 10;
+      if (!data->fontNameDropdownOpen) return;
+    }
+
+    if (data->fontNameDropdownOpen)
+    {
+      int itemHeight = 32;
+      int maxVisible = 5;
+      int dropdownItemY = startY + controlHeight + 4;
+
+      for (size_t i = 0; i < data->fontNames.size(); i++)
+      {
+        int visualIndex = (int)i - data->fontNameDropdownScrollOffset;
+        if (visualIndex < 0 || visualIndex >= maxVisible) continue;
+
+        Rect itemRect(margin + 20, dropdownItemY + visualIndex * itemHeight + 4, 200, itemHeight - 4);
+        if (IsPointInRect(x, y, itemRect)) { data->hoveredFontNameDropdownItem = (int)i; return; }
+      }
+    }
+
+    NEXT_Y(controlSpacing);
+  }
+
+  NEXT_Y(controlSpacing);
+
+  {
     Rect fontDropdownRect(margin + 20, startY, 200, controlHeight);
     if (IsPointInRect(x, y, fontDropdownRect))
     {
       data->hoveredWidget = 8;
-      if (!data->fontDropdownOpen)
-      {
-        return;
-      }
+      if (!data->fontDropdownOpen) return;
     }
 
     if (data->fontDropdownOpen)
@@ -907,71 +949,35 @@ void UpdateHoverState(OptionsDialogData* data, int x, int y, int windowWidth, in
       for (size_t i = 0; i < data->fontSizes.size(); i++)
       {
         int visualIndex = (int)i - data->fontDropdownScrollOffset;
-        if (visualIndex < 0 || visualIndex >= maxVisible)
-          continue;
+        if (visualIndex < 0 || visualIndex >= maxVisible) continue;
 
-        Rect itemRect(
-          margin + 20,
-          fontDropdownItemY + visualIndex * itemHeight + 4,
-          200,
-          itemHeight - 4);
-
-        if (IsPointInRect(x, y, itemRect))
-        {
-          data->hoveredFontDropdownItem = (int)i;
-          return;
-        }
+        Rect itemRect(margin + 20, fontDropdownItemY + visualIndex * itemHeight + 4, 200, itemHeight - 4);
+        if (IsPointInRect(x, y, itemRect)) { data->hoveredFontDropdownItem = (int)i; return; }
       }
     }
 
     NEXT_Y(sectionSpacing);
   }
 
+  startY += controlSpacing;
   NEXT_Y(controlSpacing);
 
-  {
-    Rect r(margin + 20, startY, 16, 16);
-    if (IsPointInRect(x, y, r)) { data->hoveredWidget = 3; return; }
-    NEXT_Y(controlSpacing);
-  }
-
-  {
-    Rect r(margin + 20, startY, 16, 16);
-    if (IsPointInRect(x, y, r)) { data->hoveredWidget = 4; return; }
-  }
+  { Rect r(margin + 20, startY, 16, 16); if (IsPointInRect(x, y, r)) { data->hoveredWidget = 3; return; } NEXT_Y(controlSpacing); }
+  { Rect r(margin + 20, startY, 16, 16); if (IsPointInRect(x, y, r)) { data->hoveredWidget = 4; return; } }
 
   const int buttonWidth = 75;
   const int buttonHeight = 25;
   const int buttonSpacing = 8;
   const int buttonY = windowHeight - margin - buttonHeight - 5;
 
-  Rect okButtonRect(
-    windowWidth - margin - buttonWidth * 2 - buttonSpacing,
-    buttonY,
-    buttonWidth,
-    buttonHeight);
+  Rect okButtonRect(windowWidth - margin - buttonWidth * 2 - buttonSpacing, buttonY, buttonWidth, buttonHeight);
+  if (IsPointInRect(x, y, okButtonRect)) { data->hoveredWidget = 5; return; }
 
-  if (IsPointInRect(x, y, okButtonRect))
-  {
-    data->hoveredWidget = 5;
-    return;
-  }
-
-  Rect cancelButtonRect(
-    windowWidth - margin - buttonWidth,
-    buttonY,
-    buttonWidth,
-    buttonHeight);
-
-  if (IsPointInRect(x, y, cancelButtonRect))
-  {
-    data->hoveredWidget = 6;
-    return;
-  }
+  Rect cancelButtonRect(windowWidth - margin - buttonWidth, buttonY, buttonWidth, buttonHeight);
+  if (IsPointInRect(x, y, cancelButtonRect)) { data->hoveredWidget = 6; return; }
 
 #undef NEXT_Y
 }
-
 void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, int windowHeight)
 {
   if (data->dropdownOpen && data->hoveredDropdownItem >= 0)
@@ -980,6 +986,14 @@ void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, in
     strCopy(data->tempOptions.language, data->languages[data->selectedLanguage]);
     Translations::SetLanguage(data->tempOptions.language);
     data->dropdownOpen = false;
+    return;
+  }
+
+  if (data->fontNameDropdownOpen && data->hoveredFontNameDropdownItem >= 0)
+  {
+    data->selectedFontName = data->hoveredFontNameDropdownItem;
+    strCopy(data->tempOptions.fontName, data->fontNames[data->selectedFontName]);
+    data->fontNameDropdownOpen = false;
     return;
   }
 
@@ -1086,6 +1100,17 @@ void HandleMouseClick(OptionsDialogData* data, int x, int y, int windowWidth, in
 
     if (data->fontDropdownOpen)
       data->dropdownOpen = false;
+    break;
+  case 10:
+    data->fontNameDropdownOpen = !data->fontNameDropdownOpen;
+    if (!data->fontNameDropdownOpen)
+      data->fontNameDropdownScrollOffset = 0;
+
+    if (data->fontNameDropdownOpen)
+    {
+      data->dropdownOpen = false;
+      data->fontDropdownOpen = false;
+    }
     break;
   }
 }
@@ -1329,9 +1354,18 @@ bool OptionsDialog::Show(HWND parent, AppOptions& options)
       break;
     }
   }
+  data.selectedFontName = 0;
+  for (size_t i = 0; i < data.fontNames.size(); i++)
+  {
+    if (strEquals(data.fontNames[i], options.fontName))
+    {
+      data.selectedFontName = (int)i;
+      break;
+    }
+  }
 
   int width = 400;
-  int height = 600;
+  int height = 620;
   RECT parentRect;
   GetWindowRect(parent, &parentRect);
   int x = parentRect.left + (parentRect.right - parentRect.left - width) / 2;
@@ -1571,7 +1605,7 @@ bool OptionsDialog::Show(NativeWindow parent, AppOptions &options)
   }
 
   int width = 400;
-  int height = 480;
+  int height = 500;
 
   Window window = XCreateSimpleWindow(display, rootWindow, 100, 100, width, height, 1,
                                       BlackPixel(display, screen), WhitePixel(display, screen));
@@ -1776,7 +1810,7 @@ bool OptionsDialog::Show(NativeWindow parent, AppOptions& options)
       }
     }
 
-    NSRect frame = NSMakeRect(0, 0, 400, 600);
+    NSRect frame = NSMakeRect(0, 0, 400, 620);
     NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable;
 
     NSWindow* window = [[NSWindow alloc]initWithContentRect:frame

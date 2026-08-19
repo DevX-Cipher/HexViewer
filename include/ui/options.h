@@ -14,6 +14,7 @@ struct AppOptions {
   bool contextMenu;
   char language[64];
   int fontSize;
+  char fontName[64];
   char enabledPlugins[10][128];
   int enabledPluginCount;
 
@@ -40,6 +41,7 @@ struct AppOptions {
     autoReload(reload),
     contextMenu(ctx),
     fontSize(14) {
+    strCopy(fontName, "Consolas");
     int i = 0;
     while (lang && lang[i] && i < 63) {
       language[i] = lang[i];
@@ -55,6 +57,7 @@ struct AppOptions {
     autoReload(other.autoReload),
     contextMenu(other.contextMenu),
     fontSize(other.fontSize) {
+    strCopy(fontName, other.fontName);
     for (int i = 0; i < 64; i++) {
       language[i] = other.language[i];
       if (other.language[i] == 0) break;
@@ -69,6 +72,7 @@ struct AppOptions {
       autoReload = other.autoReload;
       contextMenu = other.contextMenu;
       fontSize = other.fontSize;
+      strCopy(fontName, other.fontName);
 
       for (int i = 0; i < 64; i++) {
         language[i] = other.language[i];
@@ -136,6 +140,12 @@ struct OptionsDialogData {
   int fontDropdownScrollOffset;
   bool fontDropdownOpen;
 
+  Vector<char*> fontNames;
+  int selectedFontName;
+  int hoveredFontNameDropdownItem;
+  int fontNameDropdownScrollOffset;
+  bool fontNameDropdownOpen;
+
 #ifdef __linux__
   Display* display;
   Atom wmDeleteWindow;
@@ -156,7 +166,9 @@ struct OptionsDialogData {
     dropdownOpen(false), hoveredDropdownItem(-1), selectedLanguage(0),
     dropdownScrollOffset(0),
     selectedFontSize(5), hoveredFontDropdownItem(-1),
-    fontDropdownScrollOffset(0), fontDropdownOpen(false)
+    fontDropdownScrollOffset(0), fontDropdownOpen(false),
+    selectedFontName(0), hoveredFontNameDropdownItem(-1),
+    fontNameDropdownScrollOffset(0), fontNameDropdownOpen(false)
   {
 #ifdef __linux__
     display = nullptr;
@@ -183,6 +195,17 @@ struct OptionsDialogData {
       strCopy(s, fontList[i]);
       fontSizes.Add(s);
     }
+
+    const char* fontNameList[] = {
+      "Consolas", "Courier New", "Lucida Console", "Monaco",
+      "Cascadia Code", "Fira Code", "JetBrains Mono", "Source Code Pro"
+    };
+    for (int i = 0; i < 8; i++) {
+      size_t len = strLen(fontNameList[i]);
+      char* s = (char*)platformAlloc(len + 1);
+      strCopy(s, fontNameList[i]);
+      fontNames.Add(s);
+    }
   }
 
   ~OptionsDialogData() {
@@ -191,9 +214,9 @@ struct OptionsDialogData {
         platformFree(languages[i], strLen(languages[i]) + 1);
       }
     }
-    for (size_t i = 0; i < fontSizes.size(); i++) {
-      if (fontSizes[i]) {
-        platformFree(fontSizes[i], strLen(fontSizes[i]) + 1);
+    for (size_t i = 0; i < fontNames.size(); i++) {
+      if (fontNames[i]) {
+        platformFree(fontNames[i], strLen(fontNames[i]) + 1);
       }
     }
   }

@@ -1,4 +1,7 @@
 #include "die_database.h"
+#include "panelcontent.h"
+#define DIE_STATIC
+#include "die.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,6 +15,49 @@
 
 DIEDatabaseManager g_DIEDatabase;
 
+extern DetectItEasyState g_DIEState;
+extern char g_CurrentFilePath[];
+extern char g_DIEExecutablePath[];
+
+#ifdef _WIN32
+static void DebugListDbDirectory(const char* dir)
+{
+  char search[512];
+  strCopy(search, dir);
+  strCat(search, "\\*");
+
+  char listing[2048] = { 0 };
+  strCopy(listing, "Contents of ");
+  strCat(listing, dir);
+  strCat(listing, ":\n\n");
+
+  WIN32_FIND_DATAA fd;
+  HANDLE hFind = FindFirstFileA(search, &fd);
+  if (hFind != INVALID_HANDLE_VALUE)
+  {
+    do {
+      if (strEquals(fd.cFileName, ".") || strEquals(fd.cFileName, ".."))
+        continue;
+      strCat(listing, (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? "[DIR] " : "      ");
+      strCat(listing, fd.cFileName);
+      strCat(listing, "\n");
+    } while (FindNextFileA(hFind, &fd));
+    FindClose(hFind);
+  }
+  else
+  {
+    strCat(listing, "(directory not found or empty)");
+  }
+
+  MessageBoxA(nullptr, listing, "DIE DB Directory Contents", MB_OK);
+}
+#else
+static void DebugListDbDirectory(const char* dir)
+{
+  fprintf(stderr, "[DIE] Contents of %s:\n", dir);
+  system((std::string("ls -la '") + dir + "' 1>&2").c_str());
+}
+#endif
 
 #ifdef _WIN32
 bool DIEDatabaseManager::DownloadFile(const char* url, const char* destPath)
@@ -131,6 +177,7 @@ DIEDatabaseManager::DIEDatabaseManager()
   machDb.loaded = false;
 
   dbDirectory[0] = '\0';
+  dbLoadedForScan = false;
 }
 
 DIEDatabaseManager::~DIEDatabaseManager()
@@ -434,68 +481,136 @@ bool DIEDatabaseManager::MatchSignature(const uint8_t* data, size_t dataSize, co
 bool DIEDatabaseManager::AnalyzeFile(const uint8_t* data, size_t dataSize,
   char* outType, char* outCompiler, char* outArch)
 {
-  if (!data || dataSize < 4)
+  if (g_CurrentFilePath[0] == '\0')
     return false;
 
-  if (data[0] == 0x4D && data[1] == 0x5A)
+  if (!dbLoadedForScan)
   {
-    strCopy(outType, "PE Executable");
+    int nLoadResult = DIE_LoadDatabaseA(dbDirectory);
+    dbLoadedForScan = true;
+  }
 
-    if (dataSize > 0x3C + 4)
+  unsigned int flags =
+    DIE_DEEPSCAN |
+    DIE_HEURISTICSCAN |
+    DIE_AGGRESSIVESCAN |
+    DIE_VERBOSE |
+    DIE_ALLTYPESSCAN;
+
+
+  char* output = DIE_ScanFileExA(g_CurrentFilePath, flags);
+
+  if (!output || output[0] == '\0')
+  {
+    if (output)
+      DIE_FreeMemoryA(output);
+    return false;
+  }
+
+  g_DIEState.resultCount = 0;
+  g_DIEState.analyzed = false;
+
+  outType[0] = '\0';
+  outCompiler[0] = '\0';
+  outArch[0] = '\0';
+
+  char* line = output;
+  while (*line)
+  {
+    while (*line == '\n' || *line == '\r')
+      line++;
+
+    if (!*line)
+      break;
+
+    char* lineEnd = line;
+    while (*lineEnd && *lineEnd != '\n' && *lineEnd != '\r')
+      lineEnd++;
+
+    char savedChar = *lineEnd;
+    *lineEnd = '\0';
+
+    char* trimmed = line;
+    while (*trimmed == ' ' || *trimmed == '\t')
+      trimmed++;
+
+    bool isHeur = false;
+    char* typeStart = trimmed;
+    if (trimmed[0] == '(')
     {
-      uint32_t peOffset = *(uint32_t*)(data + 0x3C);
-      if (peOffset < dataSize - 4 &&
-        data[peOffset] == 'P' && data[peOffset + 1] == 'E')
+      isHeur = true;
+      while (*typeStart && *typeStart != ')')
+        typeStart++;
+      if (*typeStart == ')')
+        typeStart++;
+    }
+
+    char* colon = typeStart;
+    while (*colon && *colon != ':')
+      colon++;
+
+    if (*colon == ':')
+    {
+      char typeField[64] = { 0 };
+      int typeLen = (int)(colon - typeStart);
+      if (typeLen > 63) typeLen = 63;
+      for (int i = 0; i < typeLen; i++)
+        typeField[i] = typeStart[i];
+      typeField[typeLen] = '\0';
+
+      int tl = (int)strLen(typeField) - 1;
+      while (tl >= 0 && typeField[tl] == ' ')
+        typeField[tl--] = '\0';
+
+      const char* value = colon + 1;
+      while (*value == ' ')
+        value++;
+
+      char valueBuf[256] = { 0 };
+      int vi = 0;
+      while (value[vi] && value[vi] != '[' && vi < 255)
       {
-        strCopy(outCompiler, "Microsoft Visual C++");
-        strCopy(outArch, "x86");
-        return true;
+        valueBuf[vi] = value[vi];
+        vi++;
+      }
+      while (vi > 0 && valueBuf[vi - 1] == ' ')
+        vi--;
+      valueBuf[vi] = '\0';
+      value = valueBuf;
+
+      const char* category = nullptr;
+
+      if (strEquals(typeField, "Protector"))
+        category = "Protector";
+      else if (strEquals(typeField, "Packer"))
+        category = "Packer";
+      else if (strEquals(typeField, "Protection"))
+        category = "Protection";
+      else if (strEquals(typeField, "Language"))
+        category = "Language";
+      else if (strEquals(typeField, "Compiler"))
+        category = "Compiler";
+      else if (strEquals(typeField, "Library"))
+        category = "Library";
+
+      if (category && g_DIEState.resultCount < 32)
+      {
+        int idx = g_DIEState.resultCount++;
+        strCopy(g_DIEState.results[idx].category, isHeur ? "(H) " : "");
+        strCat(g_DIEState.results[idx].category, category);
+        strCopy(g_DIEState.results[idx].value, value);
       }
     }
-  }
-  else if (data[0] == 0x7F && data[1] == 'E' && data[2] == 'L' && data[3] == 'F')
-  {
-    strCopy(outType, "ELF Executable");
-    strCopy(outCompiler, "GCC");
 
-    if (dataSize > 4)
-    {
-      if (data[4] == 1)
-        strCopy(outArch, "x86");
-      else if (data[4] == 2)
-        strCopy(outArch, "x86-64");
-      else
-        strCopy(outArch, "Unknown");
-    }
-    return true;
-  }
-  else if (data[0] == 0xCF && data[1] == 0xFA && data[2] == 0xED && data[3] == 0xFE)
-  {
-    strCopy(outType, "Mach-O Executable");
-    strCopy(outCompiler, "Clang/LLVM");
-    strCopy(outArch, "x86-64");
-    return true;
-  }
-  else if (data[0] == 0x89 && data[1] == 'P' && data[2] == 'N' && data[3] == 'G')
-  {
-    strCopy(outType, "PNG Image");
-    strCopy(outCompiler, "N/A");
-    strCopy(outArch, "N/A");
-    return true;
-  }
-  else if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
-  {
-    strCopy(outType, "JPEG Image");
-    strCopy(outCompiler, "N/A");
-    strCopy(outArch, "N/A");
-    return true;
+    *lineEnd = savedChar;
+    line = lineEnd;
   }
 
-  strCopy(outType, "Unknown");
-  strCopy(outCompiler, "Unknown");
-  strCopy(outArch, "Unknown");
+  g_DIEState.analyzed = (g_DIEState.resultCount > 0);
 
-  return false;
+  DIE_FreeMemoryA(output);
+
+  return g_DIEState.analyzed;
 }
 
 bool InitializeDIEDatabase(const char* dieExecutablePath)

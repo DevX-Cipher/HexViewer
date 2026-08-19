@@ -311,11 +311,11 @@ void HexData::cleanupCapstone()
 {
 }
 
-void HexData::setArchitecture(int /*arch*/, int /*mode*/)
+void HexData::setArchitecture(int
 {
 }
 
-void HexData::disassembleInstruction(size_t /*offset*/,
+void HexData::disassembleInstruction(size_t
                                      int &instructionLength,
                                      SimpleString &outInstr)
 {

@@ -39,6 +39,7 @@ void OnFileSaveAs();
 void LinuxRedraw();
 void RebuildFileMenu();
 void OpenRecentFile(int index);
+void DIE_Analyze();
 
 #if defined(_WIN32)
 
@@ -391,6 +392,7 @@ void OnFileOpen()
 			RebuildFileMenu();
 
 			ApplyEnabledPlugins();
+			DIE_Analyze();
 
 			g_TotalLines = (int)g_HexData.getHexLines().count;
 			g_ScrollY = 0;
@@ -756,6 +758,7 @@ void OpenRecentFile(int index)
 		RebuildFileMenu();
 
 		ApplyEnabledPlugins();
+		DIE_Analyze();
 
 		g_TotalLines = (int)g_HexData.getHexLines().count;
 		g_ScrollY = 0;
@@ -2566,7 +2569,7 @@ void LoadDroppedFile(const char* path)
 		SaveOptionsToFile(g_Options);
 		RebuildFileMenu();
 		ApplyEnabledPlugins();
-
+		DIE_Analyze();
 		g_TotalLines = (int)g_HexData.getHexLines().count;
 		g_ScrollY = 0;
 	}
@@ -2689,6 +2692,7 @@ extern "C" void entry()
 		{
 			CopyString(g_CurrentFilePath, filename, MAX_PATH_LEN);
 			ApplyEnabledPlugins();
+			DIE_Analyze();
 
 			g_TotalLines = (int)g_HexData.getHexLines().count;
 		}
@@ -3901,7 +3905,7 @@ void HandleXdndPosition(XClientMessageEvent* xclient)
 	status.message_type = g_XdndStatus;
 	status.format = 32;
 	status.data.l[0] = g_window;
-	status.data.l[1] = 1; // accept
+	status.data.l[1] = 1;
 	status.data.l[2] = 0;
 	status.data.l[3] = 0;
 	status.data.l[4] = g_XdndActionCopy;
