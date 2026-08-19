@@ -1043,6 +1043,32 @@ void OnAbout() {}
 void OnDocumentation() {}
 #endif
 
+void LoadDroppedFile(const char* path)
+{
+	if (g_HexData.loadFile(path))
+	{
+		strCopy(g_CurrentFilePath, path);
+		AddToRecentFiles(path);
+		SaveOptionsToFile(g_Options);
+		RebuildFileMenu();
+		ApplyEnabledPlugins();
+		DIE_Analyze();
+		g_TotalLines = (int)g_HexData.getHexLines().count;
+		g_ScrollY = 0;
+
+#if defined(_WIN32)
+		InvalidateRect(g_Hwnd, NULL, FALSE);
+#elif defined(__APPLE__)
+		if (g_Hwnd) {
+			NSWindow* window = (__bridge NSWindow*)g_Hwnd;
+			[[window contentView]setNeedsDisplay:YES];
+		}
+#else
+		LinuxRedraw();
+#endif
+	}
+}
+
 #if defined(_WIN32)
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -2560,20 +2586,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProcA(hwnd, msg, wParam, lParam);
 }
 
-void LoadDroppedFile(const char* path)
-{
-	if (g_HexData.loadFile(path))
-	{
-		strCopy(g_CurrentFilePath, path);
-		AddToRecentFiles(path);
-		SaveOptionsToFile(g_Options);
-		RebuildFileMenu();
-		ApplyEnabledPlugins();
-		DIE_Analyze();
-		g_TotalLines = (int)g_HexData.getHexLines().count;
-		g_ScrollY = 0;
-	}
-}
+
 
 void InitializeDIESystem()
 {
@@ -3872,21 +3885,6 @@ Atom g_XdndSelection;
 Atom g_XdndActionCopy;
 Atom g_XdndTypeList;
 Window g_XdndSourceWindow = 0;
-
-void LoadDroppedFile(const char* path)
-{
-	if (g_HexData.loadFile(path))
-	{
-		strCopy(g_CurrentFilePath, path);
-		AddToRecentFiles(path);
-		SaveOptionsToFile(g_Options);
-		RebuildFileMenu();
-		ApplyEnabledPlugins();
-
-		g_TotalLines = (int)g_HexData.getHexLines().count;
-		g_ScrollY = 0;
-	}
-}
 
 void HandleXdndEnter(XClientMessageEvent* xclient)
 {

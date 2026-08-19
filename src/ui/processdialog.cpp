@@ -1516,9 +1516,9 @@ bool ProcessHasVisibleWindow(int pid)
     return false;
 
   bool hasWindow = false;
-  Cfindex count = CFArrayGetCount(windowList);
+  CFIndex count = CFArrayGetCount(windowList);
 
-  for (Cfindex i = 0; i < count; i++)
+  for (CFIndex  i = 0; i < count; i++)
   {
     CFDictionaryRef windowInfo = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
 

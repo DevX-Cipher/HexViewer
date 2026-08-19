@@ -151,37 +151,31 @@ void DIEDownloadDialog::ProgressCallback(const char* message, int percent)
     printf("%s (%d%%)\n", message, percent);
 }
 
-bool DIEDownloadDialog::Show(NativeWindow parent, bool darkMode)
+bool DIEDownloadDialog::Show(NSWindow* parent, bool darkMode)
 {
-    @autoreleasepool
-    {
-        NSAlert* alert = [[NSAlert alloc] init];
-        [alert setMessageText:@"Download DIE Databases"];
-        [alert setInformativeText:@"Downloading file detection databases. This may take a moment..."];
-        [alert setAlertStyle:NSAlertStyleInformational];
-        
-        
-        bool success = DownloadDIEDatabases(ProgressCallback);
-        
-        if (success)
-        {
-            NSAlert* successAlert = [[NSAlert alloc] init];
-            [successAlert setMessageText:@"Download Complete"];
-            [successAlert setInformativeText:@"DIE databases downloaded successfully!"];
-            [successAlert setAlertStyle:NSAlertStyleInformational];
-            [successAlert runModal];
-        }
-        else
-        {
-            NSAlert* failAlert = [[NSAlert alloc] init];
-            [failAlert setMessageText:@"Download Failed"];
-            [failAlert setInformativeText:@"Failed to download DIE databases."];
-            [failAlert setAlertStyle:NSAlertStyleWarning];
-            [failAlert runModal];
-        }
-        
-        return success;
-    }
+  @autoreleasepool
+  {
+      bool success = DownloadDIEDatabases(ProgressCallback);
+
+      if (success)
+      {
+          NSAlert* successAlert = [[NSAlert alloc]init];
+          [successAlert setMessageText:@"Download Complete"] ;
+          [successAlert setInformativeText:@"DIE databases downloaded successfully!"] ;
+          [successAlert setAlertStyle:NSAlertStyleInformational] ;
+          [successAlert runModal] ;
+      }
+      else
+      {
+          NSAlert* failAlert = [[NSAlert alloc]init];
+          [failAlert setMessageText:@"Download Failed"] ;
+          [failAlert setInformativeText:@"Failed to download DIE databases."] ;
+          [failAlert setAlertStyle:NSAlertStyleWarning] ;
+          [failAlert runModal] ;
+      }
+
+      return success;
+  }
 }
 
 #else
