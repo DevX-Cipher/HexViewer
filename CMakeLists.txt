@@ -138,7 +138,7 @@ elseif(APPLE)
     )
 
 else() # Linux
-    target_link_libraries(HexViewer PRIVATE X11 pthread dl curl)
+    target_link_libraries(HexViewer PRIVATE X11 pthread dl curl die_static)
 endif()
 
 if (UNIX AND NOT APPLE)
