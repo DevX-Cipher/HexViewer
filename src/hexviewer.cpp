@@ -2991,7 +2991,7 @@ extern "C" void entry()
 {
 	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
 	int x = (int)location.x;
-	int y = (int)location.y;
+	int y = (int)([self bounds].size.height - location.y);
 
 	NSRect bounds = [self bounds];
 	int windowWidth = (int)bounds.size.width;
@@ -3191,7 +3191,7 @@ extern "C" void entry()
 {
 	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
 	int x = (int)location.x;
-	int y = (int)location.y;
+	int y = (int)([self bounds].size.height - location.y);
 
 	if (g_Selection.dragging)
 	{
@@ -3251,7 +3251,7 @@ extern "C" void entry()
 {
 	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
 	int x = (int)location.x;
-	int y = (int)location.y;
+	int y = (int)([self bounds].size.height - location.y);
 
 	g_ContextMenu.show(x, y);
 	[self setNeedsDisplay:YES] ;
@@ -3261,7 +3261,7 @@ extern "C" void entry()
 {
 	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
 	int x = (int)location.x;
-	int y = (int)location.y;
+	int y = (int)([self bounds].size.height - location.y);
 
 	NSRect bounds = [self bounds];
 	int windowWidth = (int)bounds.size.width;
@@ -3490,7 +3490,7 @@ extern "C" void entry()
 {
 	NSPoint location = [self convertPoint:[event locationInWindow] fromView : nil];
 	int x = (int)location.x;
-	int y = (int)location.y;
+	int y = (int)([self bounds].size.height - location.y);
 
 	if (g_ContextMenu.isVisible())
 	{

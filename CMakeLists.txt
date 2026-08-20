@@ -134,6 +134,7 @@ elseif(APPLE)
         ${CORETEXT_FRAMEWORK}
         ${COREGRAPHICS_FRAMEWORK}
         curl
+		die_static
     )
 
 else() # Linux

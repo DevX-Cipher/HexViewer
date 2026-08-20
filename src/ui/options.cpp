@@ -1682,6 +1682,8 @@ bool OptionsDialog::Show(NativeWindow parent, AppOptions &options)
 
   NSGraphicsContext* nsContext = [NSGraphicsContext currentContext];
   CGContextRef ctx = (CGContextRef)[nsContext CGContext];
+  CGContextTranslateCTM(ctx, 0, [self bounds].size.height);
+  CGContextScaleCTM(ctx, 1.0, -1.0);
 
   NSRect bounds = [self bounds];
 
