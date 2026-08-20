@@ -107,8 +107,6 @@ struct DetectItEasyState {
   int measuredMaxValueWidth;
 };
 
-
-
 extern PatternSearchState g_PatternSearch;
 extern ChecksumState      g_Checksum;
 extern CompareState       g_Compare;
