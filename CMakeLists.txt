@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 set(DIE_BUILD_STATIC ON CACHE BOOL "" FORCE)
 set(DIE_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-add_subdirectory(cdie)
+add_subdirectory(CDiE)
 
 if (MSVC)
     project(HexViewer LANGUAGES CXX RC)
