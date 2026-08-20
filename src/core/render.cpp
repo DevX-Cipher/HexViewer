@@ -446,7 +446,17 @@ void RenderManager::drawRect(const Rect &rect, const Color &color, bool filled)
     }
   }
 #else
-  XSetForeground(display, gc, (color.r << 16) | (color.g << 8) | color.b);
+  Color blended = color;
+  if (color.a < 255)
+  {
+    const Color& bg = currentTheme.windowBackground;
+    float a = color.a / 255.0f;
+    blended.r = (uint8_t)(color.r * a + bg.r * (1.0f - a));
+    blended.g = (uint8_t)(color.g * a + bg.g * (1.0f - a));
+    blended.b = (uint8_t)(color.b * a + bg.b * (1.0f - a));
+  }
+
+  XSetForeground(display, gc, (blended.r << 16) | (blended.g << 8) | blended.b);
   if (filled)
   {
     XFillRectangle(display, backBuffer, gc, rect.x, rect.y, rect.width, rect.height);
@@ -484,7 +494,17 @@ void RenderManager::drawLine(int x1, int y1, int x2, int y2, const Color &color)
     CGContextStrokePath(ctx);
   }
 #else
-  XSetForeground(display, gc, (color.r << 16) | (color.g << 8) | color.b);
+  Color blended = color;
+  if (color.a < 255)
+  {
+    const Color& bg = currentTheme.windowBackground;
+    float a = color.a / 255.0f;
+    blended.r = (uint8_t)(color.r * a + bg.r * (1.0f - a));
+    blended.g = (uint8_t)(color.g * a + bg.g * (1.0f - a));
+    blended.b = (uint8_t)(color.b * a + bg.b * (1.0f - a));
+  }
+
+  XSetForeground(display, gc, (blended.r << 16) | (blended.g << 8) | blended.b);
   XDrawLine(display, backBuffer, gc, x1, y1, x2, y2);
 #endif
 }
