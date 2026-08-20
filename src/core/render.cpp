@@ -79,6 +79,7 @@ bool RenderManager::initialize(NativeWindow win)
 
 #elif __APPLE__
   window = win;
+  createFont();
 
   return true;
 
